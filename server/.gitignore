@@ -1,0 +1,8 @@
+node_modules
+# 환경 변수 (OPENAI_API_KEY 포함) — 커밋하지 않음
+.env
+# Prisma 생성 코드
+/src/generated
+# 로컬 Postgres 데이터, 저장 음성
+/.pgdata
+/storage

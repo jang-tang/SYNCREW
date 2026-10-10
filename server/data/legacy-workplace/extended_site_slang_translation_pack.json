@@ -1,0 +1,2203 @@
+{
+  "name": "extended_site_slang_translation_pack",
+  "version": "0.2.0",
+  "generated_at": "2026-06-21T06:00:59.697Z",
+  "status": "seed_needs_field_review",
+  "sources": [
+    {
+      "title": "EPS Employment Permit System official page",
+      "url": "https://www.eps.go.kr/eo/EmployPerSystem.eo?tabGb=01",
+      "note": "Used for workplace-domain scope: construction, manufacturing, logistics, agriculture, fisheries, waste, service expansion."
+    },
+    {
+      "title": "Occupational Safety and Health Standards Rules",
+      "url": "https://www.law.go.kr/법령/산업안전보건기준에관한규칙",
+      "note": "Used for safety context around fall prevention, machine guarding, electricity, lifting, fire, chemicals, and confined spaces."
+    },
+    {
+      "title": "Field terminology seed",
+      "url": "local-field-review-needed",
+      "note": "Japanese-derived and informal Korean workplace terms are highly regional. This dataset is a seed for ASR/glossary correction and requires field/native review before safety-critical deployment."
+    }
+  ],
+  "counts": {
+    "terms": 50,
+    "scenarios": 48
+  },
+  "glossary_policy": [
+    "Normalize variants and ASR corrections to canonical_ko before translation.",
+    "Translate the normalized meaning, not the slang pronunciation.",
+    "For low-confidence terms, display an admin review flag and allow field-specific override.",
+    "For critical/high risk phrases, preserve the safety action and avoid euphemistic translation."
+  ],
+  "terms": [
+    {
+      "id": "SL001",
+      "canonical_ko": "데스라",
+      "variants_ko": [
+        "데스라",
+        "데스리",
+        "데쓰리",
+        "데스리 난간"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "난간, 손잡이, 추락을 막는 가드레일을 뜻하는 현장 은어로 추정됩니다.",
+      "translate_as_ko": "난간 또는 가드레일",
+      "translations": {
+        "vi": "lan can hoặc thanh chắn an toàn",
+        "th": "ราวกันตกหรือราวจับนิรภัย",
+        "id": "pagar pengaman atau pegangan tangan",
+        "ne": "सुरक्षा रेलिङ वा समात्ने रेल",
+        "km": "របាំងសុវត្ថិភាព ឬ ដៃចាប់"
+      },
+      "asr_corrections": [
+        "대수라",
+        "데쓰라",
+        "데스 리"
+      ],
+      "translation_rule": "Do not transliterate. In fall-prevention context, translate as guardrail.",
+      "confidence": "medium_low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL002",
+      "canonical_ko": "스미마끼",
+      "variants_ko": [
+        "스미마끼",
+        "스미마키",
+        "스미다시",
+        "스미내기",
+        "먹매김",
+        "먹줄"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "시공 위치를 표시하기 위해 바닥이나 벽에 먹줄/선을 치는 작업입니다.",
+      "translate_as_ko": "먹매김 또는 기준선 표시",
+      "translations": {
+        "vi": "đánh dấu đường mực/đường chuẩn thi công",
+        "th": "ตีเส้นกำหนดแนวงานก่อสร้าง",
+        "id": "menandai garis acuan pekerjaan",
+        "ne": "कामको आधार रेखा चिन्ह लगाउने",
+        "km": "គូសខ្សែសម្គាល់ខ្សែមូលដ្ឋានការងារ"
+      },
+      "asr_corrections": [
+        "수미마끼",
+        "스미 막기",
+        "스미마키"
+      ],
+      "translation_rule": "Translate as layout marking/chalk line marking.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL003",
+      "canonical_ko": "나라시",
+      "variants_ko": [
+        "나라시",
+        "나라시 작업",
+        "면 고르기",
+        "평탄화",
+        "레벨링"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "바닥, 콘크리트, 흙, 자재 표면 등을 평평하게 고르는 작업입니다.",
+      "translate_as_ko": "평탄화 또는 면 고르기",
+      "translations": {
+        "vi": "san phẳng hoặc làm phẳng bề mặt",
+        "th": "ปรับระดับหรือเกลี่ยพื้นผิวให้เรียบ",
+        "id": "meratakan atau menghaluskan permukaan",
+        "ne": "सतह सम्याउने वा लेभल मिलाउने",
+        "km": "កែសម្រួលកម្រិត ឬ ធ្វើឱ្យផ្ទៃរាបស្មើ"
+      },
+      "asr_corrections": [
+        "나라시해",
+        "나라 시",
+        "나라씨"
+      ],
+      "translation_rule": "Translate by task: leveling/smoothing. Adapt to concrete, soil, or product-surface context.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL004",
+      "canonical_ko": "바라시",
+      "variants_ko": [
+        "바라시",
+        "바라시하다",
+        "해체",
+        "뜯어내기"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "거푸집, 비계, 설비, 포장 등을 해체하거나 뜯어내는 작업입니다.",
+      "translate_as_ko": "해체 또는 제거",
+      "translations": {
+        "vi": "tháo dỡ hoặc tháo ra",
+        "th": "รื้อถอนหรือถอดออก",
+        "id": "membongkar atau melepas",
+        "ne": "खोल्ने वा हटाउने",
+        "km": "រុះរើ ឬ ដោះចេញ"
+      },
+      "asr_corrections": [
+        "바라시 해",
+        "바라시해"
+      ],
+      "translation_rule": "Translate as dismantle/remove, not as scatter.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL005",
+      "canonical_ko": "하스리",
+      "variants_ko": [
+        "하스리",
+        "하쓰리",
+        "치핑",
+        "까내기",
+        "할석"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "콘크리트나 벽면을 깨거나 까내는 작업입니다.",
+      "translate_as_ko": "콘크리트 깨기 또는 표면 까내기",
+      "translations": {
+        "vi": "đục phá bê tông hoặc đục bề mặt",
+        "th": "สกัดคอนกรีตหรือกะเทาะผิว",
+        "id": "memahat/membobok beton atau permukaan",
+        "ne": "कंक्रिट फोड्ने वा सतह काट्ने",
+        "km": "កាប់/ច្រេះបេតុង ឬ ផ្ទៃ"
+      },
+      "asr_corrections": [
+        "하스리해",
+        "하쓰리"
+      ],
+      "translation_rule": "Translate as concrete chipping/breaking. Include dust/noise hazard when relevant.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL006",
+      "canonical_ko": "기리바리",
+      "variants_ko": [
+        "기리바리",
+        "기리빠리",
+        "버팀대",
+        "가새",
+        "동바리"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "무너지지 않도록 임시로 받치거나 버티는 부재입니다.",
+      "translate_as_ko": "임시 버팀대 또는 가새",
+      "translations": {
+        "vi": "thanh chống tạm hoặc giằng chống",
+        "th": "ค้ำยันชั่วคราวหรือค้ำเฉียง",
+        "id": "penyangga sementara atau bracing",
+        "ne": "अस्थायी टेको वा ब्रेसिङ",
+        "km": "ទ្រនាប់បណ្តោះអាសន្ន ឬ ឈើទប់"
+      },
+      "asr_corrections": [
+        "기리 바리",
+        "기리빠리"
+      ],
+      "translation_rule": "Translate as temporary bracing/support. If structural safety context, preserve support/fall-collapse meaning.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL007",
+      "canonical_ko": "아시바",
+      "variants_ko": [
+        "아시바",
+        "아시바 비계",
+        "비계"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "critical",
+      "plain_ko": "높은 곳 작업을 위한 임시 구조물인 비계를 뜻하는 은어입니다.",
+      "translate_as_ko": "비계",
+      "translations": {
+        "vi": "giàn giáo",
+        "th": "นั่งร้าน",
+        "id": "perancah",
+        "ne": "स्क्याफोल्डिङ",
+        "km": "រន្ទា"
+      },
+      "asr_corrections": [
+        "아시봐",
+        "아시바"
+      ],
+      "translation_rule": "Translate as scaffold/scaffolding, never as a place name.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL008",
+      "canonical_ko": "오야지",
+      "variants_ko": [
+        "오야지",
+        "오야",
+        "반장",
+        "현장반장"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "현장 책임자나 반장을 가리키는 비공식 표현입니다.",
+      "translate_as_ko": "현장 반장 또는 책임자",
+      "translations": {
+        "vi": "tổ trưởng hoặc người phụ trách hiện trường",
+        "th": "หัวหน้างานหรือผู้รับผิดชอบหน้างาน",
+        "id": "mandor atau penanggung jawab lapangan",
+        "ne": "साइट फोरम्यान वा जिम्मेवार व्यक्ति",
+        "km": "មេការ ឬ អ្នកទទួលខុសត្រូវការដ្ឋាន"
+      },
+      "asr_corrections": [
+        "오야지한테",
+        "오야한테"
+      ],
+      "translation_rule": "Translate neutrally as supervisor/foreman. Avoid slang tone in target language.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL009",
+      "canonical_ko": "데모도",
+      "variants_ko": [
+        "데모도",
+        "조공",
+        "보조공",
+        "보조"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "기술자를 보조하는 보조 작업자를 뜻하는 표현입니다.",
+      "translate_as_ko": "보조 작업자",
+      "translations": {
+        "vi": "thợ phụ hoặc người hỗ trợ",
+        "th": "ผู้ช่วยงาน",
+        "id": "pekerja pembantu",
+        "ne": "सहायक कामदार",
+        "km": "កម្មករជំនួយ"
+      },
+      "asr_corrections": [
+        "대모도",
+        "데모도"
+      ],
+      "translation_rule": "Translate as helper/assistant worker. Avoid demeaning wording.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL010",
+      "canonical_ko": "곰방",
+      "variants_ko": [
+        "곰방",
+        "곰방 작업",
+        "인력운반",
+        "손운반"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "자재나 짐을 사람이 직접 들고 옮기는 작업입니다.",
+      "translate_as_ko": "인력 운반",
+      "translations": {
+        "vi": "vận chuyển thủ công bằng người",
+        "th": "ขนย้ายด้วยแรงคน",
+        "id": "pengangkutan manual",
+        "ne": "मान्छेले बोकेर सार्ने काम",
+        "km": "ដឹកជញ្ជូនដោយកម្លាំងមនុស្ស"
+      },
+      "asr_corrections": [
+        "곰방해",
+        "곰 방"
+      ],
+      "translation_rule": "Translate as manual carrying/handling. Include heavy-load warning if weight is mentioned.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL011",
+      "canonical_ko": "단도리",
+      "variants_ko": [
+        "단도리",
+        "단도리하다",
+        "준비",
+        "작업준비"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "작업을 시작하기 전에 필요한 준비와 정리를 하는 것입니다.",
+      "translate_as_ko": "작업 준비",
+      "translations": {
+        "vi": "chuẩn bị công việc",
+        "th": "เตรียมงาน",
+        "id": "persiapan kerja",
+        "ne": "कामको तयारी",
+        "km": "ការរៀបចំការងារ"
+      },
+      "asr_corrections": [
+        "단돌이",
+        "단도리 해"
+      ],
+      "translation_rule": "Translate as preparation/setup, not as command to hurry.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL012",
+      "canonical_ko": "시마이",
+      "variants_ko": [
+        "시마이",
+        "시마이하다",
+        "마감",
+        "끝내기"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "작업을 끝내거나 마감하는 것을 뜻하는 표현입니다.",
+      "translate_as_ko": "작업 종료 또는 마감",
+      "translations": {
+        "vi": "kết thúc hoặc hoàn thiện công việc",
+        "th": "จบงานหรือเก็บงาน",
+        "id": "menyelesaikan/menutup pekerjaan",
+        "ne": "काम सक्ने वा अन्तिम मिलाउने",
+        "km": "បញ្ចប់ ឬ បិទការងារ"
+      },
+      "asr_corrections": [
+        "시마이해",
+        "시마이 치자"
+      ],
+      "translation_rule": "Translate as finish/close out work. In finishing-trade context, use finish work.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL013",
+      "canonical_ko": "유도리",
+      "variants_ko": [
+        "유도리",
+        "여유",
+        "허용오차"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "작업 치수나 일정에서 약간의 여유를 뜻하는 표현입니다.",
+      "translate_as_ko": "여유 또는 허용오차",
+      "translations": {
+        "vi": "khoảng dư hoặc dung sai",
+        "th": "ระยะเผื่อหรือค่าคลาดเคลื่อนที่ยอมรับได้",
+        "id": "kelonggaran atau toleransi",
+        "ne": "छुट वा सहनशीलता",
+        "km": "ចន្លោះបន្ថែម ឬ កម្រិតអនុញ្ញាត"
+      },
+      "asr_corrections": [
+        "유도리 있게"
+      ],
+      "translation_rule": "Translate as tolerance/allowance in technical context, flexibility in schedule context.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL014",
+      "canonical_ko": "구루마",
+      "variants_ko": [
+        "구루마",
+        "손수레",
+        "대차",
+        "카트"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "물건을 싣고 미는 손수레나 대차입니다.",
+      "translate_as_ko": "손수레 또는 대차",
+      "translations": {
+        "vi": "xe đẩy tay hoặc xe đẩy hàng",
+        "th": "รถเข็นหรือรถเข็นของ",
+        "id": "troli atau gerobak dorong",
+        "ne": "ठेलागाडी वा ट्रली",
+        "km": "រទេះរុញ ឬ ត្រូលី"
+      },
+      "asr_corrections": [
+        "구르마",
+        "구루마 끌어"
+      ],
+      "translation_rule": "Translate as handcart/trolley.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL015",
+      "canonical_ko": "빠루",
+      "variants_ko": [
+        "빠루",
+        "바루",
+        "쇠지렛대",
+        "지렛대"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "못을 빼거나 물건을 들어 올리는 쇠지렛대입니다.",
+      "translate_as_ko": "쇠지렛대",
+      "translations": {
+        "vi": "xà beng",
+        "th": "ชะแลง",
+        "id": "linggis",
+        "ne": "फलामे लिभर/क्राउबार",
+        "km": "ដែកគាស់"
+      },
+      "asr_corrections": [
+        "파루",
+        "빠루로"
+      ],
+      "translation_rule": "Translate as crowbar/pry bar. In safety context, warn about pinch/strike hazard.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL016",
+      "canonical_ko": "빠렛트",
+      "variants_ko": [
+        "빠렛트",
+        "파렛트",
+        "팔레트"
+      ],
+      "domain": "logistics_slang",
+      "risk_level": "high",
+      "plain_ko": "화물을 올려 운반하는 받침대입니다.",
+      "translate_as_ko": "팔레트",
+      "translations": {
+        "vi": "pallet",
+        "th": "พาเลท",
+        "id": "palet",
+        "ne": "प्यालेट",
+        "km": "ប៉ាឡែត"
+      },
+      "asr_corrections": [
+        "빠레트",
+        "파레트"
+      ],
+      "translation_rule": "Normalize to pallet before translation.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL017",
+      "canonical_ko": "공구리",
+      "variants_ko": [
+        "공구리",
+        "콘크리트",
+        "레미콘"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "콘크리트를 뜻하는 현장 표현입니다.",
+      "translate_as_ko": "콘크리트",
+      "translations": {
+        "vi": "bê tông",
+        "th": "คอนกรีต",
+        "id": "beton",
+        "ne": "कंक्रिट",
+        "km": "បេតុង"
+      },
+      "asr_corrections": [
+        "공구리쳐",
+        "공구리 타설"
+      ],
+      "translation_rule": "Translate as concrete. If action is pour/place, translate full action as concrete pouring.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL018",
+      "canonical_ko": "메지",
+      "variants_ko": [
+        "메지",
+        "줄눈",
+        "이음새",
+        "틈"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "타일, 블록, 콘크리트 사이의 줄눈이나 이음새입니다.",
+      "translate_as_ko": "줄눈 또는 이음새",
+      "translations": {
+        "vi": "mạch nối hoặc khe nối",
+        "th": "ร่องยาแนวหรือรอยต่อ",
+        "id": "nat atau sambungan",
+        "ne": "जोडाइको खाली ठाउँ/जोइन्ट",
+        "km": "ចន្លោះតភ្ជាប់ ឬ ស្នាមតភ្ជាប់"
+      },
+      "asr_corrections": [
+        "메지 넣어",
+        "메지 파"
+      ],
+      "translation_rule": "Translate as joint/grout joint depending on tile/concrete context.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL019",
+      "canonical_ko": "고바이",
+      "variants_ko": [
+        "고바이",
+        "구배",
+        "물매",
+        "경사"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "물이 흐르도록 만든 바닥이나 배관의 기울기입니다.",
+      "translate_as_ko": "경사 또는 구배",
+      "translations": {
+        "vi": "độ dốc",
+        "th": "ความลาดเอียง",
+        "id": "kemiringan",
+        "ne": "ढलान",
+        "km": "ជម្រាល"
+      },
+      "asr_corrections": [
+        "구바이",
+        "고바이 줘"
+      ],
+      "translation_rule": "Translate as slope/gradient. If drainage context, use drainage slope.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL020",
+      "canonical_ko": "다데",
+      "variants_ko": [
+        "다데",
+        "세로",
+        "수직"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "세로 방향 또는 수직 방향을 뜻하는 현장 표현입니다.",
+      "translate_as_ko": "세로 또는 수직",
+      "translations": {
+        "vi": "chiều dọc hoặc thẳng đứng",
+        "th": "แนวตั้ง",
+        "id": "vertikal",
+        "ne": "ठाडो दिशा",
+        "km": "ទិសបញ្ឈរ"
+      },
+      "asr_corrections": [
+        "다대",
+        "다데로"
+      ],
+      "translation_rule": "Translate as vertical direction.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL021",
+      "canonical_ko": "요코",
+      "variants_ko": [
+        "요코",
+        "가로",
+        "수평"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "가로 방향 또는 수평 방향을 뜻하는 현장 표현입니다.",
+      "translate_as_ko": "가로 또는 수평",
+      "translations": {
+        "vi": "chiều ngang hoặc nằm ngang",
+        "th": "แนวนอน",
+        "id": "horizontal",
+        "ne": "तेर्सो दिशा",
+        "km": "ទិសផ្ដេក"
+      },
+      "asr_corrections": [
+        "요꼬",
+        "요코로"
+      ],
+      "translation_rule": "Translate as horizontal direction.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL022",
+      "canonical_ko": "하리",
+      "variants_ko": [
+        "하리",
+        "보",
+        "빔"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "건축 구조에서 하중을 받는 보 또는 빔을 뜻하는 표현입니다.",
+      "translate_as_ko": "보 또는 빔",
+      "translations": {
+        "vi": "dầm",
+        "th": "คาน",
+        "id": "balok struktur",
+        "ne": "बिम",
+        "km": "ធ្នឹម"
+      },
+      "asr_corrections": [
+        "하리 밑",
+        "하리 설치"
+      ],
+      "translation_rule": "Translate as structural beam, not as generic line.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL023",
+      "canonical_ko": "기소",
+      "variants_ko": [
+        "기소",
+        "기초",
+        "기초공사"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "건물이나 설비를 받치는 기초 부분 또는 기초공사입니다.",
+      "translate_as_ko": "기초 또는 기초공사",
+      "translations": {
+        "vi": "móng hoặc công tác móng",
+        "th": "ฐานรากหรืองานฐานราก",
+        "id": "fondasi atau pekerjaan fondasi",
+        "ne": "जग वा जगको काम",
+        "km": "គ្រឹះ ឬ ការងារគ្រឹះ"
+      },
+      "asr_corrections": [
+        "기소 작업"
+      ],
+      "translation_rule": "Translate as foundation/foundation work.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL024",
+      "canonical_ko": "가다",
+      "variants_ko": [
+        "가다",
+        "형틀",
+        "틀",
+        "본"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "모양이나 치수를 맞추기 위한 틀이나 기준본을 뜻하는 표현입니다.",
+      "translate_as_ko": "형틀 또는 기준본",
+      "translations": {
+        "vi": "khuôn mẫu hoặc mẫu chuẩn",
+        "th": "แบบหรือแม่แบบ",
+        "id": "pola/cetakan acuan",
+        "ne": "ढाँचा वा नमूना",
+        "km": "ពុម្ព ឬ គំរូ"
+      },
+      "asr_corrections": [
+        "가다 떠",
+        "가다 잡아"
+      ],
+      "translation_rule": "Translate as template/form depending on context. Mark uncertain if sentence is ambiguous.",
+      "confidence": "medium_low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL025",
+      "canonical_ko": "기스",
+      "variants_ko": [
+        "기스",
+        "스크래치",
+        "긁힘"
+      ],
+      "domain": "quality_slang",
+      "risk_level": "normal",
+      "plain_ko": "제품 표면이 긁힌 자국입니다.",
+      "translate_as_ko": "긁힘",
+      "translations": {
+        "vi": "vết xước",
+        "th": "รอยขีดข่วน",
+        "id": "goresan",
+        "ne": "कोरिएको दाग",
+        "km": "ស្នាមឆ្កូត"
+      },
+      "asr_corrections": [
+        "기스났어",
+        "기스남"
+      ],
+      "translation_rule": "Translate as scratch in quality context.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL026",
+      "canonical_ko": "빵꾸",
+      "variants_ko": [
+        "빵꾸",
+        "구멍",
+        "펑크",
+        "누락"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 구멍, 펑크, 일정/인원 누락을 뜻합니다.",
+      "translate_as_ko": "구멍 또는 누락",
+      "translations": {
+        "vi": "lỗ thủng hoặc thiếu người/thiếu việc",
+        "th": "รูรั่วหรือขาดคน/ขาดงาน",
+        "id": "lubang/bocor atau kekurangan orang",
+        "ne": "प्वाल वा मान्छे/कामको कमी",
+        "km": "រន្ធ ឬ ខ្វះមនុស្ស/ការងារ"
+      },
+      "asr_corrections": [
+        "빵구",
+        "빵꾸났어"
+      ],
+      "translation_rule": "Use context: material=torn/hole, tire=puncture, staffing=schedule gap.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL027",
+      "canonical_ko": "빠꾸",
+      "variants_ko": [
+        "빠꾸",
+        "반품",
+        "되돌림",
+        "후진",
+        "재작업"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 되돌림, 반품, 후진, 재작업을 뜻합니다.",
+      "translate_as_ko": "되돌림 또는 재작업",
+      "translations": {
+        "vi": "trả lại/quay lại hoặc làm lại",
+        "th": "ส่งกลับ/ถอยหลังหรือแก้งาน",
+        "id": "kembali/retur atau kerja ulang",
+        "ne": "फिर्ता वा पुन: काम",
+        "km": "ត្រឡប់វិញ ឬ ធ្វើឡើងវិញ"
+      },
+      "asr_corrections": [
+        "빠꾸해",
+        "빠꾸났어"
+      ],
+      "translation_rule": "Use context: vehicle=reverse, product=return/reject, work=rework.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL028",
+      "canonical_ko": "땜빵",
+      "variants_ko": [
+        "땜빵",
+        "대체투입",
+        "임시대체"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "빈자리를 임시로 메우는 사람이나 작업입니다.",
+      "translate_as_ko": "임시 대체",
+      "translations": {
+        "vi": "người/thao tác thay thế tạm thời",
+        "th": "คนหรือการทำงานแทนชั่วคราว",
+        "id": "pengganti sementara",
+        "ne": "अस्थायी सट्टा/बदली",
+        "km": "អ្នកជំនួសបណ្តោះអាសន្ន"
+      },
+      "asr_corrections": [
+        "땜방",
+        "땜빵쳐"
+      ],
+      "translation_rule": "Translate neutrally as temporary replacement/cover. Avoid slang tone.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL029",
+      "canonical_ko": "야리끼리",
+      "variants_ko": [
+        "야리끼리",
+        "물량 끝내기",
+        "작업량 완료 후 종료"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "정해진 물량을 끝내면 일찍 마치는 방식입니다.",
+      "translate_as_ko": "정해진 작업량 완료 후 종료",
+      "translations": {
+        "vi": "kết thúc sau khi hoàn thành khối lượng đã giao",
+        "th": "เลิกงานเมื่อทำปริมาณงานที่กำหนดเสร็จ",
+        "id": "selesai setelah target pekerjaan selesai",
+        "ne": "तोकिएको काम सकेपछि समाप्त",
+        "km": "បញ្ចប់បន្ទាប់ពីធ្វើបរិមាណការងារបានរួច"
+      },
+      "asr_corrections": [
+        "야리키리",
+        "야리끼리야"
+      ],
+      "translation_rule": "Translate by labor arrangement, not literally.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL030",
+      "canonical_ko": "함바",
+      "variants_ko": [
+        "함바",
+        "현장식당",
+        "식당"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "건설현장이나 작업장 주변 식당입니다.",
+      "translate_as_ko": "현장 식당",
+      "translations": {
+        "vi": "nhà ăn công trường",
+        "th": "โรงอาหารหน้างาน",
+        "id": "kantin lokasi kerja",
+        "ne": "साइट क्यान्टिन",
+        "km": "អាហារដ្ឋានការដ្ឋាន"
+      },
+      "asr_corrections": [
+        "함바집",
+        "함바 가"
+      ],
+      "translation_rule": "Translate as site canteen/cafeteria.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL031",
+      "canonical_ko": "아나방",
+      "variants_ko": [
+        "아나방",
+        "구멍뚫기",
+        "코어작업",
+        "천공"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "벽, 바닥, 콘크리트 등에 구멍을 뚫는 작업을 뜻하는 표현으로 쓰일 수 있습니다.",
+      "translate_as_ko": "천공 또는 코어 작업",
+      "translations": {
+        "vi": "khoan lỗ hoặc khoan rút lõi",
+        "th": "เจาะรูหรือเจาะคอร์",
+        "id": "pengeboran lubang atau coring",
+        "ne": "प्वाल पार्ने वा कोर ड्रिलिङ",
+        "km": "ខួងរន្ធ ឬ ខួងយកក័រ"
+      },
+      "asr_corrections": [
+        "아나바",
+        "아나방 해"
+      ],
+      "translation_rule": "Field meaning varies. Prefer drilling/coring only if context includes holes, wall, slab, pipe opening.",
+      "confidence": "low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL032",
+      "canonical_ko": "메꾸라",
+      "variants_ko": [
+        "메꾸라",
+        "막음",
+        "마개",
+        "블라인드"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "구멍이나 배관 끝을 임시 또는 영구적으로 막는 부품/조치입니다.",
+      "translate_as_ko": "마개 또는 막음",
+      "translations": {
+        "vi": "nút bịt hoặc bịt kín",
+        "th": "จุกปิดหรือการปิดรู",
+        "id": "sumbat atau penutup",
+        "ne": "बन्द गर्ने प्लग वा ढकनी",
+        "km": "គម្របបិទ ឬ ដោតបិទ"
+      },
+      "asr_corrections": [
+        "메꾸라 쳐",
+        "메꾸라캡"
+      ],
+      "translation_rule": "Translate as plug/cap/blanking depending on pipe or hole context.",
+      "confidence": "medium_low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL033",
+      "canonical_ko": "오함마",
+      "variants_ko": [
+        "오함마",
+        "큰 망치",
+        "대형망치"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "콘크리트나 구조물을 치는 큰 망치입니다.",
+      "translate_as_ko": "대형 망치",
+      "translations": {
+        "vi": "búa tạ",
+        "th": "ค้อนปอนด์",
+        "id": "palu godam",
+        "ne": "ठूलो हथौडा",
+        "km": "ញញួរធំ"
+      },
+      "asr_corrections": [
+        "오함마질",
+        "오함마로"
+      ],
+      "translation_rule": "Translate as sledgehammer. Include strike hazard if used as instruction.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL034",
+      "canonical_ko": "함마드릴",
+      "variants_ko": [
+        "함마드릴",
+        "해머드릴",
+        "진동드릴"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "콘크리트 등에 구멍을 뚫는 충격 드릴입니다.",
+      "translate_as_ko": "해머드릴",
+      "translations": {
+        "vi": "máy khoan búa",
+        "th": "สว่านกระแทก",
+        "id": "bor palu",
+        "ne": "ह्यामर ड्रिल",
+        "km": "ម៉ាស៊ីនខួងញ័រ"
+      },
+      "asr_corrections": [
+        "하마드릴",
+        "함마 드릴"
+      ],
+      "translation_rule": "Translate as hammer drill.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL035",
+      "canonical_ko": "구배잡다",
+      "variants_ko": [
+        "구배잡다",
+        "물매잡다",
+        "경사 맞추다"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "물이 흐르도록 바닥이나 배관의 기울기를 맞추는 작업입니다.",
+      "translate_as_ko": "경사를 맞추다",
+      "translations": {
+        "vi": "tạo độ dốc đúng",
+        "th": "ปรับความลาดเอียงให้ถูกต้อง",
+        "id": "mengatur kemiringan",
+        "ne": "ढलान मिलाउनु",
+        "km": "កែជម្រាលឱ្យត្រឹមត្រូវ"
+      },
+      "asr_corrections": [
+        "고바이 잡아",
+        "구배 봐"
+      ],
+      "translation_rule": "Translate as set/check slope, especially for drainage.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL036",
+      "canonical_ko": "레벨보다",
+      "variants_ko": [
+        "레벨보다",
+        "수평보다",
+        "레벨 확인"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "수평이나 높이가 맞는지 확인하는 작업입니다.",
+      "translate_as_ko": "수평 또는 높이 확인",
+      "translations": {
+        "vi": "kiểm tra cao độ hoặc độ bằng phẳng",
+        "th": "ตรวจระดับหรือความสูง",
+        "id": "memeriksa level/ketinggian",
+        "ne": "लेभल वा उचाइ जाँच्नु",
+        "km": "ពិនិត្យកម្រិត ឬ កម្ពស់"
+      },
+      "asr_corrections": [
+        "레벨 봐",
+        "레벨봐"
+      ],
+      "translation_rule": "Translate as check level/elevation.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL037",
+      "canonical_ko": "먹놓다",
+      "variants_ko": [
+        "먹놓다",
+        "먹줄치다",
+        "기준선 표시"
+      ],
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "먹줄로 기준선을 표시하는 작업입니다.",
+      "translate_as_ko": "먹줄로 기준선을 표시하다",
+      "translations": {
+        "vi": "bật dây mực để đánh dấu đường chuẩn",
+        "th": "ตีเส้นด้วยเชือกหมึก",
+        "id": "menandai garis dengan benang tinta",
+        "ne": "मसी डोरीले रेखा चिन्ह लगाउनु",
+        "km": "គូសខ្សែដោយខ្សែទឹកខ្មៅ"
+      },
+      "asr_corrections": [
+        "먹 놔",
+        "먹 쳐"
+      ],
+      "translation_rule": "Translate as snap chalk/ink line. Link to 스미마끼.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL038",
+      "canonical_ko": "가라",
+      "variants_ko": [
+        "가라",
+        "가짜",
+        "임시",
+        "대충"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 가짜, 임시, 대충 처리라는 부정적 의미가 있습니다.",
+      "translate_as_ko": "가짜 또는 임시 처리",
+      "translations": {
+        "vi": "giả hoặc xử lý tạm bợ",
+        "th": "ของปลอมหรือทำชั่วคราวแบบลวกๆ",
+        "id": "palsu atau pengerjaan sementara/asalan",
+        "ne": "नक्कली वा अस्थायी/लापरवाही काम",
+        "km": "ក្លែងក្លាយ ឬ ធ្វើបណ្តោះអាសន្នមិនរឹងមាំ"
+      },
+      "asr_corrections": [
+        "가라로",
+        "가라 작업"
+      ],
+      "translation_rule": "Use caution. If safety/quality context, translate as improper temporary/fake work, not neutral temporary work.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL039",
+      "canonical_ko": "조지다",
+      "variants_ko": [
+        "조지다",
+        "세게 하다",
+        "망치다",
+        "처리하다"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 세게 작업하다, 망치다, 빨리 처리하다 등 의미가 달라지는 거친 표현입니다.",
+      "translate_as_ko": "문맥에 따라 강하게 작업하거나 망치다",
+      "translations": {
+        "vi": "làm mạnh tay hoặc làm hỏng tùy ngữ cảnh",
+        "th": "ทำแรงๆ หรือทำเสีย ขึ้นกับบริบท",
+        "id": "mengerjakan keras atau merusak, tergantung konteks",
+        "ne": "सन्दर्भअनुसार जोडले गर्नु वा बिगार्नु",
+        "km": "អាស្រ័យលើបរិបទ អាចមានន័យថាធ្វើខ្លាំង ឬ ធ្វើខូច"
+      },
+      "asr_corrections": [
+        "조져",
+        "조졌어"
+      ],
+      "translation_rule": "Do not translate literally. Prefer neutral operational meaning; flag as ambiguous.",
+      "confidence": "low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL040",
+      "canonical_ko": "쪼인트",
+      "variants_ko": [
+        "쪼인트",
+        "조인트",
+        "이음",
+        "연결부"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "자재나 배관 등이 서로 이어지는 연결부입니다.",
+      "translate_as_ko": "이음부 또는 연결부",
+      "translations": {
+        "vi": "mối nối hoặc điểm nối",
+        "th": "รอยต่อหรือจุดเชื่อมต่อ",
+        "id": "sambungan atau titik koneksi",
+        "ne": "जोड्ने भाग",
+        "km": "ចំណុចតភ្ជាប់"
+      },
+      "asr_corrections": [
+        "조인트 봐",
+        "쪼인트"
+      ],
+      "translation_rule": "Normalize to joint/connection.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL041",
+      "canonical_ko": "빠데",
+      "variants_ko": [
+        "빠데",
+        "퍼티",
+        "메움재"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "틈이나 흠집을 메우는 퍼티/충전재입니다.",
+      "translate_as_ko": "퍼티 또는 메움재",
+      "translations": {
+        "vi": "bột trét hoặc vật liệu trám",
+        "th": "โป๊วหรือวัสดุอุด",
+        "id": "dempul atau bahan pengisi",
+        "ne": "पुट्टी वा भर्ने सामग्री",
+        "km": "ប៉ូតទី ឬ សម្ភារៈបំពេញ"
+      },
+      "asr_corrections": [
+        "빠대",
+        "빠데질"
+      ],
+      "translation_rule": "Translate as putty/filler; in paint context use puttying.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL042",
+      "canonical_ko": "빠데질",
+      "variants_ko": [
+        "빠데질",
+        "퍼티작업",
+        "메움작업"
+      ],
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "흠집이나 틈을 퍼티로 메우고 다듬는 작업입니다.",
+      "translate_as_ko": "퍼티 작업",
+      "translations": {
+        "vi": "trét bột/thi công putty",
+        "th": "งานโป๊ว",
+        "id": "pekerjaan dempul",
+        "ne": "पुट्टी लगाउने काम",
+        "km": "ការងារប៉ូតទី"
+      },
+      "asr_corrections": [
+        "빠대질"
+      ],
+      "translation_rule": "Translate as puttying/filling work.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL043",
+      "canonical_ko": "기리",
+      "variants_ko": [
+        "기리",
+        "드릴날",
+        "비트"
+      ],
+      "domain": "manufacturing_slang",
+      "risk_level": "high",
+      "plain_ko": "드릴에 끼워 구멍을 뚫는 날 또는 비트입니다.",
+      "translate_as_ko": "드릴 비트",
+      "translations": {
+        "vi": "mũi khoan",
+        "th": "ดอกสว่าน",
+        "id": "mata bor",
+        "ne": "ड्रिल बिट",
+        "km": "មុខខួង"
+      },
+      "asr_corrections": [
+        "기리 갈아",
+        "기리 바꿔"
+      ],
+      "translation_rule": "Translate as drill bit, not drill machine unless context says tool body.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL044",
+      "canonical_ko": "다마",
+      "variants_ko": [
+        "다마",
+        "볼",
+        "구슬",
+        "전구"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 볼, 구슬, 전구 등을 뜻할 수 있는 일본어계 표현입니다.",
+      "translate_as_ko": "볼, 구슬 또는 전구",
+      "translations": {
+        "vi": "bi/viên hoặc bóng đèn tùy ngữ cảnh",
+        "th": "ลูกกลมหรือหลอดไฟ ขึ้นกับบริบท",
+        "id": "bola/butir atau lampu, tergantung konteks",
+        "ne": "सन्दर्भअनुसार बल/गोटी वा बल्ब",
+        "km": "អាស្រ័យលើបរិបទ គ្រាប់បាល់/គ្រាប់ ឬ អំពូល"
+      },
+      "asr_corrections": [
+        "다마 나갔어"
+      ],
+      "translation_rule": "Ambiguous. Use surrounding nouns: light=bulb, bearing=ball, product=bead.",
+      "confidence": "low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL045",
+      "canonical_ko": "도비",
+      "variants_ko": [
+        "도비",
+        "중량물 운반",
+        "기계 설치 운반"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "무거운 기계나 설비를 옮기고 설치하는 작업 또는 작업자를 뜻합니다.",
+      "translate_as_ko": "중량물 운반/설치 작업",
+      "translations": {
+        "vi": "vận chuyển/lắp đặt vật nặng hoặc máy móc",
+        "th": "งานขนย้าย/ติดตั้งของหนักหรือเครื่องจักร",
+        "id": "pekerjaan pemindahan/pemasangan barang berat",
+        "ne": "भारी सामान/मेसिन सार्ने वा जडान गर्ने काम",
+        "km": "ការដឹកជញ្ជូន/ដំឡើងវត្ថុធ្ងន់ ឬ ម៉ាស៊ីន"
+      },
+      "asr_corrections": [
+        "도비작업",
+        "도비 불러"
+      ],
+      "translation_rule": "Translate as heavy equipment moving/rigging. Include lifting hazard.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL046",
+      "canonical_ko": "양중",
+      "variants_ko": [
+        "양중",
+        "리프팅",
+        "들어올림"
+      ],
+      "domain": "construction_logistics",
+      "risk_level": "critical",
+      "plain_ko": "크레인, 지게차 등으로 물건을 들어 올기는 작업입니다.",
+      "translate_as_ko": "들어 올림 작업",
+      "translations": {
+        "vi": "nâng hạ vật nặng",
+        "th": "การยกของ",
+        "id": "pengangkatan barang",
+        "ne": "सामान उचाल्ने काम",
+        "km": "ការលើកទំនិញ"
+      },
+      "asr_corrections": [
+        "양중해",
+        "양중 작업"
+      ],
+      "translation_rule": "Translate as lifting/hoisting. Safety-critical; preserve exclusion-zone meaning.",
+      "confidence": "high",
+      "needs_field_review": false
+    },
+    {
+      "id": "SL047",
+      "canonical_ko": "걸다",
+      "variants_ko": [
+        "걸다",
+        "안전고리 걸다",
+        "줄 걸다",
+        "훅 걸다"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "문맥에 따라 안전고리, 줄, 훅 등을 연결하거나 걸어 고정하는 지시입니다.",
+      "translate_as_ko": "연결하거나 고정하다",
+      "translations": {
+        "vi": "móc hoặc cố định",
+        "th": "เกี่ยวหรือล็อกให้แน่น",
+        "id": "mengaitkan atau mengunci",
+        "ne": "अड्काउने वा सुरक्षित गर्ने",
+        "km": "ភ្ជាប់ ឬ ទាក់ឱ្យជាប់"
+      },
+      "asr_corrections": [
+        "걸어",
+        "걸었어"
+      ],
+      "translation_rule": "Use context: safety harness=clip on, crane hook=hook, rope=attach.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL048",
+      "canonical_ko": "풀다",
+      "variants_ko": [
+        "풀다",
+        "해체하다",
+        "고정 해제",
+        "묶음 해제"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "묶음, 고정, 체결을 해제하는 지시입니다.",
+      "translate_as_ko": "고정을 해제하다",
+      "translations": {
+        "vi": "tháo hoặc nới ra",
+        "th": "ถอดหรือคลายออก",
+        "id": "melepas atau mengendurkan",
+        "ne": "खोल्नु वा खुकुलो पार्नु",
+        "km": "ដោះ ឬ បន្ធូរ"
+      },
+      "asr_corrections": [
+        "풀어",
+        "풀었어"
+      ],
+      "translation_rule": "Use context: bolts, straps, ropes, supports. If load is suspended, warn before releasing.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL049",
+      "canonical_ko": "따다",
+      "variants_ko": [
+        "따다",
+        "구멍따다",
+        "전선따다",
+        "라인따다"
+      ],
+      "domain": "site_slang",
+      "risk_level": "normal",
+      "plain_ko": "문맥에 따라 구멍을 내거나, 전선/배관/라인을 분기한다는 표현입니다.",
+      "translate_as_ko": "구멍을 내거나 분기하다",
+      "translations": {
+        "vi": "khoan lỗ hoặc tách nhánh đường dây/ống",
+        "th": "เจาะรูหรือแยกสาย/ท่อ",
+        "id": "membuat lubang atau mengambil cabang jalur",
+        "ne": "प्वाल बनाउनु वा लाइन छुट्याउनु",
+        "km": "ធ្វើរន្ធ ឬ បំបែកខ្សែ/បំពង់"
+      },
+      "asr_corrections": [
+        "따줘",
+        "따놔"
+      ],
+      "translation_rule": "Highly context dependent. Electrical context requires qualified-worker warning.",
+      "confidence": "medium_low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL050",
+      "canonical_ko": "빼다",
+      "variants_ko": [
+        "빼",
+        "빼다",
+        "분리",
+        "제거"
+      ],
+      "domain": "site_slang",
+      "risk_level": "high",
+      "plain_ko": "물건을 꺼내거나 제거하거나 분리하라는 지시입니다.",
+      "translate_as_ko": "제거하거나 분리하다",
+      "translations": {
+        "vi": "lấy ra hoặc tháo ra",
+        "th": "เอาออกหรือถอดออก",
+        "id": "mengeluarkan atau melepas",
+        "ne": "निकाल्नु वा हटाउनु",
+        "km": "ដកចេញ ឬ ដោះចេញ"
+      },
+      "asr_corrections": [
+        "빼",
+        "빼놔"
+      ],
+      "translation_rule": "If machine is running, translate with stop-machine warning. Avoid vague remove if object is unsafe.",
+      "confidence": "high",
+      "needs_field_review": false
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SS001",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "데스라 먼저 설치하고 올라가세요.",
+      "normalized_ko": "난간 또는 가드레일을 먼저 설치한 뒤 올라가세요.",
+      "term_refs": [
+        "SL001"
+      ],
+      "translation_note": "추락 방지 맥락에서는 데스라를 가드레일로 번역",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS002",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "데스리 없는 쪽으로 가지 마세요.",
+      "normalized_ko": "난간이 없는 쪽으로 가지 마세요.",
+      "term_refs": [
+        "SL001"
+      ],
+      "translation_note": "없는 쪽/가까이 가지 말라는 금지 지시",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS003",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "스미마끼 끝나면 철근 배근 시작하세요.",
+      "normalized_ko": "기준선 표시가 끝나면 철근 배근을 시작하세요.",
+      "term_refs": [
+        "SL002"
+      ],
+      "translation_note": "스미마끼를 layout marking으로 번역",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS004",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "먹 놓은 선 밖으로 나가면 안 됩니다.",
+      "normalized_ko": "먹줄로 표시한 기준선 밖으로 나가면 안 됩니다.",
+      "term_refs": [
+        "SL037"
+      ],
+      "translation_note": "먹놓다와 스미마끼를 같은 계열로 연결",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS005",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "바닥 나라시 다시 해 주세요.",
+      "normalized_ko": "바닥 면을 다시 평평하게 고르세요.",
+      "term_refs": [
+        "SL003"
+      ],
+      "translation_note": "나라시를 leveling/smoothing으로 번역",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS006",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "콘크리트 타설 후 나라시 잘 봐 주세요.",
+      "normalized_ko": "콘크리트를 부은 뒤 표면 평탄화를 잘 확인하세요.",
+      "term_refs": [
+        "SL003",
+        "SL017"
+      ],
+      "translation_note": "콘크리트 문맥",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS007",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "거푸집 바라시할 때 밑에 사람 있는지 확인하세요.",
+      "normalized_ko": "거푸집 해체 전에 아래에 사람이 있는지 확인하세요.",
+      "term_refs": [
+        "SL004"
+      ],
+      "translation_note": "해체 작업 안전",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS008",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "비계 바라시 중에는 접근하지 마세요.",
+      "normalized_ko": "비계 해체 중에는 가까이 가지 마세요.",
+      "term_refs": [
+        "SL004",
+        "SL007"
+      ],
+      "translation_note": "해체와 접근금지",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS009",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "하스리 작업이라 보안경과 마스크 꼭 착용하세요.",
+      "normalized_ko": "콘크리트 깨기 작업이니 보안경과 마스크를 반드시 착용하세요.",
+      "term_refs": [
+        "SL005"
+      ],
+      "translation_note": "분진/비산 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS010",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "기리바리 빼기 전에 관리자에게 확인받으세요.",
+      "normalized_ko": "임시 버팀대를 제거하기 전에 관리자 확인을 받으세요.",
+      "term_refs": [
+        "SL006",
+        "SL050"
+      ],
+      "translation_note": "구조 지지 해제 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS011",
+      "domain": "construction",
+      "risk_level": "critical",
+      "slang_sentence_ko": "아시바 위에서는 안전대를 걸고 작업하세요.",
+      "normalized_ko": "비계 위에서는 안전대를 연결하고 작업하세요.",
+      "term_refs": [
+        "SL007",
+        "SL047"
+      ],
+      "translation_note": "비계+안전대",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS012",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "오야지한테 먼저 보고하고 시작하세요.",
+      "normalized_ko": "현장 반장에게 먼저 보고하고 시작하세요.",
+      "term_refs": [
+        "SL008"
+      ],
+      "translation_note": "비공식 호칭을 중립 번역",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS013",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "데모도 한 명 더 붙여 주세요.",
+      "normalized_ko": "보조 작업자 한 명을 더 배치해 주세요.",
+      "term_refs": [
+        "SL009"
+      ],
+      "translation_note": "비하감 없이 helper로 번역",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS014",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "곰방할 때 허리 조심하고 둘이 들어요.",
+      "normalized_ko": "인력 운반할 때 허리를 조심하고 두 사람이 함께 드세요.",
+      "term_refs": [
+        "SL010"
+      ],
+      "translation_note": "중량물 수작업",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS015",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "작업 전에 단도리부터 하세요.",
+      "normalized_ko": "작업 전에 준비부터 하세요.",
+      "term_refs": [
+        "SL011"
+      ],
+      "translation_note": "준비/세팅",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS016",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "오늘은 여기까지 시마이합시다.",
+      "normalized_ko": "오늘은 여기까지 작업을 마무리합시다.",
+      "term_refs": [
+        "SL012"
+      ],
+      "translation_note": "작업 종료",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS017",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "치수에 유도리 조금 주세요.",
+      "normalized_ko": "치수에 약간의 여유를 주세요.",
+      "term_refs": [
+        "SL013"
+      ],
+      "translation_note": "허용오차/여유",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS018",
+      "domain": "logistics",
+      "risk_level": "high",
+      "slang_sentence_ko": "구루마에 너무 많이 싣지 마세요.",
+      "normalized_ko": "손수레에 물건을 너무 많이 싣지 마세요.",
+      "term_refs": [
+        "SL014"
+      ],
+      "translation_note": "운반 안전",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS019",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "빠루 쓸 때 손 끼임 조심하세요.",
+      "normalized_ko": "쇠지렛대를 사용할 때 손이 끼이지 않게 조심하세요.",
+      "term_refs": [
+        "SL015"
+      ],
+      "translation_note": "공구 사용 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS020",
+      "domain": "logistics",
+      "risk_level": "high",
+      "slang_sentence_ko": "빠렛트 깨진 건 쓰지 마세요.",
+      "normalized_ko": "깨진 팔레트는 사용하지 마세요.",
+      "term_refs": [
+        "SL016"
+      ],
+      "translation_note": "팔레트 안전",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS021",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "오후에 공구리 칩니다.",
+      "normalized_ko": "오후에 콘크리트를 타설합니다.",
+      "term_refs": [
+        "SL017"
+      ],
+      "translation_note": "콘크리트 타설",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS022",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "타일 메지 간격 맞춰 주세요.",
+      "normalized_ko": "타일 줄눈 간격을 맞춰 주세요.",
+      "term_refs": [
+        "SL018"
+      ],
+      "translation_note": "줄눈 간격",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS023",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "화장실 바닥 고바이 잘 잡아야 합니다.",
+      "normalized_ko": "화장실 바닥의 배수 경사를 잘 맞춰야 합니다.",
+      "term_refs": [
+        "SL019",
+        "SL035"
+      ],
+      "translation_note": "배수 구배",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS024",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "다데 방향으로 먼저 붙이세요.",
+      "normalized_ko": "세로 방향으로 먼저 붙이세요.",
+      "term_refs": [
+        "SL020"
+      ],
+      "translation_note": "방향 지시",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS025",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "요코 방향은 나중에 맞춥니다.",
+      "normalized_ko": "가로 방향은 나중에 맞춥니다.",
+      "term_refs": [
+        "SL021"
+      ],
+      "translation_note": "방향 지시",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS026",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "하리 밑에 서 있지 마세요.",
+      "normalized_ko": "보 아래에 서 있지 마세요.",
+      "term_refs": [
+        "SL022"
+      ],
+      "translation_note": "구조물 하부 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS027",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "기소 작업 구역에는 안전화 신고 들어가세요.",
+      "normalized_ko": "기초 작업 구역에는 안전화를 신고 들어가세요.",
+      "term_refs": [
+        "SL023"
+      ],
+      "translation_note": "기초 작업",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS028",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "slang_sentence_ko": "가다대로 맞춰서 잘라 주세요.",
+      "normalized_ko": "기준 틀에 맞춰서 잘라 주세요.",
+      "term_refs": [
+        "SL024"
+      ],
+      "translation_note": "template/form ambiguity",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS029",
+      "domain": "quality",
+      "risk_level": "normal",
+      "slang_sentence_ko": "기스 난 제품은 따로 빼세요.",
+      "normalized_ko": "긁힌 제품은 따로 분리하세요.",
+      "term_refs": [
+        "SL025",
+        "SL050"
+      ],
+      "translation_note": "품질 결함",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS030",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "오늘 인원 빵꾸 났습니다.",
+      "normalized_ko": "오늘 필요한 인원이 부족합니다.",
+      "term_refs": [
+        "SL026"
+      ],
+      "translation_note": "인원 누락 맥락",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS031",
+      "domain": "quality",
+      "risk_level": "normal",
+      "slang_sentence_ko": "불량 나면 빠꾸됩니다.",
+      "normalized_ko": "불량이 있으면 반품 또는 재작업 처리됩니다.",
+      "term_refs": [
+        "SL027"
+      ],
+      "translation_note": "반품/재작업 맥락",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS032",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "내일 오전만 땜빵으로 들어가 주세요.",
+      "normalized_ko": "내일 오전만 임시 대체 인력으로 들어가 주세요.",
+      "term_refs": [
+        "SL028"
+      ],
+      "translation_note": "대체 투입",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS033",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "오늘 이 물량은 야리끼리입니다.",
+      "normalized_ko": "오늘 이 작업량을 끝내면 작업을 마칩니다.",
+      "term_refs": [
+        "SL029"
+      ],
+      "translation_note": "작업량 완료 후 종료",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS034",
+      "domain": "general",
+      "risk_level": "normal",
+      "slang_sentence_ko": "점심은 함바에서 먹습니다.",
+      "normalized_ko": "점심은 현장 식당에서 먹습니다.",
+      "term_refs": [
+        "SL030"
+      ],
+      "translation_note": "현장 식당",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS035",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "배관 자리 아나방 해야 합니다.",
+      "normalized_ko": "배관 위치에 구멍을 뚫어야 합니다.",
+      "term_refs": [
+        "SL031"
+      ],
+      "translation_note": "천공/코어 작업",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS036",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "이 구멍은 메꾸라로 막아 주세요.",
+      "normalized_ko": "이 구멍은 마개로 막아 주세요.",
+      "term_refs": [
+        "SL032"
+      ],
+      "translation_note": "막음/마개",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS037",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "오함마질할 때 주변 사람 빼세요.",
+      "normalized_ko": "대형 망치를 사용할 때 주변 사람을 떨어뜨리세요.",
+      "term_refs": [
+        "SL033",
+        "SL050"
+      ],
+      "translation_note": "타격 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS038",
+      "domain": "construction",
+      "risk_level": "high",
+      "slang_sentence_ko": "함마드릴 쓸 때 귀마개 착용하세요.",
+      "normalized_ko": "해머드릴을 사용할 때 귀마개를 착용하세요.",
+      "term_refs": [
+        "SL034"
+      ],
+      "translation_note": "소음 위험",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS039",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "레벨 보고 다시 나라시 하세요.",
+      "normalized_ko": "수평을 확인하고 다시 평탄화하세요.",
+      "term_refs": [
+        "SL036",
+        "SL003"
+      ],
+      "translation_note": "레벨+평탄화",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS040",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "slang_sentence_ko": "기리 바꿀 때 전원 먼저 내리세요.",
+      "normalized_ko": "드릴 비트를 교체할 때 먼저 전원을 차단하세요.",
+      "term_refs": [
+        "SL043"
+      ],
+      "translation_note": "기계 교체 안전",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS041",
+      "domain": "maintenance",
+      "risk_level": "normal",
+      "slang_sentence_ko": "쪼인트 부분에서 물이 샙니다.",
+      "normalized_ko": "이음부에서 물이 새고 있습니다.",
+      "term_refs": [
+        "SL040"
+      ],
+      "translation_note": "연결부 누수",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS042",
+      "domain": "construction",
+      "risk_level": "normal",
+      "slang_sentence_ko": "벽면 빠데질 끝나면 샌딩하세요.",
+      "normalized_ko": "벽면 퍼티 작업이 끝나면 사포질하세요.",
+      "term_refs": [
+        "SL041",
+        "SL042"
+      ],
+      "translation_note": "마감 작업",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS043",
+      "domain": "rigging",
+      "risk_level": "critical",
+      "slang_sentence_ko": "도비 작업 중에는 작업 반경 밖에 있으세요.",
+      "normalized_ko": "중량물 운반/설치 작업 중에는 작업 반경 밖에 있으세요.",
+      "term_refs": [
+        "SL045"
+      ],
+      "translation_note": "중량물 위험",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS044",
+      "domain": "rigging",
+      "risk_level": "critical",
+      "slang_sentence_ko": "양중 중에는 밑으로 지나가지 마세요.",
+      "normalized_ko": "물건을 들어 올리는 중에는 아래로 지나가지 마세요.",
+      "term_refs": [
+        "SL046"
+      ],
+      "translation_note": "양중 하부 통행 금지",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS045",
+      "domain": "safety",
+      "risk_level": "high",
+      "slang_sentence_ko": "안전고리 걸었는지 다시 확인하세요.",
+      "normalized_ko": "안전고리를 연결했는지 다시 확인하세요.",
+      "term_refs": [
+        "SL047"
+      ],
+      "translation_note": "안전대 연결",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS046",
+      "domain": "rigging",
+      "risk_level": "critical",
+      "slang_sentence_ko": "줄 풀기 전에 하중이 걸려 있는지 확인하세요.",
+      "normalized_ko": "줄을 해제하기 전에 무게가 걸려 있는지 확인하세요.",
+      "term_refs": [
+        "SL048"
+      ],
+      "translation_note": "체결 해제 위험",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS047",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "slang_sentence_ko": "전선 따는 작업은 전기 담당자만 하세요.",
+      "normalized_ko": "전선 분기 작업은 전기 담당자만 하세요.",
+      "term_refs": [
+        "SL049"
+      ],
+      "translation_note": "전기 작업 제한",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    },
+    {
+      "id": "SS048",
+      "domain": "manufacturing",
+      "risk_level": "critical",
+      "slang_sentence_ko": "제품 빼기 전에 기계 멈추세요.",
+      "normalized_ko": "제품을 꺼내기 전에 기계를 멈추세요.",
+      "term_refs": [
+        "SL050"
+      ],
+      "translation_note": "기계 끼임 위험",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "status": "seed_needs_field_review"
+    }
+  ]
+}

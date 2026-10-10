@@ -1,0 +1,29 @@
+// SYNCREW 서버 스키마. 테이블 설계: docs/database-design.md
+// Phase 1에서는 OpenAI 비용 한도 관리용 사용량 테이블만 둔다.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// OpenAI 호출 1건의 사용량과 추정 비용. 비용 한도(BudgetGuard)의 기준 데이터.
+model OpenAiUsage {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// stt | translate
+  kind              String
+  model             String
+  inputTextTokens   Int      @default(0) @map("input_text_tokens")
+  inputAudioTokens  Int      @default(0) @map("input_audio_tokens")
+  cachedInputTokens Int      @default(0) @map("cached_input_tokens")
+  outputTextTokens  Int      @default(0) @map("output_text_tokens")
+  outputAudioTokens Int      @default(0) @map("output_audio_tokens")
+  costUsd           Decimal  @map("cost_usd") @db.Decimal(12, 6)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt])
+  @@map("openai_usage")
+}

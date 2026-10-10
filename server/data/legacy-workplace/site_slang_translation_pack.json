@@ -1,0 +1,76 @@
+{
+  "name": "site_slang_translation_pack",
+  "version": "0.1.0",
+  "purpose": "Korean workplace slang and Japanese-derived field terms for ASR correction and context-aware translation.",
+  "status": "seed_needs_field_review",
+  "notes": [
+    "These terms should be used before general translation as glossary/context hints.",
+    "Many Japanese-derived field terms vary by region, trade, and company. Keep confidence and review flags visible in the admin UI.",
+    "If ASR hears variants, normalize to the canonical_ko field before translation."
+  ],
+  "terms": [
+    {
+      "id": "SL001",
+      "canonical_ko": "데스라",
+      "variants_ko": ["데스라", "데스리", "데쓰리", "데스리 난간"],
+      "origin_hint": "Likely from Japanese tesuri, meaning handrail/guardrail. Field confirmation required.",
+      "domain": "construction_slang",
+      "risk_level": "high",
+      "plain_ko": "난간, 손잡이, 추락을 막는 가드레일을 뜻하는 현장 은어로 추정됩니다.",
+      "translate_as_ko": "난간 또는 가드레일",
+      "translations": {
+        "vi": "lan can hoặc thanh chắn an toàn",
+        "th": "ราวกันตกหรือราวจับนิรภัย",
+        "id": "pagar pengaman atau pegangan tangan",
+        "ne": "सुरक्षा रेलिङ वा समात्ने रेल",
+        "km": "របាំងសុវត្ថិភាព ឬ ដៃចាប់"
+      },
+      "asr_corrections": ["대수라", "데쓰라", "데스 리", "데스라 난간"],
+      "translation_rule": "Do not transliterate. Translate by intended safety object: handrail/guardrail. If sentence concerns fall prevention, prefer guardrail.",
+      "confidence": "medium_low",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL002",
+      "canonical_ko": "스미마끼",
+      "variants_ko": ["스미마끼", "스미마키", "스미다시", "스미내기", "먹매김", "먹줄"],
+      "origin_hint": "Japanese-derived construction term related to ink/chalk layout marking.",
+      "domain": "construction_slang",
+      "risk_level": "normal",
+      "plain_ko": "시공 위치를 표시하기 위해 바닥이나 벽에 먹줄/선을 치는 작업입니다.",
+      "translate_as_ko": "먹매김 또는 기준선 표시",
+      "translations": {
+        "vi": "đánh dấu đường mực/đường chuẩn thi công",
+        "th": "ตีเส้นกำหนดแนวงานก่อสร้าง",
+        "id": "menandai garis acuan pekerjaan",
+        "ne": "कामको आधार रेखा चिन्ह लगाउने",
+        "km": "គូសខ្សែសម្គាល់ខ្សែមូលដ្ឋានការងារ"
+      },
+      "asr_corrections": ["수미마끼", "스미 막기", "스미마키", "스미다시"],
+      "translation_rule": "Translate as layout marking/chalk line marking, not as a person name or generic drawing.",
+      "confidence": "medium",
+      "needs_field_review": true
+    },
+    {
+      "id": "SL003",
+      "canonical_ko": "나라시",
+      "variants_ko": ["나라시", "나라시 작업", "면 고르기", "평탄화", "레벨링"],
+      "origin_hint": "Japanese narashi, meaning leveling or smoothing.",
+      "domain": "construction_manufacturing_slang",
+      "risk_level": "normal",
+      "plain_ko": "바닥, 콘크리트, 흙, 자재 표면 등을 평평하게 고르는 작업입니다.",
+      "translate_as_ko": "평탄화 또는 면 고르기",
+      "translations": {
+        "vi": "san phẳng hoặc làm phẳng bề mặt",
+        "th": "ปรับระดับหรือเกลี่ยพื้นผิวให้เรียบ",
+        "id": "meratakan atau menghaluskan permukaan",
+        "ne": "सतह सम्याउने वा लेभल मिलाउने",
+        "km": "កែសម្រួលកម្រិត ឬ ធ្វើឱ្យផ្ទៃរាបស្មើ"
+      },
+      "asr_corrections": ["나라시해", "나라시 작업", "나라 시", "나라씨"],
+      "translation_rule": "Translate by task: leveling/smoothing. In concrete context, use concrete surface leveling; in soil context, use ground leveling.",
+      "confidence": "high",
+      "needs_field_review": false
+    }
+  ]
+}

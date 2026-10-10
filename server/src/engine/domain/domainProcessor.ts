@@ -1,0 +1,240 @@
+import type { Lang } from "../../shared/languages";
+import type { Dataset, LexiconEntry, PhraseEntry } from "../dataset/types";
+import { isWordChar, matchKey, prepareText, sentenceKey, usesWordBoundaries } from "./textMatching";
+
+/** 어떤 형태로 용어가 감지됐는지 */
+export type HitKind = "canonical" | "variant" | "asr" | "translation";
+
+export type TermHit = {
+  entryId: string;
+  kind: HitKind;
+  /** 원문에서 일치한 구간 그대로 */
+  matched: string;
+  /** 원문 기준 위치 [start, end) */
+  start: number;
+  end: number;
+  /** 원문을 표준 표현으로 바꿨는지 */
+  corrected: boolean;
+};
+
+export type DomainResult = {
+  sourceLang: Lang;
+  originalText: string;
+  /** 용어 자동 보정 후 원문. 번역기에 이 텍스트를 넣는다. */
+  correctedText: string;
+  hits: TermHit[];
+  /** 보정 원문과 정확히 일치하는 검증 문장 */
+  phraseId?: string;
+};
+
+export type ContextTerm = {
+  /** 원문 언어로 된 용어 */
+  source: string;
+  /** 대상 언어 번역 (데이터에 없으면 생략) */
+  target?: string;
+  meaning?: string;
+  rule?: string;
+};
+
+export type TranslationContext = {
+  terms: ContextTerm[];
+  /** 검증 문장 번역이 있으면 그대로 쓰도록 지시한다. */
+  phrase?: { source: string; target: string };
+};
+
+export type DomainProcessorOptions = {
+  /** 이보다 짧은 표현은 오탐이 많아 감지하지 않는다 (정리된 글자 수 기준). */
+  minSurfaceLength: number;
+  /** 번역 컨텍스트에 넣을 최대 용어 수 */
+  maxContextTerms: number;
+};
+
+const DEFAULT_OPTIONS: DomainProcessorOptions = { minSurfaceLength: 2, maxContextTerms: 12 };
+
+type Surface = { key: string; entry: LexiconEntry; kind: HitKind };
+
+/** 용어·문장의 언어별 표현. 원어는 표준 표현, 나머지는 번역 값. */
+function formsOf(lang: Lang, base: string, translations: Partial<Record<Lang, string>>) {
+  return { ...translations, [lang]: base } as Partial<Record<Lang, string>>;
+}
+
+/**
+ * 현장 언어 특화 처리 (PDF 22쪽: STT 텍스트 → 현장 용어 감지 → 용어 자동 보정 → 번역 컨텍스트).
+ * 데이터셋 형식과 무관하게 `Dataset`만 받는다.
+ */
+export class DomainProcessor {
+  private readonly options: DomainProcessorOptions;
+  private readonly entries = new Map<string, LexiconEntry>();
+  /** 언어별 → 첫 글자별 → 길이 내림차순 표현 목록 */
+  private readonly surfaces = new Map<Lang, Map<string, Surface[]>>();
+  private readonly phrases = new Map<Lang, Map<string, PhraseEntry>>();
+
+  constructor(
+    readonly dataset: Dataset,
+    options: Partial<DomainProcessorOptions> = {},
+  ) {
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+    for (const entry of dataset.lexicon) this.indexEntry(entry);
+    for (const index of this.surfaces.values()) {
+      for (const list of index.values()) list.sort((a, b) => b.key.length - a.key.length);
+    }
+    for (const phrase of dataset.phrases) this.indexPhrase(phrase);
+  }
+
+  private indexEntry(entry: LexiconEntry) {
+    this.entries.set(entry.id, entry);
+    this.addSurface(entry.lang, entry.canonical, entry, "canonical");
+    for (const variant of entry.variants) this.addSurface(entry.lang, variant, entry, "variant");
+    for (const asr of entry.asrCorrections) this.addSurface(entry.lang, asr, entry, "asr");
+    for (const [lang, text] of Object.entries(entry.translations) as [Lang, string][]) {
+      if (lang !== entry.lang) this.addSurface(lang, text, entry, "translation");
+    }
+  }
+
+  private addSurface(lang: Lang, text: string, entry: LexiconEntry, kind: HitKind) {
+    const key = matchKey(text, lang);
+    if (key.length < this.options.minSurfaceLength) return;
+
+    let byFirstChar = this.surfaces.get(lang);
+    if (!byFirstChar) {
+      byFirstChar = new Map();
+      this.surfaces.set(lang, byFirstChar);
+    }
+    const first = key[0]!;
+    const list = byFirstChar.get(first) ?? [];
+    const existingIndex = list.findIndex((surface) => surface.key === key);
+    if (existingIndex === -1) {
+      list.push({ key, entry, kind });
+    } else if (kind === "canonical" && list[existingIndex]!.kind !== "canonical") {
+      // 어떤 용어의 표준 표현이 다른 용어의 변형과 겹치면 표준 표현을 우선한다.
+      list[existingIndex] = { key, entry, kind };
+    }
+    byFirstChar.set(first, list);
+  }
+
+  private indexPhrase(phrase: PhraseEntry) {
+    for (const [lang, text] of Object.entries(formsOf(phrase.lang, phrase.text, phrase.translations)) as [
+      Lang,
+      string,
+    ][]) {
+      let index = this.phrases.get(lang);
+      if (!index) {
+        index = new Map();
+        this.phrases.set(lang, index);
+      }
+      const key = sentenceKey(text, lang);
+      if (key && !index.has(key)) index.set(key, phrase);
+    }
+  }
+
+  /** 용어 감지 → 자동 보정 → 검증 문장 확인 */
+  process(text: string, sourceLang: Lang): DomainResult {
+    const hits = this.detect(text, sourceLang);
+    const correctedText = applyCorrections(text, hits, this.entries);
+    const phrase = this.phrases.get(sourceLang)?.get(sentenceKey(correctedText, sourceLang));
+    return {
+      sourceLang,
+      originalText: text,
+      correctedText,
+      hits,
+      ...(phrase ? { phraseId: phrase.id } : {}),
+    };
+  }
+
+  /** 가장 왼쪽·가장 긴 일치를 우선하며, 겹치지 않게 용어를 찾는다. */
+  detect(text: string, lang: Lang): TermHit[] {
+    const index = this.surfaces.get(lang);
+    if (!index || !text.trim()) return [];
+
+    const { chars, origin } = prepareText(text, lang);
+    const checkBoundaries = usesWordBoundaries(lang);
+    const hits: TermHit[] = [];
+    let position = 0;
+
+    while (position < chars.length) {
+      const candidates = index.get(chars[position]!);
+      const found = candidates?.find(
+        (surface) =>
+          chars.startsWith(surface.key, position) &&
+          (!checkBoundaries ||
+            (!isWordChar(chars[position - 1]) && !isWordChar(chars[position + surface.key.length]))),
+      );
+      if (!found) {
+        position += 1;
+        continue;
+      }
+
+      const lastChar = position + found.key.length - 1;
+      const start = origin[position]!;
+      const end = origin[lastChar]! + 1;
+      hits.push({
+        entryId: found.entry.id,
+        kind: found.kind,
+        matched: text.slice(start, end),
+        start,
+        end,
+        corrected: shouldCorrect(found, lang),
+      });
+      position = lastChar + 1;
+    }
+    return hits;
+  }
+
+  /** 번역기에 전달할 용어·문장 컨텍스트 */
+  buildContext(result: DomainResult, targetLang: Lang): TranslationContext {
+    const terms: ContextTerm[] = [];
+    const seen = new Set<string>();
+
+    for (const hit of result.hits) {
+      if (seen.has(hit.entryId) || terms.length >= this.options.maxContextTerms) continue;
+      seen.add(hit.entryId);
+      const entry = this.entries.get(hit.entryId)!;
+      const forms = formsOf(entry.lang, entry.canonical, entry.translations);
+      const target = forms[targetLang];
+      terms.push({
+        source: forms[result.sourceLang] ?? hit.matched,
+        ...(target ? { target } : {}),
+        ...(entry.meaning ? { meaning: entry.meaning } : {}),
+        ...(entry.rule ? { rule: entry.rule } : {}),
+      });
+    }
+
+    const context: TranslationContext = { terms };
+    if (result.phraseId) {
+      const phrase = this.dataset.phrases.find((candidate) => candidate.id === result.phraseId)!;
+      const forms = formsOf(phrase.lang, phrase.text, phrase.translations);
+      const source = forms[result.sourceLang];
+      const target = forms[targetLang];
+      if (source && target) context.phrase = { source, target };
+    }
+    return context;
+  }
+
+  stats() {
+    return {
+      name: this.dataset.name,
+      version: this.dataset.version,
+      lexicon: this.dataset.lexicon.length,
+      phrases: this.dataset.phrases.length,
+    };
+  }
+}
+
+/**
+ * 변형·오인식 표현을 표준 표현으로 바꾼다.
+ * 단, 표준 표현으로 시작하는 변형(예: "오야지 하세요")은 활용형이므로 바꾸지 않는다.
+ */
+function shouldCorrect(surface: Surface, lang: Lang): boolean {
+  if (surface.kind !== "variant" && surface.kind !== "asr") return false;
+  return !surface.key.startsWith(matchKey(surface.entry.canonical, lang));
+}
+
+function applyCorrections(text: string, hits: TermHit[], entries: Map<string, LexiconEntry>): string {
+  let result = text;
+  for (const hit of [...hits].reverse()) {
+    if (!hit.corrected) continue;
+    const canonical = entries.get(hit.entryId)!.canonical;
+    result = result.slice(0, hit.start) + canonical + result.slice(hit.end);
+  }
+  return result;
+}

@@ -1,0 +1,1678 @@
+{
+  "name": "manufacturing_translation_pack",
+  "version": "0.1.0",
+  "generated_at": "2026-06-21T05:54:24.183Z",
+  "counts": {
+    "manufacturing_exact_domain": 0,
+    "manufacturing_core_terms": 55,
+    "manufacturing_related_terms": 125
+  },
+  "definition": {
+    "manufacturing_core_domains": [
+      "machine",
+      "welding",
+      "quality"
+    ],
+    "manufacturing_related_domains": [
+      "machine",
+      "welding",
+      "quality",
+      "safety",
+      "ppe",
+      "electrical"
+    ],
+    "note": "The original seed does not use a standalone manufacturing domain. Manufacturing is represented by machine, welding, and quality terms; safety, PPE, and electrical terms are related support vocabulary."
+  },
+  "terms": [
+    {
+      "id": "T056",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "프레스",
+      "plain_ko": "압력을 가해 찍거나 누르는 기계",
+      "aliases": [
+        "프레스기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy dập",
+        "th": "เครื่องปั๊ม",
+        "id": "mesin press",
+        "ne": "प्रेस मेसिन",
+        "km": "ម៉ាស៊ីនបុក/ចុច"
+      }
+    },
+    {
+      "id": "T057",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "사출기",
+      "plain_ko": "플라스틱을 금형에 넣어 제품을 만드는 기계",
+      "aliases": [
+        "인젝션"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy ép nhựa",
+        "th": "เครื่องฉีดพลาสติก",
+        "id": "mesin injeksi plastik",
+        "ne": "प्लास्टिक इन्जेक्सन मेसिन",
+        "km": "ម៉ាស៊ីនចាក់ប្លាស្ទិក"
+      }
+    },
+    {
+      "id": "T058",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "컨베이어",
+      "plain_ko": "물건을 자동으로 이동시키는 벨트 설비",
+      "aliases": [
+        "벨트컨베이어"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "băng tải",
+        "th": "สายพานลำเลียง",
+        "id": "konveyor",
+        "ne": "कन्वेयर बेल्ट",
+        "km": "ខ្សែបញ្ជូន"
+      }
+    },
+    {
+      "id": "T059",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "롤러",
+      "plain_ko": "회전하며 물건을 누르거나 이동시키는 부품",
+      "aliases": [
+        "로라"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "con lăn",
+        "th": "ลูกกลิ้ง",
+        "id": "rol",
+        "ne": "रोलर",
+        "km": "រ៉ូឡូ"
+      }
+    },
+    {
+      "id": "T060",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "절단기",
+      "plain_ko": "물건을 자르는 기계",
+      "aliases": [
+        "커터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy cắt",
+        "th": "เครื่องตัด",
+        "id": "mesin pemotong",
+        "ne": "काट्ने मेसिन",
+        "km": "ម៉ាស៊ីនកាត់"
+      }
+    },
+    {
+      "id": "T061",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "파쇄기",
+      "plain_ko": "물건을 부수는 기계",
+      "aliases": [
+        "분쇄기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy nghiền",
+        "th": "เครื่องบด/เครื่องย่อย",
+        "id": "mesin penghancur",
+        "ne": "क्रसर मेसिन",
+        "km": "ម៉ាស៊ីនកម្ទេច"
+      }
+    },
+    {
+      "id": "T062",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "압축기",
+      "plain_ko": "물건을 눌러 압축하는 기계",
+      "aliases": [
+        "프레스압축기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy ép nén",
+        "th": "เครื่องอัด",
+        "id": "mesin kompresi",
+        "ne": "कम्प्रेस गर्ने मेसिन",
+        "km": "ម៉ាស៊ីនបង្ហាប់"
+      }
+    },
+    {
+      "id": "T063",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "혼합기",
+      "plain_ko": "재료를 섞는 기계",
+      "aliases": [
+        "믹서"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy trộn",
+        "th": "เครื่องผสม",
+        "id": "mesin pencampur",
+        "ne": "मिक्सर मेसिन",
+        "km": "ម៉ាស៊ីនលាយ"
+      }
+    },
+    {
+      "id": "T064",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "포장기",
+      "plain_ko": "제품을 자동 포장하는 기계",
+      "aliases": [
+        "랩핑기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy đóng gói",
+        "th": "เครื่องบรรจุภัณฑ์",
+        "id": "mesin pengemas",
+        "ne": "प्याकिङ मेसिन",
+        "km": "ម៉ាស៊ីនវេចខ្ចប់"
+      }
+    },
+    {
+      "id": "T065",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "선반",
+      "plain_ko": "금속을 깎는 회전 가공 기계",
+      "aliases": [
+        "lathe"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy tiện",
+        "th": "เครื่องกลึง",
+        "id": "mesin bubut",
+        "ne": "लेथ मेसिन",
+        "km": "ម៉ាស៊ីនក្រឡឹង"
+      }
+    },
+    {
+      "id": "T066",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "밀링기",
+      "plain_ko": "금속을 절삭 가공하는 기계",
+      "aliases": [
+        "밀링머신"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy phay",
+        "th": "เครื่องกัด",
+        "id": "mesin frais",
+        "ne": "मिलिङ मेसिन",
+        "km": "ម៉ាស៊ីនកាត់មីលីង"
+      }
+    },
+    {
+      "id": "T067",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "드릴",
+      "plain_ko": "구멍을 뚫는 공구",
+      "aliases": [
+        "전동드릴"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy khoan",
+        "th": "สว่าน",
+        "id": "bor",
+        "ne": "ड्रिल",
+        "km": "ម៉ាស៊ីនខួង"
+      }
+    },
+    {
+      "id": "T068",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "그라인더",
+      "plain_ko": "금속을 갈거나 절단하는 공구",
+      "aliases": [
+        "연마기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy mài",
+        "th": "เครื่องเจียร",
+        "id": "gerinda",
+        "ne": "ग्राइन्डर",
+        "km": "ម៉ាស៊ីនកិន"
+      }
+    },
+    {
+      "id": "T069",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "톱날",
+      "plain_ko": "자르는 날이 있는 부품",
+      "aliases": [
+        "톱"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "lưỡi cưa",
+        "th": "ใบเลื่อย",
+        "id": "mata gergaji",
+        "ne": "आरा ब्लेड",
+        "km": "ផ្លែកាំបិតរណារ"
+      }
+    },
+    {
+      "id": "T070",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "칼날",
+      "plain_ko": "자르는 날카로운 부품",
+      "aliases": [
+        "블레이드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "lưỡi dao",
+        "th": "ใบมีด",
+        "id": "mata pisau",
+        "ne": "ब्लेड",
+        "km": "ផ្លែកាំបិត"
+      }
+    },
+    {
+      "id": "T071",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "회전체",
+      "plain_ko": "돌아가는 기계 부품",
+      "aliases": [
+        "회전부"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "bộ phận quay",
+        "th": "ชิ้นส่วนหมุน",
+        "id": "bagian berputar",
+        "ne": "घुम्ने भाग",
+        "km": "ផ្នែកបង្វិល"
+      }
+    },
+    {
+      "id": "T072",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "동력전달부",
+      "plain_ko": "동력을 전달하는 벨트나 체인 부품",
+      "aliases": [
+        "구동부"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "bộ phận truyền động",
+        "th": "ส่วนส่งกำลัง",
+        "id": "bagian transmisi daya",
+        "ne": "शक्ति प्रसारण भाग",
+        "km": "ផ្នែកបញ្ជូនកម្លាំង"
+      }
+    },
+    {
+      "id": "T073",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "끼임점",
+      "plain_ko": "손이나 몸이 끼일 수 있는 위치",
+      "aliases": [
+        "협착점"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "điểm kẹp",
+        "th": "จุดหนีบ",
+        "id": "titik jepit",
+        "ne": "च्यापिने बिन्दु",
+        "km": "ចំណុចគៀប"
+      }
+    },
+    {
+      "id": "T074",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "방호덮개",
+      "plain_ko": "위험 부위를 덮는 보호 장치",
+      "aliases": [
+        "안전커버"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "nắp che bảo vệ",
+        "th": "ฝาครอบนิรภัย",
+        "id": "penutup pelindung",
+        "ne": "सुरक्षा कभर",
+        "km": "គម្របការពារ"
+      }
+    },
+    {
+      "id": "T075",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "인터록",
+      "plain_ko": "문이 열리면 기계가 멈추는 안전장치",
+      "aliases": [
+        "연동장치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "khóa liên động an toàn",
+        "th": "ระบบอินเตอร์ล็อก",
+        "id": "interlock keselamatan",
+        "ne": "सेफ्टी इन्टरलक",
+        "km": "ប្រព័ន្ធអ៊ីនធឺឡក់សុវត្ថិភាព"
+      }
+    },
+    {
+      "id": "T076",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "센서",
+      "plain_ko": "위치나 사람을 감지하는 장치",
+      "aliases": [
+        "감지기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "cảm biến",
+        "th": "เซนเซอร์",
+        "id": "sensor",
+        "ne": "सेन्सर",
+        "km": "ឧបករណ៍ចាប់សញ្ញា"
+      }
+    },
+    {
+      "id": "T077",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "비상정지버튼",
+      "plain_ko": "기계를 급히 멈추는 버튼",
+      "aliases": [
+        "이머전시버튼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "nút dừng khẩn cấp",
+        "th": "ปุ่มหยุดฉุกเฉิน",
+        "id": "tombol berhenti darurat",
+        "ne": "आपतकालीन रोक्ने बटन",
+        "km": "ប៊ូតុងបញ្ឈប់បន្ទាន់"
+      }
+    },
+    {
+      "id": "T078",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "지그",
+      "plain_ko": "제품을 고정하는 작업 도구",
+      "aliases": [
+        "고정틀"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "đồ gá",
+        "th": "จิ๊กจับงาน",
+        "id": "jig",
+        "ne": "जिग",
+        "km": "ជីក/ឧបករណ៍ចាប់តម្រង់"
+      }
+    },
+    {
+      "id": "T079",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "금형",
+      "plain_ko": "제품 모양을 만드는 틀",
+      "aliases": [
+        "몰드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "khuôn",
+        "th": "แม่พิมพ์",
+        "id": "cetakan",
+        "ne": "मोल्ड",
+        "km": "ពុម្ព"
+      }
+    },
+    {
+      "id": "T080",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "공압",
+      "plain_ko": "압축공기를 이용한 힘",
+      "aliases": [
+        "에어압"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "khí nén",
+        "th": "ระบบลม",
+        "id": "pneumatik",
+        "ne": "न्युम्याटिक",
+        "km": "ប្រព័ន្ធខ្យល់បង្ហាប់"
+      }
+    },
+    {
+      "id": "T081",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "유압",
+      "plain_ko": "기름 압력을 이용한 힘",
+      "aliases": [
+        "오일압"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "thủy lực",
+        "th": "ระบบไฮดรอลิก",
+        "id": "hidrolik",
+        "ne": "हाइड्रोलिक",
+        "km": "ប្រព័ន្ធហាយដ្រូលិក"
+      }
+    },
+    {
+      "id": "T082",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "에어건",
+      "plain_ko": "압축공기를 분사하는 도구",
+      "aliases": [
+        "공기총"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "súng hơi",
+        "th": "ปืนลม",
+        "id": "air gun",
+        "ne": "एयर गन",
+        "km": "កាំភ្លើងខ្យល់"
+      }
+    },
+    {
+      "id": "T083",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "콤프레서",
+      "plain_ko": "압축공기를 만드는 장비",
+      "aliases": [
+        "공기압축기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "máy nén khí",
+        "th": "เครื่องอัดอากาศ",
+        "id": "kompresor",
+        "ne": "कम्प्रेसर",
+        "km": "ម៉ាស៊ីនបង្ហាប់ខ្យល់"
+      }
+    },
+    {
+      "id": "T084",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "작업대",
+      "plain_ko": "작업을 하는 테이블",
+      "aliases": [
+        "테이블"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "bàn làm việc",
+        "th": "โต๊ะทำงาน",
+        "id": "meja kerja",
+        "ne": "वर्कबेन्च",
+        "km": "តុធ្វើការ"
+      }
+    },
+    {
+      "id": "T085",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "공구함",
+      "plain_ko": "공구를 보관하는 상자",
+      "aliases": [
+        "툴박스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate as manufacturing equipment or machine-part terminology. Prefer literal safety-critical wording over casual wording.",
+      "translations": {
+        "vi": "hộp dụng cụ",
+        "th": "กล่องเครื่องมือ",
+        "id": "kotak alat",
+        "ne": "औजार बाकस",
+        "km": "ប្រអប់ឧបករណ៍"
+      }
+    },
+    {
+      "id": "T131",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "용접",
+      "plain_ko": "금속을 열로 붙이는 작업",
+      "aliases": [
+        "웰딩"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "hàn",
+        "th": "การเชื่อม",
+        "id": "pengelasan",
+        "ne": "वेल्डिङ",
+        "km": "ផ្សារដែក"
+      }
+    },
+    {
+      "id": "T132",
+      "domain": "welding",
+      "risk_level": "high",
+      "ko": "용접봉",
+      "plain_ko": "용접에 쓰는 금속 막대",
+      "aliases": [
+        "전극봉"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "que hàn",
+        "th": "ลวดเชื่อม",
+        "id": "elektroda las",
+        "ne": "वेल्डिङ रड",
+        "km": "ដំបងផ្សារ"
+      }
+    },
+    {
+      "id": "T133",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "용접불꽃",
+      "plain_ko": "용접 중 발생하는 불꽃",
+      "aliases": [
+        "스파크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "tia lửa hàn",
+        "th": "สะเก็ดไฟเชื่อม",
+        "id": "percikan las",
+        "ne": "वेल्डिङको झिल्का",
+        "km": "ផ្កាភ្លើងផ្សារ"
+      }
+    },
+    {
+      "id": "T134",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "불티",
+      "plain_ko": "작업 중 튀는 작은 불꽃",
+      "aliases": [
+        "스패터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "tia lửa",
+        "th": "สะเก็ดไฟ",
+        "id": "percikan api",
+        "ne": "आगोको झिल्का",
+        "km": "ផ្កាភ្លើង"
+      }
+    },
+    {
+      "id": "T135",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "가연물",
+      "plain_ko": "불이 붙기 쉬운 물질",
+      "aliases": [
+        "인화물"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "vật dễ cháy",
+        "th": "วัสดุไวไฟ",
+        "id": "bahan mudah terbakar",
+        "ne": "ज्वलनशील वस्तु",
+        "km": "វត្ថុងាយឆេះ"
+      }
+    },
+    {
+      "id": "T136",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "인화성물질",
+      "plain_ko": "쉽게 불이 붙는 물질",
+      "aliases": [
+        "인화물질"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "chất dễ bắt lửa",
+        "th": "สารไวไฟ",
+        "id": "bahan mudah menyala",
+        "ne": "छिटो आगो लाग्ने पदार्थ",
+        "km": "សារធាតុងាយឆេះ"
+      }
+    },
+    {
+      "id": "T137",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "산소통",
+      "plain_ko": "산소가 들어 있는 압력용기",
+      "aliases": [
+        "산소용기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "bình oxy",
+        "th": "ถังออกซิเจน",
+        "id": "tabung oksigen",
+        "ne": "अक्सिजन सिलिन्डर",
+        "km": "ធុងអុកស៊ីសែន"
+      }
+    },
+    {
+      "id": "T138",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "가스통",
+      "plain_ko": "가스가 들어 있는 압력용기",
+      "aliases": [
+        "가스용기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "bình gas",
+        "th": "ถังแก๊ส",
+        "id": "tabung gas",
+        "ne": "ग्यास सिलिन्डर",
+        "km": "ធុងហ្គាស"
+      }
+    },
+    {
+      "id": "T139",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "역화방지기",
+      "plain_ko": "불꽃이 가스통으로 역류하는 것을 막는 장치",
+      "aliases": [
+        "역화장치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "force_preserve_meaning",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "van chống cháy ngược",
+        "th": "อุปกรณ์กันไฟย้อนกลับ",
+        "id": "alat pencegah api balik",
+        "ne": "ब्याकफायर रोक्ने उपकरण",
+        "km": "ឧបករណ៍ការពារភ្លើងត្រឡប់"
+      }
+    },
+    {
+      "id": "T140",
+      "domain": "welding",
+      "risk_level": "high",
+      "ko": "환기",
+      "plain_ko": "공기를 바꾸는 것",
+      "aliases": [
+        "통풍"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in welding, cutting, fire-prevention context. Preserve fire/explosion hazard wording.",
+      "translations": {
+        "vi": "thông gió",
+        "th": "การระบายอากาศ",
+        "id": "ventilasi",
+        "ne": "हावा आवतजावत",
+        "km": "ការបញ្ចេញខ្យល់"
+      }
+    },
+    {
+      "id": "T216",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "불량",
+      "plain_ko": "기준에 맞지 않는 제품",
+      "aliases": [
+        "NG"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "hàng lỗi",
+        "th": "ของเสีย/ชิ้นงานเสีย",
+        "id": "barang cacat",
+        "ne": "खराब सामान",
+        "km": "ទំនិញខូច"
+      }
+    },
+    {
+      "id": "T217",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "양품",
+      "plain_ko": "기준에 맞는 정상 제품",
+      "aliases": [
+        "OK품"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "hàng đạt chuẩn",
+        "th": "ของดี/ชิ้นงานผ่าน",
+        "id": "barang baik",
+        "ne": "राम्रो सामान",
+        "km": "ទំនិញល្អ"
+      }
+    },
+    {
+      "id": "T218",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "찍힘",
+      "plain_ko": "표면에 눌린 자국",
+      "aliases": [
+        "눌림자국"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "vết lõm",
+        "th": "รอยบุบ",
+        "id": "penyok",
+        "ne": "थिचिएको दाग",
+        "km": "ស្នាមបុក/ខូចខាត"
+      }
+    },
+    {
+      "id": "T219",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "긁힘",
+      "plain_ko": "표면이 긁힌 손상",
+      "aliases": [
+        "스크래치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "vết xước",
+        "th": "รอยขีดข่วน",
+        "id": "goresan",
+        "ne": "कोरिएको दाग",
+        "km": "ស្នាមឆ្កូត"
+      }
+    },
+    {
+      "id": "T220",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "깨짐",
+      "plain_ko": "제품이 갈라지거나 부서짐",
+      "aliases": [
+        "파손"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "bị vỡ",
+        "th": "แตก",
+        "id": "pecah",
+        "ne": "फुटेको",
+        "km": "បែក"
+      }
+    },
+    {
+      "id": "T221",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "누락",
+      "plain_ko": "있어야 할 것이 빠짐",
+      "aliases": [
+        "빠짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "thiếu",
+        "th": "ขาด/ตกหล่น",
+        "id": "terlewat/hilang",
+        "ne": "छुटेको",
+        "km": "ខ្វះ/បាត់"
+      }
+    },
+    {
+      "id": "T222",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "오염",
+      "plain_ko": "먼지나 이물질이 묻음",
+      "aliases": [
+        "더러움"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "bị bẩn/nhiễm bẩn",
+        "th": "ปนเปื้อน",
+        "id": "terkontaminasi",
+        "ne": "दूषित",
+        "km": "កខ្វក់"
+      }
+    },
+    {
+      "id": "T223",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "변색",
+      "plain_ko": "색이 달라짐",
+      "aliases": [
+        "색변함"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "đổi màu",
+        "th": "สีเปลี่ยน",
+        "id": "perubahan warna",
+        "ne": "रङ फेरिएको",
+        "km": "ប្រែពណ៌"
+      }
+    },
+    {
+      "id": "T224",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "수량부족",
+      "plain_ko": "개수가 모자람",
+      "aliases": [
+        "개수부족"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "thiếu số lượng",
+        "th": "จำนวนไม่พอ",
+        "id": "jumlah kurang",
+        "ne": "संख्या कम",
+        "km": "ចំនួនខ្វះ"
+      }
+    },
+    {
+      "id": "T225",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "재작업",
+      "plain_ko": "다시 고쳐 작업함",
+      "aliases": [
+        "리워크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "làm lại",
+        "th": "ทำซ้ำ/แก้งาน",
+        "id": "kerja ulang",
+        "ne": "फेरि काम गर्नु",
+        "km": "ធ្វើឡើងវិញ"
+      }
+    },
+    {
+      "id": "T226",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "폐기",
+      "plain_ko": "버리거나 사용하지 않음",
+      "aliases": [
+        "버림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "loại bỏ",
+        "th": "ทิ้ง/คัดทิ้ง",
+        "id": "buang",
+        "ne": "फाल्नु",
+        "km": "បោះចោល"
+      }
+    },
+    {
+      "id": "T227",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "샘플",
+      "plain_ko": "검사용 대표 제품",
+      "aliases": [
+        "시료"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "mẫu",
+        "th": "ตัวอย่าง",
+        "id": "sampel",
+        "ne": "नमूना",
+        "km": "គំរូ"
+      }
+    },
+    {
+      "id": "T228",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "검사",
+      "plain_ko": "기준에 맞는지 확인",
+      "aliases": [
+        "체크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "kiểm tra",
+        "th": "ตรวจสอบ",
+        "id": "inspeksi",
+        "ne": "जाँच",
+        "km": "ពិនិត្យ"
+      }
+    },
+    {
+      "id": "T229",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "포장방향",
+      "plain_ko": "제품을 넣는 방향",
+      "aliases": [
+        "방향"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "hướng đóng gói",
+        "th": "ทิศทางการบรรจุ",
+        "id": "arah pengemasan",
+        "ne": "प्याकिङ दिशा",
+        "km": "ទិសដៅវេចខ្ចប់"
+      }
+    },
+    {
+      "id": "T230",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "로트번호",
+      "plain_ko": "제품 묶음 식별 번호",
+      "aliases": [
+        "LOT"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "machine_seeded_needs_native_review",
+      "glossary_use": "context_hint",
+      "industry_tags": [
+        "manufacturing"
+      ],
+      "manufacturing_context": "Translate in product inspection and defect-sorting context. Avoid translating as moral quality or personal evaluation.",
+      "translations": {
+        "vi": "số lô",
+        "th": "หมายเลขล็อต",
+        "id": "nomor lot",
+        "ne": "लट नम्बर",
+        "km": "លេខឡូត៍"
+      }
+    }
+  ]
+}

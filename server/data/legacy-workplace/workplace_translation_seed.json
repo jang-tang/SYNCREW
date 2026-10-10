@@ -1,0 +1,7856 @@
+{
+  "name": "workplace_translation_mvp_seed",
+  "version": "0.1.0",
+  "generated_at": "2026-06-21T05:51:48.512Z",
+  "language_center": "ko",
+  "target_languages": [
+    {
+      "code": "vi",
+      "name_ko": "베트남어",
+      "name_en": "Vietnamese"
+    },
+    {
+      "code": "th",
+      "name_ko": "태국어",
+      "name_en": "Thai"
+    },
+    {
+      "code": "id",
+      "name_ko": "인도네시아어",
+      "name_en": "Indonesian"
+    },
+    {
+      "code": "ne",
+      "name_ko": "네팔어",
+      "name_en": "Nepali"
+    },
+    {
+      "code": "km",
+      "name_ko": "캄보디아어/크메르어",
+      "name_en": "Khmer"
+    }
+  ],
+  "counts": {
+    "scenarios": 100,
+    "terms": 300
+  },
+  "sources": [
+    {
+      "title": "EPS Employment Permit System official page",
+      "url": "https://www.eps.go.kr/eo/EmployPerSystem.eo?tabGb=01",
+      "note": "Used to scope E-9 workplace domains such as manufacturing, construction, agriculture/livestock, fisheries, service expansion, waste handling, cargo handling, forestry, and mining."
+    },
+    {
+      "title": "Occupational Safety and Health Standards Rules",
+      "url": "https://www.law.go.kr/법령/산업안전보건기준에관한규칙",
+      "note": "Used to identify recurring hazard classes: fall, caught-in, electric shock, fire, explosion, confined space, machinery, lifting, chemicals, noise, dust, heat, and PPE."
+    },
+    {
+      "title": "Korea Occupational Safety and Health Agency",
+      "url": "https://kosha.or.kr/english",
+      "note": "Used as the public safety-health context for workplace prevention, training, and accident reduction."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S001",
+      "scenario_type": "orientation",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "오늘은 A라인 포장 작업입니다.",
+      "plain_ko": "오늘 A라인에서 제품을 포장합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S002",
+      "scenario_type": "orientation",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "처음 30분은 옆에서 보고 따라 하세요.",
+      "plain_ko": "처음에는 다른 사람이 하는 방법을 보고 따라 하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S003",
+      "scenario_type": "orientation",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "모르면 바로 물어보세요.",
+      "plain_ko": "이해하지 못하면 바로 질문하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S004",
+      "scenario_type": "orientation",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "작업 전에 오늘 일정부터 확인하겠습니다.",
+      "plain_ko": "일을 시작하기 전에 오늘 할 일을 확인합니다.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S005",
+      "scenario_type": "orientation",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "작업 위치를 바꾸겠습니다.",
+      "plain_ko": "일하는 장소를 다른 곳으로 바꿉니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S006",
+      "scenario_type": "attendance",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "출근하면 먼저 출근 기록을 찍으세요.",
+      "plain_ko": "회사에 오면 먼저 출근 체크를 하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S007",
+      "scenario_type": "attendance",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "퇴근 전에 정리정돈을 해주세요.",
+      "plain_ko": "집에 가기 전에 주변을 정리하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S008",
+      "scenario_type": "attendance",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "오늘 잔업이 있습니다.",
+      "plain_ko": "오늘 정규 근무 후 추가 근무가 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S009",
+      "scenario_type": "attendance",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "휴게시간은 10시 30분부터입니다.",
+      "plain_ko": "쉬는 시간은 10시 30분에 시작합니다.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S010",
+      "scenario_type": "attendance",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "몸이 아프면 관리자에게 말하세요.",
+      "plain_ko": "아프면 담당자에게 바로 알려주세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S011",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "안전모를 쓰세요.",
+      "plain_ko": "머리를 보호하는 안전모를 착용하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S012",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "안전화 없이는 작업장에 들어오지 마세요.",
+      "plain_ko": "안전화 착용 전에는 작업장 출입 금지입니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S013",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "장갑을 끼고 작업하세요.",
+      "plain_ko": "손을 보호하기 위해 장갑을 착용하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S014",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "보안경을 착용하세요.",
+      "plain_ko": "눈을 보호하는 안경을 쓰세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S015",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "귀마개를 착용하세요.",
+      "plain_ko": "소음이 크니 귀 보호구를 쓰세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S016",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "마스크를 코까지 올리세요.",
+      "plain_ko": "마스크가 코와 입을 모두 덮게 하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S017",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "안전대를 걸고 올라가세요.",
+      "plain_ko": "높은 곳에 올라가기 전에 안전고리를 연결하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S018",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "젖은 장갑으로 전기 작업하지 마세요.",
+      "plain_ko": "젖은 장갑을 끼고 전기를 만지면 위험합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S019",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "normal",
+      "ko": "작업복 소매를 걷거나 묶으세요.",
+      "plain_ko": "소매가 기계에 말려 들어가지 않게 정리하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S020",
+      "scenario_type": "ppe",
+      "domain": "safety",
+      "risk_level": "normal",
+      "ko": "목걸이와 반지는 빼고 작업하세요.",
+      "plain_ko": "장신구가 기계에 걸릴 수 있으니 제거하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S021",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "멈춰!",
+      "plain_ko": "즉시 하던 일을 멈추세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S022",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "뒤로 물러나!",
+      "plain_ko": "위험하니 바로 뒤로 가세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S023",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "손 빼!",
+      "plain_ko": "기계나 물건에서 손을 즉시 빼세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S024",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "가까이 가지 마세요.",
+      "plain_ko": "위험 구역에 접근하지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S025",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "지금 대피하세요.",
+      "plain_ko": "지금 안전한 곳으로 이동하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S026",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "119에 신고하세요.",
+      "plain_ko": "응급 상황이니 119에 전화하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S027",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "비상정지 버튼을 누르세요.",
+      "plain_ko": "기계를 즉시 멈추는 빨간 버튼을 누르세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S028",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "전원을 내리세요.",
+      "plain_ko": "기계나 설비의 전기를 차단하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S029",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "사람이 다쳤습니다.",
+      "plain_ko": "부상자가 있습니다. 도움을 요청하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S030",
+      "scenario_type": "emergency",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "불이 났습니다.",
+      "plain_ko": "화재가 발생했습니다. 대피하고 신고하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S031",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "critical",
+      "ko": "기계 켜기 전에 손을 빼세요.",
+      "plain_ko": "기계 작동 전 손이 안에 없는지 확인하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S032",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "critical",
+      "ko": "커버를 열고 작동하지 마세요.",
+      "plain_ko": "보호 덮개를 연 상태로 기계를 켜면 안 됩니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S033",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "작동 중인 롤러에 손대지 마세요.",
+      "plain_ko": "움직이는 롤러를 만지지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S034",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "프레스 안에 손을 넣지 마세요.",
+      "plain_ko": "프레스 작업 구역에 손을 넣으면 끼일 수 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S035",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "제품은 지그에 맞춰 넣으세요.",
+      "plain_ko": "제품을 고정 도구 위치에 정확히 놓으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S036",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "불량품은 빨간 박스에 넣으세요.",
+      "plain_ko": "문제가 있는 제품은 별도 박스에 넣으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S037",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "수량을 다시 세어 주세요.",
+      "plain_ko": "제품 개수를 다시 확인하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S038",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "이상한 소리가 나면 즉시 멈추세요.",
+      "plain_ko": "기계 소리가 평소와 다르면 작업을 중단하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S039",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "청소 전에는 반드시 전원을 끄세요.",
+      "plain_ko": "기계를 청소하기 전에 전기를 끄세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S040",
+      "scenario_type": "machine",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "완제품과 반제품을 섞지 마세요.",
+      "plain_ko": "완성된 제품과 아직 덜 된 제품을 분리하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S041",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "지게차 지나갑니다.",
+      "plain_ko": "지게차가 이동 중이니 비켜 주세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S042",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "노란 선 안으로 들어오지 마세요.",
+      "plain_ko": "안전선 안쪽은 위험 구역입니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S043",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "팔레트를 여기 놓으세요.",
+      "plain_ko": "화물을 이 위치에 내려놓으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S044",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "짐을 너무 높게 쌓지 마세요.",
+      "plain_ko": "화물이 무너지지 않도록 낮게 쌓으세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S045",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "후진할 때 뒤를 확인하세요.",
+      "plain_ko": "뒤로 갈 때 사람이나 물건이 있는지 보세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S046",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "지게차 포크 밑에 들어가지 마세요.",
+      "plain_ko": "들어 올린 화물 아래로 가지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S047",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "바코드를 먼저 찍고 이동하세요.",
+      "plain_ko": "화물을 옮기기 전에 바코드를 스캔하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S048",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "출고품과 입고품을 분리하세요.",
+      "plain_ko": "나가는 물건과 들어온 물건을 따로 두세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S049",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "랙 위 물건이 떨어질 수 있습니다.",
+      "plain_ko": "선반 위 화물이 낙하할 수 있으니 조심하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S050",
+      "scenario_type": "forklift",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "랩핑이 풀렸는지 확인하세요.",
+      "plain_ko": "포장 필름이 벗겨졌는지 확인하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S051",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "안전고리를 걸고 올라가세요.",
+      "plain_ko": "높은 곳 작업 전 안전대를 연결하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S052",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "난간 밖으로 몸을 내밀지 마세요.",
+      "plain_ko": "추락 위험이 있으니 난간 밖으로 나가지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S053",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "아래에 사람이 있는지 확인하세요.",
+      "plain_ko": "자재를 옮기기 전 아래 사람을 확인하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S054",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "자재를 던지지 마세요.",
+      "plain_ko": "물건을 아래로 던지면 사람이 다칠 수 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S055",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "비계 발판을 먼저 확인하세요.",
+      "plain_ko": "올라가기 전 발판이 안전한지 확인하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S056",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "개구부 근처에 가지 마세요.",
+      "plain_ko": "바닥 구멍 근처는 추락 위험이 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S057",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "normal",
+      "ko": "철근 끝에 보호캡을 씌우세요.",
+      "plain_ko": "철근 끝부분을 보호캡으로 덮으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S058",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "크레인 작업 반경 밖으로 나가세요.",
+      "plain_ko": "크레인이 움직이는 범위에서 벗어나세요.",
+      "output_channels": [
+        "subtitle",
+        "audio",
+        "speaker"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S059",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "신호수 지시에 따라 움직이세요.",
+      "plain_ko": "장비 이동은 신호 담당자 지시를 따르세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S060",
+      "scenario_type": "construction",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "굴착면 가까이 서지 마세요.",
+      "plain_ko": "흙이 무너질 수 있으니 굴착면에서 떨어지세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S061",
+      "scenario_type": "welding",
+      "domain": "manufacturing",
+      "risk_level": "critical",
+      "ko": "불꽃 조심하세요.",
+      "plain_ko": "용접 불꽃에 화상이나 화재 위험이 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S062",
+      "scenario_type": "welding",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "가연물을 치우세요.",
+      "plain_ko": "불이 붙을 수 있는 물건을 제거하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S063",
+      "scenario_type": "welding",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "보안면을 쓰세요.",
+      "plain_ko": "용접할 때 얼굴 보호구를 착용하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S064",
+      "scenario_type": "welding",
+      "domain": "manufacturing",
+      "risk_level": "critical",
+      "ko": "절단 방향에 손을 두지 마세요.",
+      "plain_ko": "칼날이나 절단선 앞에 손을 놓지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S065",
+      "scenario_type": "welding",
+      "domain": "manufacturing",
+      "risk_level": "high",
+      "ko": "그라인더 보호덮개를 빼지 마세요.",
+      "plain_ko": "그라인더 안전 커버를 제거하면 안 됩니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S066",
+      "scenario_type": "electrical",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "전원 차단 후 작업하세요.",
+      "plain_ko": "전기를 끈 다음 작업하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S067",
+      "scenario_type": "electrical",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "젖은 손으로 만지지 마세요.",
+      "plain_ko": "젖은 손으로 전기 설비를 만지면 감전됩니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S068",
+      "scenario_type": "electrical",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "누전이 의심됩니다.",
+      "plain_ko": "전기가 새고 있을 수 있으니 접근하지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S069",
+      "scenario_type": "electrical",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "전기 담당자를 부르세요.",
+      "plain_ko": "전문 담당자가 와서 확인해야 합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S070",
+      "scenario_type": "electrical",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "임의로 배선을 만지지 마세요.",
+      "plain_ko": "허가 없이 전선을 만지면 안 됩니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S071",
+      "scenario_type": "chemical",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "이 약품은 피부에 닿으면 안 됩니다.",
+      "plain_ko": "화학물질이 피부에 닿지 않게 하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S072",
+      "scenario_type": "chemical",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "환기하세요.",
+      "plain_ko": "창문이나 환풍기를 열어 공기를 바꾸세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S073",
+      "scenario_type": "chemical",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "라벨을 확인하세요.",
+      "plain_ko": "약품 이름과 사용법을 먼저 확인하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S074",
+      "scenario_type": "chemical",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "눈에 들어가면 바로 씻으세요.",
+      "plain_ko": "약품이 눈에 들어가면 즉시 물로 씻으세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S075",
+      "scenario_type": "chemical",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "농약 살포 중에는 마스크를 벗지 마세요.",
+      "plain_ko": "농약을 뿌릴 때는 마스크를 계속 착용하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S076",
+      "scenario_type": "agriculture",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "비닐하우스 안이 너무 덥습니다.",
+      "plain_ko": "온열질환 위험이 있으니 쉬고 물을 마시세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S077",
+      "scenario_type": "agriculture",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "수확한 것은 이 상자에 담으세요.",
+      "plain_ko": "딴 농산물을 이 박스에 넣으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S078",
+      "scenario_type": "agriculture",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "상한 것은 따로 빼세요.",
+      "plain_ko": "상태가 나쁜 농산물은 분리하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S079",
+      "scenario_type": "agriculture",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "예초기 날에 가까이 가지 마세요.",
+      "plain_ko": "회전하는 예초기 칼날 근처로 가지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S080",
+      "scenario_type": "agriculture",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "축사 바닥이 미끄럽습니다.",
+      "plain_ko": "바닥에서 넘어지지 않게 천천히 걸으세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S081",
+      "scenario_type": "food",
+      "domain": "food_processing",
+      "risk_level": "high",
+      "ko": "칼날 방향을 몸 반대로 하세요.",
+      "plain_ko": "칼을 몸 쪽으로 향하게 하지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S082",
+      "scenario_type": "food",
+      "domain": "food_processing",
+      "risk_level": "high",
+      "ko": "절단기 청소 전 전원을 끄세요.",
+      "plain_ko": "칼날 기계를 청소하기 전 전기를 끄세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S083",
+      "scenario_type": "food",
+      "domain": "food_processing",
+      "risk_level": "normal",
+      "ko": "위생장갑을 새것으로 바꾸세요.",
+      "plain_ko": "음식 작업 전 깨끗한 장갑으로 교체하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S084",
+      "scenario_type": "food",
+      "domain": "food_processing",
+      "risk_level": "normal",
+      "ko": "냉동실 문을 오래 열어두지 마세요.",
+      "plain_ko": "냉동실 온도가 올라가지 않게 문을 닫으세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S085",
+      "scenario_type": "food",
+      "domain": "food_processing",
+      "risk_level": "high",
+      "ko": "바닥 물기를 닦으세요.",
+      "plain_ko": "미끄럼 사고를 막기 위해 물을 제거하세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S086",
+      "scenario_type": "waste",
+      "domain": "waste_recycling",
+      "risk_level": "critical",
+      "ko": "압축기 안에 들어가지 마세요.",
+      "plain_ko": "압축기 내부 진입은 매우 위험합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S087",
+      "scenario_type": "waste",
+      "domain": "waste_recycling",
+      "risk_level": "critical",
+      "ko": "파쇄기 투입구에 손을 넣지 마세요.",
+      "plain_ko": "파쇄기 입구에 손을 넣으면 절단될 수 있습니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S088",
+      "scenario_type": "waste",
+      "domain": "waste_recycling",
+      "risk_level": "high",
+      "ko": "날카로운 물건은 집게로 잡으세요.",
+      "plain_ko": "깨진 유리나 금속은 손으로 잡지 마세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S089",
+      "scenario_type": "waste",
+      "domain": "waste_recycling",
+      "risk_level": "high",
+      "ko": "악취가 심하면 마스크를 바꾸세요.",
+      "plain_ko": "냄새가 강하면 보호 마스크를 교체하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S090",
+      "scenario_type": "waste",
+      "domain": "waste_recycling",
+      "risk_level": "critical",
+      "ko": "주사기나 의료폐기물을 만지지 마세요.",
+      "plain_ko": "위험 폐기물은 직접 만지면 안 됩니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S091",
+      "scenario_type": "health",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "어디가 아픕니까?",
+      "plain_ko": "몸의 어느 부분이 아픈지 말해주세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S092",
+      "scenario_type": "health",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "어지러우면 바로 말하세요.",
+      "plain_ko": "어지러움을 느끼면 즉시 알려주세요.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S093",
+      "scenario_type": "health",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "피가 납니다.",
+      "plain_ko": "출혈이 있으니 응급조치가 필요합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S094",
+      "scenario_type": "health",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "병원에 가야 합니다.",
+      "plain_ko": "진료가 필요하니 병원으로 이동해야 합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use speaker/audio repeat and large caption."
+    },
+    {
+      "id": "S095",
+      "scenario_type": "health",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "물을 마시고 그늘에서 쉬세요.",
+      "plain_ko": "더위 때문에 휴식과 수분 섭취가 필요합니다.",
+      "output_channels": [
+        "subtitle",
+        "audio"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S096",
+      "scenario_type": "quality",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "이 제품은 불량입니다.",
+      "plain_ko": "이 제품은 기준에 맞지 않습니다.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S097",
+      "scenario_type": "quality",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "찍힘이 있으면 따로 빼세요.",
+      "plain_ko": "표면에 자국이 있는 제품은 분리하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S098",
+      "scenario_type": "quality",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "포장 방향이 반대입니다.",
+      "plain_ko": "제품 포장 방향을 다시 맞추세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S099",
+      "scenario_type": "quality",
+      "domain": "manufacturing",
+      "risk_level": "normal",
+      "ko": "작업대 위를 정리하세요.",
+      "plain_ko": "일하는 테이블 위 물건을 정돈하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    },
+    {
+      "id": "S100",
+      "scenario_type": "rights",
+      "domain": "general",
+      "risk_level": "normal",
+      "ko": "급여명세서를 확인하세요.",
+      "plain_ko": "임금 내역이 맞는지 확인하세요.",
+      "output_channels": [
+        "subtitle"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "mvp_note": "Use caption and optional audio."
+    }
+  ],
+  "terms": [
+    {
+      "id": "T001",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "멈춰",
+      "plain_ko": "즉시 동작을 중단하라는 긴급 지시",
+      "aliases": [
+        "정지",
+        "스톱"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T002",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "위험",
+      "plain_ko": "사고나 부상이 발생할 수 있는 상태",
+      "aliases": [
+        "위험함",
+        "위험해"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T003",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "대피",
+      "plain_ko": "위험 장소에서 안전한 곳으로 이동",
+      "aliases": [
+        "피난",
+        "탈출"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T004",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "비상정지",
+      "plain_ko": "기계나 설비를 긴급하게 정지",
+      "aliases": [
+        "긴급정지",
+        "이머전시스톱"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T005",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "119 신고",
+      "plain_ko": "응급상황을 소방/구급에 알림",
+      "aliases": [
+        "구급신고",
+        "소방신고"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T006",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "응급실",
+      "plain_ko": "응급환자를 치료하는 병원 공간",
+      "aliases": [
+        "ER",
+        "응급센터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T007",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "응급처치",
+      "plain_ko": "다친 사람에게 즉시 하는 기본 조치",
+      "aliases": [
+        "응급조치",
+        "구급처치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T008",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "출혈",
+      "plain_ko": "피가 나는 상태",
+      "aliases": [
+        "피남",
+        "피가남"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T009",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "골절",
+      "plain_ko": "뼈가 부러진 상태",
+      "aliases": [
+        "뼈부러짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T010",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "화상",
+      "plain_ko": "뜨거운 것에 피부가 손상됨",
+      "aliases": [
+        "데임"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T011",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "질식",
+      "plain_ko": "숨을 쉬기 어려운 상태",
+      "aliases": [
+        "숨막힘"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T012",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "어지러움",
+      "plain_ko": "머리가 어지러운 증상",
+      "aliases": [
+        "현기증"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T013",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "두통",
+      "plain_ko": "머리가 아픈 증상",
+      "aliases": [
+        "머리통증"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T014",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "복통",
+      "plain_ko": "배가 아픈 증상",
+      "aliases": [
+        "배아픔"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T015",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "탈수",
+      "plain_ko": "몸에 수분이 부족한 상태",
+      "aliases": [
+        "물부족"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T016",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "온열질환",
+      "plain_ko": "더위로 생기는 건강 이상",
+      "aliases": [
+        "열사병",
+        "일사병"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T017",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "저체온증",
+      "plain_ko": "추위로 체온이 떨어지는 상태",
+      "aliases": [
+        "체온저하"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T018",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "감전",
+      "plain_ko": "전기가 몸을 통과해 다치는 사고",
+      "aliases": [
+        "전기충격",
+        "전기쇼크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T019",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "화재",
+      "plain_ko": "불이 나는 사고",
+      "aliases": [
+        "불남"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T020",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "폭발",
+      "plain_ko": "압력이나 화학반응으로 터지는 사고",
+      "aliases": [
+        "터짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T021",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "추락",
+      "plain_ko": "높은 곳에서 떨어지는 사고",
+      "aliases": [
+        "떨어짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T022",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "낙하물",
+      "plain_ko": "위에서 떨어지는 물건",
+      "aliases": [
+        "떨어지는물건"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T023",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "끼임",
+      "plain_ko": "몸이 기계나 물체 사이에 끼는 사고",
+      "aliases": [
+        "협착",
+        "말림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T024",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "베임",
+      "plain_ko": "칼이나 날카로운 물체에 피부가 잘림",
+      "aliases": [
+        "절상"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T025",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "절단",
+      "plain_ko": "신체 일부가 잘리는 사고",
+      "aliases": [
+        "절단사고"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T026",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "찔림",
+      "plain_ko": "뾰족한 물체에 찔리는 사고",
+      "aliases": [
+        "자상"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T027",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "미끄럼",
+      "plain_ko": "바닥에서 미끄러지는 상태",
+      "aliases": [
+        "슬립"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T028",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "넘어짐",
+      "plain_ko": "균형을 잃고 넘어지는 사고",
+      "aliases": [
+        "전도"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T029",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "부딪힘",
+      "plain_ko": "사람이나 물체와 충돌하는 사고",
+      "aliases": [
+        "충돌"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T030",
+      "domain": "safety",
+      "risk_level": "high",
+      "ko": "맞음",
+      "plain_ko": "날아오거나 떨어진 물체에 맞는 사고",
+      "aliases": [
+        "가격"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T031",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "깔림",
+      "plain_ko": "무거운 물체 아래에 눌리는 사고",
+      "aliases": [
+        "압착"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T032",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "붕괴",
+      "plain_ko": "구조물이나 흙이 무너지는 사고",
+      "aliases": [
+        "무너짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T033",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "토사붕괴",
+      "plain_ko": "흙이나 암석이 무너지는 사고",
+      "aliases": [
+        "흙무너짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T034",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "질식위험",
+      "plain_ko": "산소 부족 등으로 숨쉬기 어려운 위험",
+      "aliases": [
+        "산소결핍"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T035",
+      "domain": "safety",
+      "risk_level": "critical",
+      "ko": "유해가스",
+      "plain_ko": "건강에 해로운 기체",
+      "aliases": [
+        "독성가스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T036",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "안전모",
+      "plain_ko": "머리 보호용 보호구",
+      "aliases": [
+        "헬멧"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T037",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "안전화",
+      "plain_ko": "발 보호용 작업 신발",
+      "aliases": [
+        "작업화"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T038",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "안전대",
+      "plain_ko": "추락 방지용 몸 보호 장비",
+      "aliases": [
+        "하네스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T039",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "안전고리",
+      "plain_ko": "안전대를 걸어 고정하는 고리",
+      "aliases": [
+        "카라비너"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T040",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "장갑",
+      "plain_ko": "손 보호구",
+      "aliases": [
+        "작업장갑"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T041",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "절단방지장갑",
+      "plain_ko": "베임을 막는 장갑",
+      "aliases": [
+        "베임방지장갑"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T042",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "내화장갑",
+      "plain_ko": "열과 불꽃을 막는 장갑",
+      "aliases": [
+        "방열장갑"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T043",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "고무장갑",
+      "plain_ko": "화학물질이나 물을 막는 장갑",
+      "aliases": [
+        "방수장갑"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T044",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "보안경",
+      "plain_ko": "눈 보호용 안경",
+      "aliases": [
+        "안전안경"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T045",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "보안면",
+      "plain_ko": "얼굴 보호구",
+      "aliases": [
+        "안면보호구"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T046",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "마스크",
+      "plain_ko": "호흡기 보호구",
+      "aliases": [
+        "방진마스크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T047",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "방독마스크",
+      "plain_ko": "유해가스 차단용 마스크",
+      "aliases": [
+        "가스마스크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T048",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "귀마개",
+      "plain_ko": "소음 차단용 귀 보호구",
+      "aliases": [
+        "이어플러그"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T049",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "귀덮개",
+      "plain_ko": "소음 차단용 귀 보호구",
+      "aliases": [
+        "이어머프"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T050",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "형광조끼",
+      "plain_ko": "눈에 잘 보이는 안전 조끼",
+      "aliases": [
+        "안전조끼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T051",
+      "domain": "ppe",
+      "risk_level": "normal",
+      "ko": "작업복",
+      "plain_ko": "작업할 때 입는 옷",
+      "aliases": [
+        "유니폼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T052",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "방진복",
+      "plain_ko": "먼지와 오염을 막는 작업복",
+      "aliases": [
+        "보호복"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T053",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "방수복",
+      "plain_ko": "물을 막는 작업복",
+      "aliases": [
+        "우의"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T054",
+      "domain": "ppe",
+      "risk_level": "high",
+      "ko": "용접면",
+      "plain_ko": "용접 빛과 불꽃을 막는 보호면",
+      "aliases": [
+        "용접보안면"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T055",
+      "domain": "ppe",
+      "risk_level": "normal",
+      "ko": "무릎보호대",
+      "plain_ko": "무릎을 보호하는 장비",
+      "aliases": [
+        "니패드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T056",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "프레스",
+      "plain_ko": "압력을 가해 찍거나 누르는 기계",
+      "aliases": [
+        "프레스기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T057",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "사출기",
+      "plain_ko": "플라스틱을 금형에 넣어 제품을 만드는 기계",
+      "aliases": [
+        "인젝션"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T058",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "컨베이어",
+      "plain_ko": "물건을 자동으로 이동시키는 벨트 설비",
+      "aliases": [
+        "벨트컨베이어"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T059",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "롤러",
+      "plain_ko": "회전하며 물건을 누르거나 이동시키는 부품",
+      "aliases": [
+        "로라"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T060",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "절단기",
+      "plain_ko": "물건을 자르는 기계",
+      "aliases": [
+        "커터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T061",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "파쇄기",
+      "plain_ko": "물건을 부수는 기계",
+      "aliases": [
+        "분쇄기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T062",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "압축기",
+      "plain_ko": "물건을 눌러 압축하는 기계",
+      "aliases": [
+        "프레스압축기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T063",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "혼합기",
+      "plain_ko": "재료를 섞는 기계",
+      "aliases": [
+        "믹서"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T064",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "포장기",
+      "plain_ko": "제품을 자동 포장하는 기계",
+      "aliases": [
+        "랩핑기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T065",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "선반",
+      "plain_ko": "금속을 깎는 회전 가공 기계",
+      "aliases": [
+        "lathe"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T066",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "밀링기",
+      "plain_ko": "금속을 절삭 가공하는 기계",
+      "aliases": [
+        "밀링머신"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T067",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "드릴",
+      "plain_ko": "구멍을 뚫는 공구",
+      "aliases": [
+        "전동드릴"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T068",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "그라인더",
+      "plain_ko": "금속을 갈거나 절단하는 공구",
+      "aliases": [
+        "연마기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T069",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "톱날",
+      "plain_ko": "자르는 날이 있는 부품",
+      "aliases": [
+        "톱"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T070",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "칼날",
+      "plain_ko": "자르는 날카로운 부품",
+      "aliases": [
+        "블레이드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T071",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "회전체",
+      "plain_ko": "돌아가는 기계 부품",
+      "aliases": [
+        "회전부"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T072",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "동력전달부",
+      "plain_ko": "동력을 전달하는 벨트나 체인 부품",
+      "aliases": [
+        "구동부"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T073",
+      "domain": "machine",
+      "risk_level": "critical",
+      "ko": "끼임점",
+      "plain_ko": "손이나 몸이 끼일 수 있는 위치",
+      "aliases": [
+        "협착점"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T074",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "방호덮개",
+      "plain_ko": "위험 부위를 덮는 보호 장치",
+      "aliases": [
+        "안전커버"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T075",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "인터록",
+      "plain_ko": "문이 열리면 기계가 멈추는 안전장치",
+      "aliases": [
+        "연동장치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T076",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "센서",
+      "plain_ko": "위치나 사람을 감지하는 장치",
+      "aliases": [
+        "감지기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T077",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "비상정지버튼",
+      "plain_ko": "기계를 급히 멈추는 버튼",
+      "aliases": [
+        "이머전시버튼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T078",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "지그",
+      "plain_ko": "제품을 고정하는 작업 도구",
+      "aliases": [
+        "고정틀"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T079",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "금형",
+      "plain_ko": "제품 모양을 만드는 틀",
+      "aliases": [
+        "몰드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T080",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "공압",
+      "plain_ko": "압축공기를 이용한 힘",
+      "aliases": [
+        "에어압"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T081",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "유압",
+      "plain_ko": "기름 압력을 이용한 힘",
+      "aliases": [
+        "오일압"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T082",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "에어건",
+      "plain_ko": "압축공기를 분사하는 도구",
+      "aliases": [
+        "공기총"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T083",
+      "domain": "machine",
+      "risk_level": "high",
+      "ko": "콤프레서",
+      "plain_ko": "압축공기를 만드는 장비",
+      "aliases": [
+        "공기압축기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T084",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "작업대",
+      "plain_ko": "작업을 하는 테이블",
+      "aliases": [
+        "테이블"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T085",
+      "domain": "machine",
+      "risk_level": "normal",
+      "ko": "공구함",
+      "plain_ko": "공구를 보관하는 상자",
+      "aliases": [
+        "툴박스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T086",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "전원",
+      "plain_ko": "기계에 공급되는 전기",
+      "aliases": [
+        "파워"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T087",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "전원 차단",
+      "plain_ko": "전기 공급을 끊는 조치",
+      "aliases": [
+        "전기차단"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T088",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "차단기",
+      "plain_ko": "전기를 끊는 장치",
+      "aliases": [
+        "브레이커"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T089",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "누전",
+      "plain_ko": "전기가 새는 현상",
+      "aliases": [
+        "전기누설"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T090",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "접지",
+      "plain_ko": "전기를 땅으로 흘려보내 안전하게 하는 조치",
+      "aliases": [
+        "어스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T091",
+      "domain": "electrical",
+      "risk_level": "critical",
+      "ko": "감전위험",
+      "plain_ko": "전기에 다칠 수 있는 위험",
+      "aliases": [
+        "전기위험"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T092",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "분전반",
+      "plain_ko": "전기를 나누어 공급하는 장치함",
+      "aliases": [
+        "배전반"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T093",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "전선",
+      "plain_ko": "전기를 전달하는 선",
+      "aliases": [
+        "케이블"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T094",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "콘센트",
+      "plain_ko": "전기를 꽂아 쓰는 장치",
+      "aliases": [
+        "플러그소켓"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T095",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "플러그",
+      "plain_ko": "콘센트에 꽂는 전기 연결부",
+      "aliases": [
+        "전기플러그"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T096",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "절연",
+      "plain_ko": "전기가 통하지 않게 막는 것",
+      "aliases": [
+        "절연처리"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T097",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "누전차단기",
+      "plain_ko": "누전 시 전기를 자동 차단하는 장치",
+      "aliases": [
+        "ELB"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T098",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "잠금표지",
+      "plain_ko": "정비 중 전원 투입을 막는 표시",
+      "aliases": [
+        "LOTO"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T099",
+      "domain": "electrical",
+      "risk_level": "high",
+      "ko": "활선작업",
+      "plain_ko": "전기가 흐르는 상태에서 하는 작업",
+      "aliases": [
+        "전기활선"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T100",
+      "domain": "electrical",
+      "risk_level": "normal",
+      "ko": "검전기",
+      "plain_ko": "전기가 흐르는지 확인하는 도구",
+      "aliases": [
+        "전압검지기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T101",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "비계",
+      "plain_ko": "높은 곳 작업용 임시 구조물",
+      "aliases": [
+        "스캐폴딩"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T102",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "발판",
+      "plain_ko": "작업자가 서는 판",
+      "aliases": [
+        "작업발판"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T103",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "난간",
+      "plain_ko": "추락을 막는 울타리",
+      "aliases": [
+        "가드레일"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T104",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "개구부",
+      "plain_ko": "바닥이나 벽의 구멍",
+      "aliases": [
+        "오픈홀"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T105",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "덮개",
+      "plain_ko": "구멍이나 위험부를 덮는 판",
+      "aliases": [
+        "커버"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T106",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "거푸집",
+      "plain_ko": "콘크리트를 붓기 위한 틀",
+      "aliases": [
+        "폼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T107",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "동바리",
+      "plain_ko": "거푸집을 받치는 지지대",
+      "aliases": [
+        "서포트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T108",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "철근",
+      "plain_ko": "콘크리트 보강용 쇠막대",
+      "aliases": [
+        "리바"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T109",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "보호캡",
+      "plain_ko": "철근 끝을 덮는 보호 부품",
+      "aliases": [
+        "철근캡"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T110",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "양중",
+      "plain_ko": "크레인 등으로 물건을 들어 올림",
+      "aliases": [
+        "리프팅"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T111",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "크레인",
+      "plain_ko": "무거운 물건을 들어 올리는 장비",
+      "aliases": [
+        "기중기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T112",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "타워크레인",
+      "plain_ko": "건설현장의 높은 고정식 크레인",
+      "aliases": [
+        "타워"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T113",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "이동식크레인",
+      "plain_ko": "차량에 장착된 크레인",
+      "aliases": [
+        "카고크레인"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T114",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "슬링벨트",
+      "plain_ko": "물건을 묶어 들어 올리는 벨트",
+      "aliases": [
+        "벨트슬링"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T115",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "샤클",
+      "plain_ko": "줄과 물건을 연결하는 금속 고리",
+      "aliases": [
+        "섀클"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T116",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "훅",
+      "plain_ko": "크레인에 물건을 거는 고리",
+      "aliases": [
+        "크레인고리"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T117",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "신호수",
+      "plain_ko": "장비 이동을 신호로 지시하는 사람",
+      "aliases": [
+        "유도자"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T118",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "작업반경",
+      "plain_ko": "장비가 움직이는 위험 범위",
+      "aliases": [
+        "회전반경"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T119",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "굴착",
+      "plain_ko": "땅을 파는 작업",
+      "aliases": [
+        "터파기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T120",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "굴착면",
+      "plain_ko": "파낸 흙의 벽면",
+      "aliases": [
+        "사면"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T121",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "흙막이",
+      "plain_ko": "굴착면 붕괴를 막는 구조물",
+      "aliases": [
+        "토류벽"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T122",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "사다리",
+      "plain_ko": "높은 곳에 오르는 도구",
+      "aliases": [
+        "래더"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T123",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "작업발판",
+      "plain_ko": "작업자가 서서 일하는 발판",
+      "aliases": [
+        "워크플랫폼"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T124",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "고소작업대",
+      "plain_ko": "사람을 올려 작업하는 장비",
+      "aliases": [
+        "리프트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T125",
+      "domain": "construction",
+      "risk_level": "critical",
+      "ko": "추락방지망",
+      "plain_ko": "떨어짐을 막는 그물",
+      "aliases": [
+        "안전망"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T126",
+      "domain": "construction",
+      "risk_level": "high",
+      "ko": "낙하방지망",
+      "plain_ko": "물건이 떨어지는 것을 막는 그물",
+      "aliases": [
+        "방망"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T127",
+      "domain": "construction",
+      "risk_level": "normal",
+      "ko": "콘크리트",
+      "plain_ko": "시멘트와 골재가 굳은 재료",
+      "aliases": [
+        "레미콘"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T128",
+      "domain": "construction",
+      "risk_level": "normal",
+      "ko": "시멘트",
+      "plain_ko": "콘크리트 재료인 가루",
+      "aliases": [
+        "cement"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T129",
+      "domain": "construction",
+      "risk_level": "normal",
+      "ko": "몰탈",
+      "plain_ko": "시멘트와 모래를 섞은 재료",
+      "aliases": [
+        "모르타르"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T130",
+      "domain": "construction",
+      "risk_level": "normal",
+      "ko": "배관",
+      "plain_ko": "물이나 가스가 지나가는 관 설치",
+      "aliases": [
+        "파이프작업"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T131",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "용접",
+      "plain_ko": "금속을 열로 붙이는 작업",
+      "aliases": [
+        "웰딩"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T132",
+      "domain": "welding",
+      "risk_level": "high",
+      "ko": "용접봉",
+      "plain_ko": "용접에 쓰는 금속 막대",
+      "aliases": [
+        "전극봉"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T133",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "용접불꽃",
+      "plain_ko": "용접 중 발생하는 불꽃",
+      "aliases": [
+        "스파크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T134",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "불티",
+      "plain_ko": "작업 중 튀는 작은 불꽃",
+      "aliases": [
+        "스패터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T135",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "가연물",
+      "plain_ko": "불이 붙기 쉬운 물질",
+      "aliases": [
+        "인화물"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T136",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "인화성물질",
+      "plain_ko": "쉽게 불이 붙는 물질",
+      "aliases": [
+        "인화물질"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T137",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "산소통",
+      "plain_ko": "산소가 들어 있는 압력용기",
+      "aliases": [
+        "산소용기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T138",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "가스통",
+      "plain_ko": "가스가 들어 있는 압력용기",
+      "aliases": [
+        "가스용기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T139",
+      "domain": "welding",
+      "risk_level": "critical",
+      "ko": "역화방지기",
+      "plain_ko": "불꽃이 가스통으로 역류하는 것을 막는 장치",
+      "aliases": [
+        "역화장치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T140",
+      "domain": "welding",
+      "risk_level": "high",
+      "ko": "환기",
+      "plain_ko": "공기를 바꾸는 것",
+      "aliases": [
+        "통풍"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T141",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "화학물질",
+      "plain_ko": "화학적 성질을 가진 물질",
+      "aliases": [
+        "약품"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T142",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "유해물질",
+      "plain_ko": "건강에 해로운 물질",
+      "aliases": [
+        "위험물질"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T143",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "MSDS",
+      "plain_ko": "물질안전보건자료",
+      "aliases": [
+        "물질안전자료"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T144",
+      "domain": "chemical",
+      "risk_level": "high",
+      "ko": "라벨",
+      "plain_ko": "용기 표면의 정보 표시",
+      "aliases": [
+        "표지"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T145",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "농약",
+      "plain_ko": "농작물 병해충 방제 약품",
+      "aliases": [
+        "살충제"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T146",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "살충제",
+      "plain_ko": "벌레를 죽이는 약품",
+      "aliases": [
+        "방충약"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T147",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "소독제",
+      "plain_ko": "세균을 없애는 약품",
+      "aliases": [
+        "방역약"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T148",
+      "domain": "chemical",
+      "risk_level": "high",
+      "ko": "세척제",
+      "plain_ko": "오염을 씻어내는 약품",
+      "aliases": [
+        "클리너"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T149",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "산",
+      "plain_ko": "부식성이 있는 산성 물질",
+      "aliases": [
+        "산성물질"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T150",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "알칼리",
+      "plain_ko": "부식성이 있는 알칼리성 물질",
+      "aliases": [
+        "염기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T151",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "부식성",
+      "plain_ko": "피부나 금속을 손상시키는 성질",
+      "aliases": [
+        "부식위험"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T152",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "독성",
+      "plain_ko": "몸에 해로운 성질",
+      "aliases": [
+        "중독위험"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T153",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "인화성",
+      "plain_ko": "불이 붙기 쉬운 성질",
+      "aliases": [
+        "불붙기쉬움"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T154",
+      "domain": "chemical",
+      "risk_level": "high",
+      "ko": "보관함",
+      "plain_ko": "물질을 안전하게 보관하는 함",
+      "aliases": [
+        "캐비닛"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T155",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "누출",
+      "plain_ko": "액체나 가스가 새는 상태",
+      "aliases": [
+        "새어나옴"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T156",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "흡입",
+      "plain_ko": "숨을 통해 몸에 들어감",
+      "aliases": [
+        "들이마심"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T157",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "피부접촉",
+      "plain_ko": "물질이 피부에 닿음",
+      "aliases": [
+        "피부노출"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T158",
+      "domain": "chemical",
+      "risk_level": "critical",
+      "ko": "눈세척기",
+      "plain_ko": "눈에 들어간 물질을 씻는 장치",
+      "aliases": [
+        "아이워시"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T159",
+      "domain": "chemical",
+      "risk_level": "high",
+      "ko": "방제",
+      "plain_ko": "오염이나 해충을 막는 작업",
+      "aliases": [
+        "방역"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T160",
+      "domain": "chemical",
+      "risk_level": "normal",
+      "ko": "희석",
+      "plain_ko": "물이나 용매로 농도를 낮춤",
+      "aliases": [
+        "묽힘"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T161",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "지게차",
+      "plain_ko": "화물을 들어 옮기는 차량",
+      "aliases": [
+        "포크리프트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T162",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "포크",
+      "plain_ko": "지게차 앞의 화물 받침",
+      "aliases": [
+        "발"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T163",
+      "domain": "logistics",
+      "risk_level": "critical",
+      "ko": "팔레트",
+      "plain_ko": "화물을 올리는 받침대",
+      "aliases": [
+        "빠렛트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T164",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "랙",
+      "plain_ko": "창고 선반 구조물",
+      "aliases": [
+        "선반"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T165",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "적재",
+      "plain_ko": "짐을 쌓아 올림",
+      "aliases": [
+        "쌓기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T166",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "상차",
+      "plain_ko": "차량에 짐을 실음",
+      "aliases": [
+        "싣기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T167",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "하차",
+      "plain_ko": "차량에서 짐을 내림",
+      "aliases": [
+        "내리기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T168",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "입고",
+      "plain_ko": "물건이 창고로 들어옴",
+      "aliases": [
+        "반입"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T169",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "출고",
+      "plain_ko": "물건이 창고에서 나감",
+      "aliases": [
+        "반출"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T170",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "바코드",
+      "plain_ko": "물품 식별 코드",
+      "aliases": [
+        "스캔코드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T171",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "스캐너",
+      "plain_ko": "바코드를 읽는 장치",
+      "aliases": [
+        "바코드스캐너"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T172",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "랩핑",
+      "plain_ko": "비닐 필름으로 감싸는 포장",
+      "aliases": [
+        "스트레치필름"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T173",
+      "domain": "logistics",
+      "risk_level": "normal",
+      "ko": "박스",
+      "plain_ko": "물건을 담는 상자",
+      "aliases": [
+        "상자"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T174",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "중량물",
+      "plain_ko": "무거운 물건",
+      "aliases": [
+        "무거운짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T175",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "손수레",
+      "plain_ko": "손으로 끄는 운반 도구",
+      "aliases": [
+        "카트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T176",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "대차",
+      "plain_ko": "바퀴가 달린 운반 장비",
+      "aliases": [
+        "운반카트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T177",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "하역",
+      "plain_ko": "화물을 싣고 내리는 작업",
+      "aliases": [
+        "상하차"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T178",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "동선",
+      "plain_ko": "사람이나 장비가 이동하는 길",
+      "aliases": [
+        "이동경로"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T179",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "사각지대",
+      "plain_ko": "운전자가 볼 수 없는 위치",
+      "aliases": [
+        "안보이는곳"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T180",
+      "domain": "logistics",
+      "risk_level": "high",
+      "ko": "후진경고음",
+      "plain_ko": "차량이 뒤로 갈 때 나는 경고음",
+      "aliases": [
+        "백부저"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T181",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "비닐하우스",
+      "plain_ko": "비닐로 덮은 재배 시설",
+      "aliases": [
+        "하우스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T182",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "수확",
+      "plain_ko": "농산물을 거두는 작업",
+      "aliases": [
+        "따기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T183",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "선별",
+      "plain_ko": "좋은 것과 나쁜 것을 나누는 작업",
+      "aliases": [
+        "분류"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T184",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "상자",
+      "plain_ko": "농산물을 담는 박스",
+      "aliases": [
+        "박스"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T185",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "묘목",
+      "plain_ko": "어린 나무나 식물",
+      "aliases": [
+        "모종"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T186",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "모종",
+      "plain_ko": "옮겨 심을 어린 식물",
+      "aliases": [
+        "묘"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T187",
+      "domain": "agriculture",
+      "risk_level": "normal",
+      "ko": "관수",
+      "plain_ko": "물을 주는 작업",
+      "aliases": [
+        "물주기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T188",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "예초기",
+      "plain_ko": "풀을 베는 회전날 기계",
+      "aliases": [
+        "풀베는기계"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T189",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "관리기",
+      "plain_ko": "농작업용 소형 기계",
+      "aliases": [
+        "농기계"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T190",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "경운기",
+      "plain_ko": "밭갈이나 운반에 쓰는 농기계",
+      "aliases": [
+        "트랙터소형"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T191",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "트랙터",
+      "plain_ko": "농작업용 차량형 기계",
+      "aliases": [
+        "농업트랙터"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T192",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "회전날",
+      "plain_ko": "빠르게 도는 칼날",
+      "aliases": [
+        "로터리날"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T193",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "축사",
+      "plain_ko": "가축을 기르는 건물",
+      "aliases": [
+        "가축우리"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T194",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "분뇨가스",
+      "plain_ko": "가축 분뇨에서 나오는 유해가스",
+      "aliases": [
+        "황화수소"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T195",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "사료",
+      "plain_ko": "가축 먹이",
+      "aliases": [
+        "먹이"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T196",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "급이기",
+      "plain_ko": "사료를 주는 장치",
+      "aliases": [
+        "먹이공급기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T197",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "환풍기",
+      "plain_ko": "공기를 빼내는 장치",
+      "aliases": [
+        "팬"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T198",
+      "domain": "agriculture",
+      "risk_level": "critical",
+      "ko": "온실가스중독",
+      "plain_ko": "하우스나 축사 내 가스 중독",
+      "aliases": [
+        "가스중독"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T199",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "벌쏘임",
+      "plain_ko": "벌에 쏘이는 사고",
+      "aliases": [
+        "벌침"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T200",
+      "domain": "agriculture",
+      "risk_level": "high",
+      "ko": "뱀물림",
+      "plain_ko": "뱀에게 물리는 사고",
+      "aliases": [
+        "독사물림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T201",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "절단작업",
+      "plain_ko": "칼이나 기계로 자르는 작업",
+      "aliases": [
+        "커팅"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T202",
+      "domain": "food",
+      "risk_level": "critical",
+      "ko": "절단기",
+      "plain_ko": "식품을 자르는 기계",
+      "aliases": [
+        "슬라이서"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T203",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "칼",
+      "plain_ko": "식품이나 재료를 자르는 도구",
+      "aliases": [
+        "나이프"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T204",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "도마",
+      "plain_ko": "식품을 자르는 받침판",
+      "aliases": [
+        "커팅보드"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T205",
+      "domain": "food",
+      "risk_level": "normal",
+      "ko": "위생장갑",
+      "plain_ko": "식품 오염을 막는 장갑",
+      "aliases": [
+        "비닐장갑"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T206",
+      "domain": "food",
+      "risk_level": "normal",
+      "ko": "위생모",
+      "plain_ko": "머리카락 혼입을 막는 모자",
+      "aliases": [
+        "헤어캡"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T207",
+      "domain": "food",
+      "risk_level": "normal",
+      "ko": "앞치마",
+      "plain_ko": "몸 앞을 보호하는 작업복",
+      "aliases": [
+        "에이프런"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T208",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "세척",
+      "plain_ko": "물이나 세제로 씻는 작업",
+      "aliases": [
+        "씻기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T209",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "소독",
+      "plain_ko": "세균을 없애는 작업",
+      "aliases": [
+        "살균"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T210",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "냉동실",
+      "plain_ko": "낮은 온도로 보관하는 방",
+      "aliases": [
+        "냉동창고"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T211",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "냉장실",
+      "plain_ko": "차가운 온도로 보관하는 방",
+      "aliases": [
+        "냉장창고"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T212",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "저온화상",
+      "plain_ko": "차가운 물체 접촉으로 생기는 손상",
+      "aliases": [
+        "냉동화상"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T213",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "뜨거운물",
+      "plain_ko": "화상 위험이 있는 물",
+      "aliases": [
+        "온수"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T214",
+      "domain": "food",
+      "risk_level": "high",
+      "ko": "증기",
+      "plain_ko": "뜨거운 수증기",
+      "aliases": [
+        "스팀"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T215",
+      "domain": "food",
+      "risk_level": "normal",
+      "ko": "유통기한",
+      "plain_ko": "제품을 팔거나 먹을 수 있는 기한",
+      "aliases": [
+        "소비기한"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T216",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "불량",
+      "plain_ko": "기준에 맞지 않는 제품",
+      "aliases": [
+        "NG"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T217",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "양품",
+      "plain_ko": "기준에 맞는 정상 제품",
+      "aliases": [
+        "OK품"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T218",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "찍힘",
+      "plain_ko": "표면에 눌린 자국",
+      "aliases": [
+        "눌림자국"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T219",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "긁힘",
+      "plain_ko": "표면이 긁힌 손상",
+      "aliases": [
+        "스크래치"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T220",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "깨짐",
+      "plain_ko": "제품이 갈라지거나 부서짐",
+      "aliases": [
+        "파손"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T221",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "누락",
+      "plain_ko": "있어야 할 것이 빠짐",
+      "aliases": [
+        "빠짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T222",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "오염",
+      "plain_ko": "먼지나 이물질이 묻음",
+      "aliases": [
+        "더러움"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T223",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "변색",
+      "plain_ko": "색이 달라짐",
+      "aliases": [
+        "색변함"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T224",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "수량부족",
+      "plain_ko": "개수가 모자람",
+      "aliases": [
+        "개수부족"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T225",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "재작업",
+      "plain_ko": "다시 고쳐 작업함",
+      "aliases": [
+        "리워크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T226",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "폐기",
+      "plain_ko": "버리거나 사용하지 않음",
+      "aliases": [
+        "버림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T227",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "샘플",
+      "plain_ko": "검사용 대표 제품",
+      "aliases": [
+        "시료"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T228",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "검사",
+      "plain_ko": "기준에 맞는지 확인",
+      "aliases": [
+        "체크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T229",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "포장방향",
+      "plain_ko": "제품을 넣는 방향",
+      "aliases": [
+        "방향"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T230",
+      "domain": "quality",
+      "risk_level": "normal",
+      "ko": "로트번호",
+      "plain_ko": "제품 묶음 식별 번호",
+      "aliases": [
+        "LOT"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T231",
+      "domain": "waste",
+      "risk_level": "critical",
+      "ko": "폐기물",
+      "plain_ko": "버리는 물질이나 물건",
+      "aliases": [
+        "쓰레기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T232",
+      "domain": "waste",
+      "risk_level": "high",
+      "ko": "재활용품",
+      "plain_ko": "다시 사용할 수 있는 폐기물",
+      "aliases": [
+        "재활용"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T233",
+      "domain": "waste",
+      "risk_level": "high",
+      "ko": "분리수거",
+      "plain_ko": "종류별로 나누어 버리는 작업",
+      "aliases": [
+        "분류배출"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T234",
+      "domain": "waste",
+      "risk_level": "critical",
+      "ko": "의료폐기물",
+      "plain_ko": "의료기관에서 나온 위험 폐기물",
+      "aliases": [
+        "병원폐기물"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T235",
+      "domain": "waste",
+      "risk_level": "critical",
+      "ko": "주사기",
+      "plain_ko": "바늘이 달린 의료 도구",
+      "aliases": [
+        "주삿바늘"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T236",
+      "domain": "waste",
+      "risk_level": "high",
+      "ko": "깨진유리",
+      "plain_ko": "깨져 날카로운 유리",
+      "aliases": [
+        "파유리"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T237",
+      "domain": "waste",
+      "risk_level": "high",
+      "ko": "날카로운물건",
+      "plain_ko": "베이거나 찔릴 수 있는 물건",
+      "aliases": [
+        "예리물"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T238",
+      "domain": "waste",
+      "risk_level": "critical",
+      "ko": "압착",
+      "plain_ko": "강한 힘으로 눌림",
+      "aliases": [
+        "눌림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T239",
+      "domain": "waste",
+      "risk_level": "high",
+      "ko": "악취",
+      "plain_ko": "심한 냄새",
+      "aliases": [
+        "나쁜냄새"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T240",
+      "domain": "waste",
+      "risk_level": "critical",
+      "ko": "감염위험",
+      "plain_ko": "병원체에 노출될 위험",
+      "aliases": [
+        "감염"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T241",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "갑판",
+      "plain_ko": "배 위 작업 공간",
+      "aliases": [
+        "데크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T242",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "그물",
+      "plain_ko": "물고기를 잡는 망",
+      "aliases": [
+        "어망"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T243",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "양망기",
+      "plain_ko": "그물을 끌어올리는 기계",
+      "aliases": [
+        "그물올림기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T244",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "로프",
+      "plain_ko": "배나 그물을 묶는 줄",
+      "aliases": [
+        "밧줄"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T245",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "윈치",
+      "plain_ko": "줄을 감아 당기는 기계",
+      "aliases": [
+        "권양기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T246",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "해상추락",
+      "plain_ko": "바다로 떨어지는 사고",
+      "aliases": [
+        "익수"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T247",
+      "domain": "fishing",
+      "risk_level": "critical",
+      "ko": "구명조끼",
+      "plain_ko": "물에 빠졌을 때 몸을 띄우는 보호구",
+      "aliases": [
+        "라이프자켓"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T248",
+      "domain": "fishing",
+      "risk_level": "high",
+      "ko": "미끄럼방지화",
+      "plain_ko": "젖은 바닥에서 미끄럼을 줄이는 신발",
+      "aliases": [
+        "논슬립화"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T249",
+      "domain": "fishing",
+      "risk_level": "high",
+      "ko": "냉동창고",
+      "plain_ko": "어획물을 얼려 보관하는 창고",
+      "aliases": [
+        "냉동고"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T250",
+      "domain": "fishing",
+      "risk_level": "high",
+      "ko": "어획물",
+      "plain_ko": "잡은 물고기나 해산물",
+      "aliases": [
+        "잡은고기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T251",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "광산",
+      "plain_ko": "광물을 캐는 작업장",
+      "aliases": [
+        "채굴장"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T252",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "갱도",
+      "plain_ko": "광산 안의 통로",
+      "aliases": [
+        "터널"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T253",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "낙반",
+      "plain_ko": "암석이 떨어지는 사고",
+      "aliases": [
+        "돌떨어짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T254",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "분진",
+      "plain_ko": "공기 중의 작은 먼지",
+      "aliases": [
+        "먼지"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T255",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "방진마스크",
+      "plain_ko": "먼지 흡입을 막는 마스크",
+      "aliases": [
+        "분진마스크"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T256",
+      "domain": "mining",
+      "risk_level": "high",
+      "ko": "환기설비",
+      "plain_ko": "공기를 바꾸는 설비",
+      "aliases": [
+        "통풍설비"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T257",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "산소농도",
+      "plain_ko": "공기 중 산소의 양",
+      "aliases": [
+        "산소량"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T258",
+      "domain": "mining",
+      "risk_level": "critical",
+      "ko": "가스측정기",
+      "plain_ko": "유해가스와 산소를 측정하는 기기",
+      "aliases": [
+        "가스검지기"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "force_preserve_meaning"
+    },
+    {
+      "id": "T259",
+      "domain": "mining",
+      "risk_level": "high",
+      "ko": "발파",
+      "plain_ko": "폭약으로 암석을 깨는 작업",
+      "aliases": [
+        "폭파"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T260",
+      "domain": "mining",
+      "risk_level": "high",
+      "ko": "채굴",
+      "plain_ko": "광물을 캐는 작업",
+      "aliases": [
+        "굴착"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T261",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "관리자",
+      "plain_ko": "작업을 지시하고 관리하는 사람",
+      "aliases": [
+        "반장",
+        "팀장"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T262",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "작업자",
+      "plain_ko": "현장에서 일하는 사람",
+      "aliases": [
+        "근로자"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T263",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "통역",
+      "plain_ko": "다른 언어로 의미를 전달함",
+      "aliases": [
+        "번역"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T264",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "다시 말해 주세요",
+      "plain_ko": "말을 반복해 달라는 요청",
+      "aliases": [
+        "한번더"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T265",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "천천히 말해 주세요",
+      "plain_ko": "속도를 낮춰 말해 달라는 요청",
+      "aliases": [
+        "천천히"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T266",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "이해했습니다",
+      "plain_ko": "내용을 알아들었다는 말",
+      "aliases": [
+        "알겠습니다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T267",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "이해하지 못했습니다",
+      "plain_ko": "내용을 알아듣지 못했다는 말",
+      "aliases": [
+        "모르겠습니다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T268",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "어디입니까",
+      "plain_ko": "위치를 묻는 말",
+      "aliases": [
+        "어디"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T269",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "언제입니까",
+      "plain_ko": "시간을 묻는 말",
+      "aliases": [
+        "언제"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T270",
+      "domain": "communication",
+      "risk_level": "normal",
+      "ko": "누구에게 말합니까",
+      "plain_ko": "담당자를 묻는 말",
+      "aliases": [
+        "누구"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T271",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "출근",
+      "plain_ko": "일하러 회사에 옴",
+      "aliases": [
+        "근무시작"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T272",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "퇴근",
+      "plain_ko": "일을 마치고 나감",
+      "aliases": [
+        "근무종료"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T273",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "잔업",
+      "plain_ko": "정규시간 뒤 추가 근무",
+      "aliases": [
+        "연장근무"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T274",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "야간근무",
+      "plain_ko": "밤에 하는 근무",
+      "aliases": [
+        "야근"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T275",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "휴게시간",
+      "plain_ko": "일 중간에 쉬는 시간",
+      "aliases": [
+        "쉬는시간"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T276",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "점심시간",
+      "plain_ko": "점심을 먹고 쉬는 시간",
+      "aliases": [
+        "식사시간"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T277",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "급여",
+      "plain_ko": "일한 대가로 받는 돈",
+      "aliases": [
+        "임금"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T278",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "급여명세서",
+      "plain_ko": "급여 내역이 적힌 문서",
+      "aliases": [
+        "임금명세서"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T279",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "근로계약서",
+      "plain_ko": "일하는 조건을 적은 계약서",
+      "aliases": [
+        "계약서"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T280",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "숙소",
+      "plain_ko": "회사나 개인이 제공하는 거주 공간",
+      "aliases": [
+        "기숙사"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T281",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "병가",
+      "plain_ko": "아파서 쉬는 휴가",
+      "aliases": [
+        "아픈휴가"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T282",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "산재",
+      "plain_ko": "일 때문에 다치거나 병이 난 사고",
+      "aliases": [
+        "산업재해"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T283",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "보험",
+      "plain_ko": "사고나 병에 대비한 제도",
+      "aliases": [
+        "보장제도"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T284",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "외국인등록증",
+      "plain_ko": "외국인 체류 신분증",
+      "aliases": [
+        "등록증"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T285",
+      "domain": "labor",
+      "risk_level": "normal",
+      "ko": "여권",
+      "plain_ko": "국적과 신분을 증명하는 문서",
+      "aliases": [
+        "passport"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T286",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "빼",
+      "plain_ko": "제거하거나 꺼내라는 현장 표현",
+      "aliases": [
+        "빼다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T287",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "올려",
+      "plain_ko": "들어 올리거나 수치를 높이라는 표현",
+      "aliases": [
+        "올리다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T288",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "내려",
+      "plain_ko": "내려놓거나 수치를 낮추라는 표현",
+      "aliases": [
+        "내리다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T289",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "잡아줘",
+      "plain_ko": "손으로 고정하거나 함께 들어 달라는 표현",
+      "aliases": [
+        "잡다"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T290",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "까대기",
+      "plain_ko": "짐을 손으로 싣고 내리는 일",
+      "aliases": [
+        "상하차"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T291",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "빠렛트",
+      "plain_ko": "팔레트를 부르는 현장 표현",
+      "aliases": [
+        "파렛트"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T292",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "빠루",
+      "plain_ko": "쇠지렛대를 부르는 현장 표현",
+      "aliases": [
+        "지렛대"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T293",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "함바",
+      "plain_ko": "건설현장 식당을 부르는 표현",
+      "aliases": [
+        "현장식당"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T294",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "야리끼리",
+      "plain_ko": "정한 작업량을 끝내면 조기 종료하는 방식",
+      "aliases": [
+        "물량제"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T295",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "땜빵",
+      "plain_ko": "임시로 빈자리를 메우는 투입",
+      "aliases": [
+        "임시대체"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T296",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "노가다",
+      "plain_ko": "건설 막일을 낮춰 부르는 표현",
+      "aliases": [
+        "막일"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T297",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "찍힘",
+      "plain_ko": "제품 표면 눌림 손상을 부르는 표현",
+      "aliases": [
+        "눌림"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T298",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "까짐",
+      "plain_ko": "제품 표면이 벗겨진 손상",
+      "aliases": [
+        "벗겨짐"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T299",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "짬처리",
+      "plain_ko": "남은 일이나 귀찮은 일을 넘기는 표현",
+      "aliases": [
+        "떠넘김"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    },
+    {
+      "id": "T300",
+      "domain": "slang",
+      "risk_level": "normal",
+      "ko": "오야지",
+      "plain_ko": "현장 책임자를 부르는 비공식 표현",
+      "aliases": [
+        "반장"
+      ],
+      "target_languages": [
+        "vi",
+        "th",
+        "id",
+        "ne",
+        "km"
+      ],
+      "translation_status": "needs_native_review",
+      "glossary_use": "context_hint"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# 비밀 값 (OpenAI·Supabase 키) — 절대 커밋하지 않음
+.env
+.env.*
+!.env.example
+
+# 의존성·빌드 산출물
+node_modules/
+dist-check/
+.expo/
+
+# 로컬 DB 데이터, 저장 음성, Prisma 생성 코드
+server/.pgdata/
+server/storage/
+server/src/generated/
+
+.DS_Store
