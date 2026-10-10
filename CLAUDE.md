@@ -60,5 +60,6 @@ cd frontend && npm run typecheck && npm run doctor
 
 ## 참고
 
+- GitHub: https://github.com/jang-tang/SYNCREW (`main`). `.env`는 루트 `.gitignore`로 제외. 커밋 전 키가 섞이지 않았는지 확인할 것.
 - 원본 통역 저장소: https://github.com/jecool0523/workplace-translation-mvp (분석: `docs/current-codebase-analysis.md`). 수정하지 않는다.
 - 발표 PDF: `싱크필드_20260909 최종본.pdf` (대한민국 청소년 창업경진대회, 팀 SyncField).
