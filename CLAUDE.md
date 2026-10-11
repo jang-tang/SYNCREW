@@ -12,13 +12,28 @@
 - 실행하지 않은 테스트를 통과했다고 보고하지 않는다. 결정이 바뀌면 `docs/`도 함께 고친다.
 - 응답은 한국어.
 
-## 현재 상태 (2026-10-10)
+## 현재 상태 (2026-10-11)
 
-- **Phase 1 완료 + 프론트엔드 전체 화면 완료(2026-10-11, 데모 모드).** 다음: 서버 Phase 2(인증·현장·멤버십) — 사용자 승인 후. 진행 현황: `docs/implementation-plan.md`
-- 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API를 만들 때는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것.
-- Phase 2(인증·현장·멤버십): Supabase 값은 `server/.env`, `frontend/.env`에 입력 완료.
-- 미검증: Android 에뮬레이터·실기기 실행, 앱↔서버 실통신 (이 PC에 Android SDK 없음. 사용자가 추후 준비).
-- OpenAI API 키는 아직 미입력 (`cd server && npm run setup:openai`).
+| 단계 | 상태 | 커밋 |
+|---|---|---|
+| Phase 1 기반 (서버·엔진 골격·비용 한도) | 완료 | `9371620` |
+| 프론트엔드 전체 화면 (데모 모드) | 완료 | `3fea4e7` |
+| Phase 2 인증·현장·멤버십 (서버) | 완료 | Phase 2 커밋 |
+| **Phase 3 실시간 (Socket.IO)** | **진행 중 (2026-10-11 사용자 승인)** | — |
+| Phase 4 통역 파이프라인 + 1:1 / Phase 5 그룹·일괄 지시 / Phase 6 안정화 | 대기 | — |
+
+- 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
+- 실시간 알림은 서버의 `DomainEvents`(`server/src/events/domainEvents.ts`, 지금은 noop)를 Phase 3에서 Socket.IO로 구현한다.
+- 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
+- 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`). **미입력: OpenAI API 키** (`cd server && npm run setup:openai`).
+- 미검증 (환경 제약): Android 에뮬레이터·실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
+
+## 이 PC 환경 (작업 전 알아 둘 것)
+
+- Docker·Postgres 미설치 → 로컬 DB는 `embedded-postgres`(`npm run db:start`, 포트 5433, 데이터 `server/.pgdata/`). 테스트는 매번 임시 Postgres(포트 54331)를 따로 띄운다.
+- Android SDK 미설치 → 앱 검증은 타입 검사 + `expo-doctor` + Android 번들 빌드 + **웹 빌드를 헤드리스 Chrome으로 자동 검증**(`frontend/e2e/`)으로 한다.
+- Node 22, npm. Chrome은 `/Applications/Google Chrome.app` (e2e가 사용).
+- 헤드리스 Chrome은 비밀번호 입력 뒤 실제 키 이벤트를 잃는 현상이 있다(앱 버그 아님). e2e는 글자를 IME 경로로 입력한다.
 
 ## 확정된 결정사항
 
@@ -44,20 +59,31 @@
 - `server/src/shared/`: 앱과 공유하는 계약. **외부 패키지 import 금지** (앱이 `@shared/*`로 직접 참조).
 - `server/src/engine/`: 통역 엔진 (domain, dataset, audio, stt, translation, budget).
 - `server/src/plugins/`: 교체 가능한 구현 등록 지점 (노이즈 필터, 데이터셋, 보존 정책).
+- `server/src/routes/v1/`: REST API. 모든 경로는 `requireAuth`(Supabase 토큰), 현장 경로는 `requireMembership`(활성 멤버만, 비멤버 404·역할 부족 403).
+- 서버 테스트는 사용자를 무작위 UUID로 만들어 테스트 파일끼리 데이터가 섞이지 않게 한다 (`server/test/helpers/testApp.ts`: 테스트용 ES256 토큰 발급).
 - 서버 요청 검증은 zod, 오류 응답은 `{error:{code,message}}` (코드: `server/src/shared/api.ts`).
 - 상태 변경은 REST, 서버→앱 알림은 Socket.IO (`docs/realtime-protocol.md`).
 - 앱 화면은 `frontend/src/app` (expo-router). 디자인 토큰 `frontend/src/theme.ts`, UI 문구는 `frontend/src/i18n/strings.ts`(5개 언어 모두 채울 것). Expo 패키지는 `npx expo install`로 설치. `frontend/AGENTS.md` 참고 (Expo는 SDK마다 API가 바뀌므로 문서 확인).
 - 비밀 값: `SUPABASE_SECRET_KEY`, `OPENAI_API_KEY`는 `server/.env`에만. 앱에는 publishable key만.
 - Prisma가 AI의 `migrate reset`을 사용자 동의 없이 차단한다. 우회하지 말고 새 마이그레이션을 추가할 것.
 
-## 실행
+## 실행과 검증
 
 ```bash
-cd server && npm run db:start          # 터미널 1: 로컬 Postgres (localhost:5433)
-cd server && npm run db:deploy && npm run dev   # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm test                  # 임시 Postgres로 통합 테스트까지 (42개)
+# 서버
+cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
+cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
+cd server && npm run typecheck && npm test       # 테스트 64개 (임시 Postgres 통합 테스트 포함)
+
+# 앱
 cd frontend && npm run typecheck && npm run doctor
+cd frontend && npm run bundle:android            # Android 번들 빌드 확인
+cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 22개 자동 검증
+cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 ```
+
+- 백그라운드로 띄운 DB·서버는 작업이 끝나면 종료한다 (`pkill -INT -f scripts/db.ts`, `pkill -f "tsx src/index.ts"`).
+- `dist-check/`, `e2e/output/`은 커밋하지 않는다(.gitignore).
 
 ## 참고
 

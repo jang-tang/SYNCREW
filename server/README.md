@@ -2,6 +2,8 @@
 
 Express + Socket.IO(Phase 3) + Prisma 7 + 로컬 Postgres. 설계 문서는 `../docs/`.
 
+로그인은 Supabase Auth가 담당하고, 서버는 앱이 보낸 Supabase 토큰을 JWKS 공개키로 검증합니다 (`.env`의 `SUPABASE_URL`, `SUPABASE_JWKS_URL` 필수).
+
 ## 처음 실행
 
 ```bash
@@ -46,7 +48,11 @@ src/
 ├─ shared/     앱과 공유하는 계약 (외부 패키지 import 금지)
 ├─ engine/     통역 엔진: domain(현장 특화 처리), dataset, audio, stt, translation, budget
 ├─ plugins/    교체 가능한 구현 등록 지점
-├─ routes/     REST 라우터
+├─ routes/     REST 라우터 (v1/: me, sites·멤버·가입 코드, join)
+├─ auth/       Supabase 토큰 검증, 로그인·프로필 확인
+├─ access/     현장 멤버십·역할 확인
+├─ sites/      가입 코드, 응답 변환
+├─ events/     실시간 알림 연결 지점 (Phase 3)
 ├─ config/     환경 변수 검증
 └─ lib/        로깅, 오류, Prisma
 ```

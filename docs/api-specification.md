@@ -24,7 +24,7 @@
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| POST | `/sites` | 로그인 | `{name, address?}` → 현장, 관리자 멤버십, 기본 그룹 대화를 함께 생성 |
+| POST | `/sites` | 로그인 + 프로필 | `{name, address?}` → 201. 현장, 관리자 멤버십, 기본 그룹 대화, 첫 가입 코드(7일)를 함께 생성 |
 | GET | `/sites/:siteId` | 멤버 | 현장 정보 |
 | PATCH | `/sites/:siteId` | 관리자 | `{name?, address?, status?}` |
 
@@ -35,14 +35,14 @@
 | POST | `/sites/:siteId/join-codes` | 관리자 | `{expiresInHours?, maxUses?}` → `{code, expiresAt, qrPayload}`. `qrPayload` = `syncrew://join?code=XXXX` |
 | GET | `/sites/:siteId/join-codes` | 관리자 | 유효한 코드 목록 |
 | DELETE | `/sites/:siteId/join-codes/:codeId` | 관리자 | 폐기 |
-| POST | `/join` | 로그인 | `{code}` → `{siteId, siteName, status:'pending'}`. 이미 active면 409 `ALREADY_MEMBER`, removed/rejected면 pending으로 재요청 |
+| POST | `/join` | 로그인 + 프로필 | `{code}`(대소문자·하이픈 무시) → 201 `{siteId, siteName, status:'pending'}`. 이미 대기 중이면 200(멱등), active면 409 `ALREADY_MEMBER`, removed/rejected면 pending으로 재요청, 잘못된·만료·폐기·소진 코드는 404 `INVALID_JOIN_CODE`, 1분 5회 초과 429 |
 
 ## 4. 멤버 관리
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
 | GET | `/sites/:siteId/members?status=pending\|active` | 관리자: 전체 / 멤버: active만 | `[{userId, displayName, role, status, lang, online}]` |
-| PATCH | `/sites/:siteId/members/:userId` | 관리자 | `{action:'approve'\|'reject'\|'remove'}` 또는 `{langOverride}`. 승인 시 기본 그룹 참여, 제외 시 참여 종료와 실시간 차단 |
+| PATCH | `/sites/:siteId/members/:userId` | 관리자 | `{action:'approve'\|'reject'\|'remove'}` 또는 `{langOverride: Lang\|null}` → 204. 승인 시 기본 그룹 참여, 제외 시 모든 대화에서 나감. 잘못된 상태 전이 409 |
 
 관리자는 자기 자신을 제외할 수 없다. 현장의 마지막 관리자는 제외 불가.
 

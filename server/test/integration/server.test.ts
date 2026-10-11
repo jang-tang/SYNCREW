@@ -11,7 +11,13 @@ describe("서버 + 실제 Postgres", () => {
   let context: AppContext;
 
   beforeAll(async () => {
-    const env = loadEnv({ NODE_ENV: "test", DATABASE_URL: inject("databaseUrl"), LOG_LEVEL: "silent" });
+    const env = loadEnv({
+      NODE_ENV: "test",
+      DATABASE_URL: inject("databaseUrl"),
+      LOG_LEVEL: "silent",
+      // 토큰 검증기는 키를 처음 검증할 때 가져오므로 테스트에서 네트워크를 쓰지 않는다.
+      SUPABASE_URL: "https://test-project.supabase.co",
+    });
     context = await createContext(env, createLogger(env.LOG_LEVEL));
   });
 
@@ -44,6 +50,11 @@ describe("서버 + 실제 Postgres", () => {
     const reservation = await context.budget.reserve(0.01);
     await context.budget.commit(reservation, { kind: "translate", model: "gpt-realtime-2", outputAudioTokens: 1_000 });
     expect(await store.sumCostSince(null)).toBeCloseTo(before + 0.064, 6);
+  });
+
+  it("SUPABASE_URL 이 없으면 서버가 시작되지 않는다 (토큰 검증 불가)", async () => {
+    const env = loadEnv({ NODE_ENV: "test", DATABASE_URL: inject("databaseUrl"), LOG_LEVEL: "silent" });
+    await expect(createContext(env, createLogger("silent"))).rejects.toThrow(/SUPABASE_URL/);
   });
 
   it("DB 제약조건: 알 수 없는 kind와 음수 비용을 거부한다", async () => {

@@ -43,3 +43,6 @@ yarn-error.*
 # 번들 검증 출력
 dist-check/
 .env
+
+# e2e 출력
+e2e/output/

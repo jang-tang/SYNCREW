@@ -1,5 +1,7 @@
+import { createSupabaseVerifier } from "./auth/verifier";
 import type { Env } from "./config/env";
 import type { AppContext } from "./context";
+import { noopEvents } from "./events/domainEvents";
 import { BudgetGuard } from "./engine/budget/budgetGuard";
 import { buildPricingTable } from "./engine/budget/pricing";
 import { PrismaUsageStore } from "./engine/budget/prismaUsageStore";
@@ -10,7 +12,17 @@ import { createAudioPreprocessor } from "./plugins/audioPreprocessor";
 import { createDatasetAdapter } from "./plugins/datasetAdapter";
 
 /** 환경 변수로부터 서버 의존성을 만든다. 설정 오류는 시작 시점에 바로 실패시킨다. */
-export async function createContext(env: Env, logger: Logger): Promise<AppContext> {
+export async function createContext(
+  env: Env,
+  logger: Logger,
+  overrides: Partial<Pick<AppContext, "verifier" | "events" | "limits">> = {},
+): Promise<AppContext> {
+  let verifier = overrides.verifier;
+  if (!verifier) {
+    if (!env.SUPABASE_URL) throw new Error("SUPABASE_URL이 없습니다. 로그인 토큰을 검증할 수 없습니다 (.env 확인).");
+    verifier = createSupabaseVerifier(env.SUPABASE_URL, env.SUPABASE_JWKS_URL);
+  }
+
   const pricing = buildPricingTable(env.OPENAI_PRICING_JSON);
   for (const model of [env.STT_MODEL, env.TRANSLATION_MODEL]) {
     if (!pricing[model]) {
@@ -34,5 +46,8 @@ export async function createContext(env: Env, logger: Logger): Promise<AppContex
     budget,
     domain,
     audioPreprocessor: createAudioPreprocessor(env.AUDIO_PREPROCESSOR),
+    verifier,
+    events: overrides.events ?? noopEvents,
+    limits: overrides.limits ?? { joinPerMinute: 5 },
   };
 }

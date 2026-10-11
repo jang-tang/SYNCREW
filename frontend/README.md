@@ -34,6 +34,8 @@ npm run android         # 개발 빌드 필요: npx expo run:android (녹음·�
 | `npm run typecheck` | 타입 검사 |
 | `npm run doctor` | Expo 의존성·설정 진단 |
 | `npm run bundle:android` | Android 번들 빌드 확인 (`dist-check/`, 커밋하지 않음) |
+| `npm run bundle:web && npm run e2e` | 웹 빌드를 헤드리스 Chrome으로 열어 데모 모드 사용 흐름 22개 자동 검증 (Chrome 필요, `CHROME_PATH`로 경로 변경) |
+| `npm run e2e:screens` | 주요 화면 캡처 → `e2e/output/screens/` |
 
 ## 구조
 

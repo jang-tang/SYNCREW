@@ -3,6 +3,7 @@ import { pinoHttp } from "pino-http";
 import type { AppContext } from "./context";
 import { errorHandler, notFoundHandler } from "./lib/errors";
 import { healthRouter } from "./routes/health";
+import { v1Router } from "./routes/v1";
 
 export function createApp(context: AppContext) {
   const app = express();
@@ -11,7 +12,7 @@ export function createApp(context: AppContext) {
   app.use(express.json({ limit: "100kb" }));
 
   app.use(healthRouter(context));
-  // /api/v1 라우터는 Phase 2부터 추가한다.
+  app.use("/api/v1", v1Router(context));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

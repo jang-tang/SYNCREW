@@ -1,5 +1,5 @@
 // SYNCREW 서버 스키마. 테이블 설계: docs/database-design.md
-// Phase 1에서는 OpenAI 비용 한도 관리용 사용량 테이블만 둔다.
+// Phase 1: openai_usage / Phase 2: 프로필·현장·멤버십·가입 코드·그룹 대화
 
 generator client {
   provider = "prisma-client"
@@ -26,4 +26,110 @@ model OpenAiUsage {
 
   @@index([createdAt])
   @@map("openai_usage")
+}
+
+/// Supabase auth.users 와 1:1 (id = Supabase user id). 다른 DB라 외래 키는 걸지 않는다.
+model Profile {
+  id            String    @id @db.Uuid
+  email         String
+  displayName   String    @map("display_name")
+  preferredLang String    @map("preferred_lang")
+  autoPlay      Boolean   @default(true) @map("auto_play")
+  speechRate    Float     @default(1) @map("speech_rate") @db.Real
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships SiteMembership[] @relation("member")
+
+  @@map("profiles")
+}
+
+model Site {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  address   String?
+  /// active | archived
+  status    String   @default("active")
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships   SiteMembership[]
+  joinCodes     SiteJoinCode[]
+  conversations Conversation[]
+
+  @@map("sites")
+}
+
+model SiteMembership {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  siteId       String    @map("site_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// manager | member
+  role         String
+  /// pending | active | rejected | removed
+  status       String
+  langOverride String?   @map("lang_override")
+  decidedBy    String?   @map("decided_by") @db.Uuid
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  site Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user Profile @relation("member", fields: [userId], references: [id])
+
+  @@unique([siteId, userId])
+  @@index([userId, status])
+  @@index([siteId, status])
+  @@map("site_memberships")
+}
+
+model SiteJoinCode {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  siteId    String    @map("site_id") @db.Uuid
+  code      String    @unique
+  createdBy String    @map("created_by") @db.Uuid
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  maxUses   Int?      @map("max_uses")
+  useCount  Int       @default(0) @map("use_count")
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@map("site_join_codes")
+}
+
+model Conversation {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  siteId        String    @map("site_id") @db.Uuid
+  /// direct | group
+  type          String
+  /// direct: "작은uuid:큰uuid"
+  directKey     String?   @map("direct_key")
+  title         String?
+  lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  site         Site                      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+
+  @@index([siteId])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String    @map("conversation_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt         DateTime? @map("left_at") @db.Timestamptz(6)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
 }
