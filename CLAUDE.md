@@ -18,12 +18,13 @@
 |---|---|---|
 | Phase 1 기반 (서버·엔진 골격·비용 한도) | 완료 | `9371620` |
 | 프론트엔드 전체 화면 (데모 모드) | 완료 | `3fea4e7` |
-| Phase 2 인증·현장·멤버십 (서버) | 완료 | Phase 2 커밋 |
-| **Phase 3 실시간 (Socket.IO)** | **진행 중 (2026-10-11 사용자 승인)** | — |
+| Phase 2 인증·현장·멤버십 (서버) | 완료 | `c637a6b` |
+| **Phase 3 실시간 (Socket.IO)** | **완료, 검토 대기 (미커밋)** | — |
 | Phase 4 통역 파이프라인 + 1:1 / Phase 5 그룹·일괄 지시 / Phase 6 안정화 | 대기 | — |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
-- 실시간 알림은 서버의 `DomainEvents`(`server/src/events/domainEvents.ts`, 지금은 noop)를 Phase 3에서 Socket.IO로 구현한다.
+- 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
+- 다음 Phase 4에서 할 일 중 Phase 3이 남긴 것: `receipt:delivered` 실제 반영, `GET /sync`의 대화·메시지 변경분.
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`). **미입력: OpenAI API 키** (`cd server && npm run setup:openai`).
 - 미검증 (환경 제약): Android 에뮬레이터·실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
@@ -60,6 +61,7 @@
 - `server/src/engine/`: 통역 엔진 (domain, dataset, audio, stt, translation, budget).
 - `server/src/plugins/`: 교체 가능한 구현 등록 지점 (노이즈 필터, 데이터셋, 보존 정책).
 - `server/src/routes/v1/`: REST API. 모든 경로는 `requireAuth`(Supabase 토큰), 현장 경로는 `requireMembership`(활성 멤버만, 비멤버 404·역할 부족 403).
+- 실시간 테스트는 `createRealtimeTestApp()`(임의 포트 HTTP + Socket.IO)과 `nextEvent`/`noEvent`를 쓴다. "받지 않아야 함" 검사는 반드시 같은 상황에서 받는 대조군과 함께 쓴다.
 - 서버 테스트는 사용자를 무작위 UUID로 만들어 테스트 파일끼리 데이터가 섞이지 않게 한다 (`server/test/helpers/testApp.ts`: 테스트용 ES256 토큰 발급).
 - 서버 요청 검증은 zod, 오류 응답은 `{error:{code,message}}` (코드: `server/src/shared/api.ts`).
 - 상태 변경은 REST, 서버→앱 알림은 Socket.IO (`docs/realtime-protocol.md`).
@@ -73,7 +75,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 64개 (임시 Postgres 통합 테스트 포함)
+cd server && npm run typecheck && npm test       # 테스트 75개 (임시 Postgres·실제 Socket.IO 통합 테스트 포함)
 
 # 앱
 cd frontend && npm run typecheck && npm run doctor

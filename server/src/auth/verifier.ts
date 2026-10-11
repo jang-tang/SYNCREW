@@ -1,6 +1,11 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 
-export type AuthIdentity = { userId: string; email: string };
+export type AuthIdentity = {
+  userId: string;
+  email: string;
+  /** 토큰 만료 시각 (epoch 초). 실시간 연결에서 만료 알림에 쓴다. */
+  expiresAt?: number;
+};
 
 /** 로그인 토큰 검증기. 운영은 Supabase JWKS, 테스트는 로컬 키를 쓴다. */
 export interface TokenVerifier {
@@ -28,7 +33,11 @@ export function createJwtVerifier(options: { keys: JWTVerifyGetKey; issuer: stri
           algorithms: ["ES256", "RS256"],
         });
         if (typeof payload.sub !== "string" || !payload.sub) throw new InvalidTokenError("토큰에 사용자 정보가 없습니다.");
-        return { userId: payload.sub, email: typeof payload.email === "string" ? payload.email : "" };
+        return {
+          userId: payload.sub,
+          email: typeof payload.email === "string" ? payload.email : "",
+          ...(typeof payload.exp === "number" ? { expiresAt: payload.exp } : {}),
+        };
       } catch (error) {
         if (error instanceof InvalidTokenError) throw error;
         throw new InvalidTokenError();

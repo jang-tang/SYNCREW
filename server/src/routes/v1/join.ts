@@ -12,7 +12,7 @@ const joinInput = z.object({ code: z.string().min(1).max(32) });
 
 export function joinRouter(context: AppContext): Router {
   const router = Router();
-  const { prisma, events } = context;
+  const { prisma } = context;
 
   // 가입 코드 무차별 대입 방지: 사용자당 1분 N회
   const limiter = rateLimit({
@@ -58,7 +58,7 @@ export function joinRouter(context: AppContext): Router {
 
     if (outcome.created) {
       const profile = req.profile!;
-      events.joinRequested({ siteId: outcome.site.id, userId, displayName: profile.displayName, lang: profile.preferredLang as Lang });
+      context.events.joinRequested({ siteId: outcome.site.id, userId, displayName: profile.displayName, lang: profile.preferredLang as Lang });
     }
     const body: JoinResult = { siteId: outcome.site.id, siteName: outcome.site.name, status: "pending" };
     res.status(outcome.created ? 201 : 200).json(body);

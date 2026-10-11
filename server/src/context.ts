@@ -6,6 +6,7 @@ import type { DomainProcessor } from "./engine/domain/domainProcessor";
 import type { DomainEvents } from "./events/domainEvents";
 import type { Logger } from "./lib/logger";
 import type { PrismaClient } from "./lib/prisma";
+import type { PresenceRegistry } from "./realtime/presence";
 
 export type Limits = {
   /** 가입 코드 입력: 사용자당 1분 횟수 */
@@ -21,6 +22,9 @@ export type AppContext = {
   domain: DomainProcessor;
   audioPreprocessor: AudioPreprocessor;
   verifier: TokenVerifier;
+  /** 실시간 알림. 서버가 Socket.IO를 붙이면 그 구현으로 교체된다 (그 전에는 noop). */
   events: DomainEvents;
+  /** 사용자 접속 상태 (실시간 연결 수 기준) */
+  presence: PresenceRegistry;
   limits: Limits;
 };

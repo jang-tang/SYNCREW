@@ -34,13 +34,12 @@ type MemberRow = {
   user: { displayName: string; preferredLang: string };
 };
 
-export const toMember = (row: MemberRow, online = false): Member => ({
+export const toMember = (row: MemberRow, online: boolean): Member => ({
   userId: row.userId,
   displayName: row.user.displayName,
   role: row.role as SiteRole,
   status: row.status as MembershipStatus,
   lang: (row.langOverride ?? row.user.preferredLang) as Lang,
-  // 접속 상태는 Phase 3(실시간)에서 채운다.
   online,
 });
 

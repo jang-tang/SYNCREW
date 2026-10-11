@@ -2,6 +2,7 @@ import { createSupabaseVerifier } from "./auth/verifier";
 import type { Env } from "./config/env";
 import type { AppContext } from "./context";
 import { noopEvents } from "./events/domainEvents";
+import { PresenceRegistry } from "./realtime/presence";
 import { BudgetGuard } from "./engine/budget/budgetGuard";
 import { buildPricingTable } from "./engine/budget/pricing";
 import { PrismaUsageStore } from "./engine/budget/prismaUsageStore";
@@ -49,5 +50,6 @@ export async function createContext(
     verifier,
     events: overrides.events ?? noopEvents,
     limits: overrides.limits ?? { joinPerMinute: 5 },
+    presence: new PresenceRegistry(),
   };
 }

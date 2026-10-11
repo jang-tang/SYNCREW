@@ -36,6 +36,8 @@
 | `receipt:delivered` | `{messageIds: string[]}` (최대 100) | `{ok:true, updated:n}` | 본인이 수신자인 행만 `sent → delivered`. 멱등 |
 
 ack 타임아웃 5초. 실패하면 클라이언트는 재연결 후 다시 보낸다.
+ack 실패 코드: `NOT_FOUND`(활성 멤버 아님 — 현장 존재 여부 비노출), `VALIDATION_ERROR`(형식 오류).
+`receipt:delivered`는 Phase 3에서 형식만 검증하고 `{ok:true, updated:0}`을 돌려준다 (메시지 상태 반영은 Phase 4).
 
 ### 서버 → 클라이언트
 
@@ -72,6 +74,13 @@ POST 메시지 → 202
 
 클라이언트는 `seq` 기준으로 정렬하고 `message.id`로 중복을 제거한다.
 
-## 7. 확장
+## 7. 구현 메모 (Phase 3)
+
+- 구현: `server/src/realtime/gateway.ts`, 접속 상태 `presence.ts` (서버 1대 기준 메모리).
+- `connect_error`의 `message`와 `data.code`는 모두 `UNAUTHORIZED`.
+- `presence:changed`는 그 사용자가 활성 멤버인 모든 현장 방에 보내며, 같은 사용자의 두 번째 기기 연결·첫 번째 기기 종료는 상태 변화가 아니므로 보내지 않는다.
+- 웹(e2e·개발) 접속을 위해 CORS를 허용한다 (로컬 호스팅 전제).
+
+## 8. 확장
 
 - 서버 다중화 시 `@socket.io/redis-adapter` 도입. 현재 설계(사용자 방, 서버 측 방 참여)는 그대로 동작한다.

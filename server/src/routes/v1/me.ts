@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireProfile } from "../../auth/middleware";
 import type { AppContext } from "../../context";
 import { AppError } from "../../lib/errors";
-import type { MySite } from "../../shared/api";
+import type { MembershipStatus, MySite, SiteRole, SyncResponse } from "../../shared/api";
 import { LANG_CODES, SUPPORTED_LANGUAGES, type Lang } from "../../shared/languages";
 import { toMySite, toProfile } from "../../sites/mappers";
 
@@ -14,6 +14,11 @@ const profileInput = z.object({
   preferredLang: langSchema,
   autoPlay: z.boolean().optional(),
   speechRate: z.number().min(0.5).max(1.5).optional(),
+});
+
+const syncQuery = z.object({
+  since: z.coerce.date().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export function meRouter(context: AppContext): Router {
@@ -40,6 +45,30 @@ export function meRouter(context: AppContext): Router {
       update: { ...input, ...(email ? { email } : {}), deletedAt: null },
     });
     res.json(toProfile(profile));
+  });
+
+  /**
+   * 재연결 동기화 (docs/api-specification.md 9절). since 이후 바뀐 내 멤버십을 돌려준다.
+   * 대화·메시지 변경분은 Phase 4에서 채운다. 응답의 cursor 를 다음 since 로 쓴다.
+   */
+  router.get("/sync", requireProfile(context), async (req, res) => {
+    const { since, siteId } = syncQuery.parse(req.query);
+    const cursor = new Date().toISOString();
+    const memberships = await prisma.siteMembership.findMany({
+      where: {
+        userId: req.auth!.userId,
+        ...(since ? { updatedAt: { gt: since } } : {}),
+        ...(siteId ? { siteId } : {}),
+      },
+      select: { siteId: true, status: true, role: true },
+    });
+    const body: SyncResponse = {
+      cursor,
+      conversations: [],
+      messages: [],
+      memberships: memberships.map((m) => ({ siteId: m.siteId, status: m.status as MembershipStatus, role: m.role as SiteRole })),
+    };
+    res.json(body);
   });
 
   router.get("/me/sites", requireProfile(context), async (req, res) => {

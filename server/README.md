@@ -16,7 +16,7 @@ npm run db:start
 
 # 터미널 2
 npm run db:deploy           # 마이그레이션 적용
-npm run dev                 # http://0.0.0.0:4000, 확인: curl localhost:4000/health
+npm run dev                 # http://0.0.0.0:4000 (REST /api/v1, 실시간 /rt), 확인: curl localhost:4000/health
 ```
 
 ## 명령
@@ -52,7 +52,8 @@ src/
 ├─ auth/       Supabase 토큰 검증, 로그인·프로필 확인
 ├─ access/     현장 멤버십·역할 확인
 ├─ sites/      가입 코드, 응답 변환
-├─ events/     실시간 알림 연결 지점 (Phase 3)
+├─ events/     도메인 이벤트 인터페이스 (실시간 알림)
+├─ realtime/   Socket.IO /rt (연결 인증, 현장 구독, 알림, 접속 상태)
 ├─ config/     환경 변수 검증
 └─ lib/        로깅, 오류, Prisma
 ```

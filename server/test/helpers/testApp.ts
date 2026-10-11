@@ -67,3 +67,80 @@ export async function createTestApp(options: { limits?: Limits } = {}) {
 
   return { app, context, issuer, events: recorder.log, user, close: () => context.prisma.$disconnect() };
 }
+
+// ─── 실시간 (Socket.IO) ─────────────────────────────
+
+import { createServer, type Server as HttpServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { io as connect, type Socket as ClientSocket } from "socket.io-client";
+import { attachRealtime } from "../../src/realtime/gateway";
+import { REALTIME_NAMESPACE, type ClientToServerEvents, type ServerToClientEvents } from "../../src/shared/realtime";
+
+export type RtClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
+
+/** REST + Socket.IO 를 실제 포트(임의)로 띄운다 */
+export async function createRealtimeTestApp() {
+  const base = await createTestApp();
+  const server: HttpServer = createServer(base.app);
+  const gateway = attachRealtime(server, base.context);
+  base.context.events = gateway.events;
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}${REALTIME_NAMESPACE}`;
+  const clients: RtClient[] = [];
+
+  const client = (token: string | undefined): RtClient => {
+    const socket: RtClient = connect(url, {
+      transports: ["websocket"],
+      auth: token === undefined ? {} : { token },
+      reconnection: false,
+      forceNew: true,
+    });
+    clients.push(socket);
+    return socket;
+  };
+
+  /** 연결이 성공할 때까지 기다린다 */
+  const connected = async (token: string) => {
+    const socket = client(token);
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect", () => resolve());
+      socket.once("connect_error", reject);
+    });
+    return socket;
+  };
+
+  return {
+    ...base,
+    gateway,
+    client,
+    connected,
+    close: async () => {
+      clients.forEach((socket) => socket.disconnect());
+      await gateway.close();
+      await base.close();
+    },
+  };
+}
+
+/** 이벤트 하나를 기다린다 (시간 초과 시 실패) */
+export function nextEvent<E extends keyof ServerToClientEvents>(socket: RtClient, event: E, timeoutMs = 3000) {
+  return new Promise<Parameters<ServerToClientEvents[E]>[0]>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`이벤트 ${event} 를 받지 못함`)), timeoutMs);
+    socket.once(event as never, ((payload: Parameters<ServerToClientEvents[E]>[0]) => {
+      clearTimeout(timer);
+      resolve(payload);
+    }) as never);
+  });
+}
+
+/** 일정 시간 동안 이벤트가 오지 않아야 함을 확인한다 */
+export function noEvent(socket: RtClient, event: keyof ServerToClientEvents, waitMs = 400) {
+  return new Promise<void>((resolve, reject) => {
+    const handler = () => reject(new Error(`받으면 안 되는 이벤트 ${event} 를 받음`));
+    socket.on(event as never, handler as never);
+    setTimeout(() => {
+      socket.off(event as never, handler as never);
+      resolve();
+    }, waitMs);
+  });
+}
