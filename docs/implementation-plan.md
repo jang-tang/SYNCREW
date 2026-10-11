@@ -8,16 +8,17 @@
 
 ## 1. Phase 요약
 
-| Phase | 목표 | 선행 |
-|---|---|---|
-| 1 | 프로젝트 기반 + 통역 엔진 골격 | — |
-| 2 | 인증·현장·멤버십 | 1 |
-| 3 | 실시간 통신 (Socket.IO) | 2 |
-| 4 | 통역 파이프라인 + 1:1 대화 | 3 |
-| 5 | N:N 그룹 대화 + 1:N 일괄 지시 | 4 |
-| 6 | 안정화·실기기 검증 | 1–5 |
+| Phase | 목표 | 선행 | 상태 |
+|---|---|---|---|
+| 1 | 프로젝트 기반 + 통역 엔진 골격 | — | 완료 `9371620` |
+| 앱 | 프론트엔드 전체 화면 (데모 모드 + live 연동 계층) | 1 | 완료 `3fea4e7` |
+| 2 | 인증·현장·멤버십 | 1 | 완료 `c637a6b` |
+| 3 | 실시간 통신 (Socket.IO) | 2 | 완료 `92e3620` |
+| 4 | 통역 파이프라인 + 1:1 대화 | 3 | **다음** |
+| 5 | N:N 그룹 대화 + 1:N 일괄 지시 | 4 | 대기 |
+| 6 | 안정화·실기기 검증 | 1–5 | 대기 |
 
-## Phase 1. 기반 — 구현 완료 (2026-10-10, 검토 대기)
+## Phase 1. 기반 — 완료 (2026-10-10, 커밋 `9371620`)
 
 - 구현 내용
   - `server/`: Express 5 + TS, zod 환경 변수 검증, pino 로깅(키·토큰 마스킹), 공통 오류 형식, `/health`
@@ -39,7 +40,7 @@
   - 앱 ↔ 서버 실제 통신 (위와 같은 이유)
   - OpenAI 호출 (Phase 4 범위, 키 없음)
 
-## 프론트엔드 MVP — 구현 완료 (2026-10-11, 검토 대기)
+## 프론트엔드 MVP — 완료 (2026-10-11, 커밋 `3fea4e7`)
 
 사용자 요청으로 서버 Phase 2–5보다 앞서 앱 화면 전체를 완성했다. 서버가 준비될 때까지는 데모(mock) 모드로 동작하고,
 서버가 완성되면 `EXPO_PUBLIC_API_MODE=live`로 바꿔 같은 화면을 실서버에 연결한다.
@@ -57,7 +58,7 @@
   - Android 실기기·에뮬레이터 실행, 실제 녹음·재생·블루투스, QR 카메라 스캔 (Android SDK 미설치)
   - live 모드 (서버 API Phase 2–5 미구현)
 
-## Phase 2. 인증·현장·멤버십 — 서버 구현 완료 (2026-10-11, 검토 대기)
+## Phase 2. 인증·현장·멤버십 — 완료 (2026-10-11, 커밋 `c637a6b`)
 
 - 구현 내용
   - Supabase 토큰 검증: JWKS(ES256) 서명·만료·발급자·`aud=authenticated` (`server/src/auth/verifier.ts`), 서버에 비밀 키 불필요
@@ -81,7 +82,7 @@
 - 완료 기준: 시나리오 1–4, 11 API 통합 테스트 통과, 앱에서 관리자·구성원 계정으로 가입~승인 흐름 수동 확인
 - 위험: Supabase 재설정 메일 딥링크 설정
 
-## Phase 3. 실시간 통신 — 서버 구현 완료 (2026-10-11, 검토 대기)
+## Phase 3. 실시간 통신 — 완료 (2026-10-11, 커밋 `92e3620`)
 
 - 구현 내용 (`server/src/realtime/`)
   - REST와 같은 포트에 Socket.IO `/rt`. 연결 시 Supabase 토큰 검증, 실패 시 `connect_error: UNAUTHORIZED`
@@ -108,15 +109,33 @@
 - 완료 기준: 소켓 통합 테스트(인증 거부, 권한 없는 구독 거부, 제외 시 즉시 차단 = 시나리오 12) 통과
 - 위험: Android 백그라운드 전환 시 연결 끊김 → 포그라운드 복귀 시 동기화로 보완
 
-## Phase 4. 통역 파이프라인 + 1:1 대화
+## Phase 4. 통역 파이프라인 + 1:1 대화 — 다음 차례 (사용자 승인 후 착수)
 
-- 작업
-  - 엔진: 오디오 디코딩(ffmpeg-static), `OpenAiStt`, `RealtimeTranslator`(`gpt-realtime-2`, 서버 WebSocket, 텍스트+음성 출력), WAV 변환, 로컬 디스크 저장, 모든 호출에 BudgetGuard 적용
-  - 서버: 메시지 테이블 3종, 팬아웃 작업 큐(동시성 제한), 재시도, 재시작 복구, 1:1 대화 API, 메시지 전송·조회·재시도, 음성 URL, `message:new`/`message:status`/`receipt:delivered`
-  - 앱: 대화 목록·대화 화면, 누르고 말하기 녹음, `preprocessRecording` 훅, 자동 재생 대기열, 기기 TTS 대체, 실패 재시도
-  - 실기기: 블루투스 헤드셋 녹음 경로 확인, 필요 시 config plugin 추가
-- 완료 기준: 시나리오 5, 6, 13, 14, 15 통과(자동은 Fake 엔진), 실제 OpenAI로 5개 언어 왕복 수동 확인, 단계별 지연 측정 기록
-- 위험: Realtime 세션 연결 지연, 우즈베크어 번역·음성 품질, 블루투스 마이크 입력
+### 착수 전 확인
+- **OpenAI API 키**: 아직 미입력. 사용자에게 `cd server && npm run setup:openai` 입력을 요청한다. 키가 없어도 Fake 엔진으로 개발·테스트는 가능하다.
+- **`gpt-realtime-2` 세부 규격**: Realtime API 이벤트 이름·세션 파라미터(출력 모달리티, 음성 포맷, 추론 강도)는 구현 시점에 OpenAI 공식 문서로 확인한다 (기억에 의존하지 말 것). 단가는 `server/src/engine/budget/pricing.ts`.
+- 비용 한도 $5/월: 실제 API 호출 테스트는 최소한으로 하고, 호출 전후 `/health`의 `budget`을 기록한다.
+
+### 이미 있는 것 (재사용)
+- 엔진 인터페이스: `SttProvider`(`server/src/engine/stt/sttProvider.ts`), `Translator`(`engine/translation/translator.ts`), `AudioPreprocessor` + `runPreprocessorSafely`(`engine/audio/`), `DomainProcessor`(용어 감지·보정·컨텍스트), `BudgetGuard`(reserve → commit/release)
+- DB: `conversations`(현장 그룹 자동 생성), `conversation_participants`(승인 시 참여, 제외 시 `left_at`)
+- 실시간: `server/src/realtime/gateway.ts` — `user:{id}` 방으로 개인 발행, `receipt:delivered` 핸들러 자리(현재 형식 검증만)
+- 계약: `server/src/shared/api.ts`(`MessageView`, `SendResult`, `ConversationSummary` …), `shared/realtime.ts`(`message:new`, `message:status`)
+- **앱은 이미 완성**: 대화 목록·대화방·누르고 말하기·자동 재생·다시 듣기·재시도. live 모드 호출은 `frontend/src/services/live/httpApi.ts`(경로·본문 형식 확인용). 서버는 이 호출 형식에 맞춘다.
+
+### 할 일 (서버)
+1. DB: `messages`, `message_translations`, `message_recipients` (docs/database-design.md) + CHECK·UNIQUE(sender_id, client_message_id)
+2. 엔진 구현: `OpenAiStt`(기존 PoC `requestAudioTranscription` 이식), `RealtimeTranslator`(서버→OpenAI WebSocket), 오디오 디코딩(`ffmpeg-static`, m4a→PCM16), 번역 음성 WAV 저장(`server/storage/audio`), 모든 호출에 BudgetGuard
+3. 테스트용 `FakeStt`·`FakeTranslator`(지연·실패 주입)
+4. 팬아웃 작업 큐: 대상 언어별 1회 번역, 동시성 제한, 재시도 2회, 서버 재시작 시 `pending`/`processing` 복구
+5. API: `GET /sites/:siteId/conversations`, `POST /sites/:siteId/conversations/direct`, `GET /conversations/:id/messages`, `POST /conversations/:id/messages`(JSON 텍스트 / multipart 음성), `POST /messages/:id/retry`, `GET /messages/:id/audio`
+6. 실시간: `message:new`(수신자별 `user:` 방), `message:status`(발신자), `receipt:delivered` 실제 반영, `GET /sync`에 대화·메시지 변경분 추가
+7. 앱 mock(`frontend/src/services/mock/`)과 동작이 다르면 계약 쪽으로 맞추고 둘 다 고친다
+
+### 완료 기준
+- 시나리오 5, 6, 13, 14, 15 자동 테스트 통과 (Fake 엔진)
+- 실제 OpenAI로 5개 언어 왕복 수동 확인 + 단계별 지연(ms) 기록 — 키가 있을 때
+- 위험: Realtime 세션 연결 지연, 우즈베크어 번역·음성 품질, 블루투스 마이크 입력(실기기 필요)
 
 ## Phase 5. N:N 그룹 대화 + 1:N 일괄 지시
 
@@ -143,5 +162,7 @@
 ## 3. 남은 확인사항
 
 1. 노이즈 필터 실행 위치(서버 / 단말)와 입력 형식 — 양쪽 훅을 준비해 두고, 담당 개발자와 확정
-2. Phase 2 시작 전: Supabase 대시보드에서 비밀번호 재설정 메일의 앱 딥링크(`syncrew://`) Redirect URL 허용 (프로젝트 URL·키는 2026-10-10 `.env`에 입력 완료)
+2. Supabase 대시보드에서 비밀번호 재설정 메일의 앱 딥링크(`syncrew://reset-password`) Redirect URL 허용 — 사용자 확인 필요 (프로젝트 URL·키는 `.env`에 입력 완료)
 3. 앱 실행 검증을 위한 Android SDK(에뮬레이터) 또는 실기기 준비 (사용자가 추후 준비)
+4. OpenAI API 키 입력 (Phase 4 실제 번역 확인에 필요)
+5. 실제 Supabase 계정 토큰으로 API·실시간 연결 확인 — 테스트 계정 생성은 사용자 허락 후

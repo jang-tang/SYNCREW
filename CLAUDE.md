@@ -19,8 +19,9 @@
 | Phase 1 기반 (서버·엔진 골격·비용 한도) | 완료 | `9371620` |
 | 프론트엔드 전체 화면 (데모 모드) | 완료 | `3fea4e7` |
 | Phase 2 인증·현장·멤버십 (서버) | 완료 | `c637a6b` |
-| **Phase 3 실시간 (Socket.IO)** | **완료, 검토 대기 (미커밋)** | — |
-| Phase 4 통역 파이프라인 + 1:1 / Phase 5 그룹·일괄 지시 / Phase 6 안정화 | 대기 | — |
+| Phase 3 실시간 (Socket.IO) | 완료 | `92e3620` |
+| **Phase 4 통역 파이프라인 + 1:1 대화** | **다음 차례 — 사용자 승인 후 착수** | — |
+| Phase 5 그룹·일괄 지시 / Phase 6 안정화 | 대기 | — |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -28,6 +29,15 @@
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`). **미입력: OpenAI API 키** (`cd server && npm run setup:openai`).
 - 미검증 (환경 제약): Android 에뮬레이터·실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
+
+## 새 세션 시작 순서
+
+1. 이 파일과 `docs/implementation-plan.md`의 **Phase 4 착수 가이드**를 읽는다 (이미 있는 것·할 일·완료 기준이 정리돼 있음).
+2. `git log --oneline | head -5`와 `git status`로 마지막 커밋이 위 표와 같은지, 미커밋 변경이 없는지 확인한다.
+3. 기준선 확인: `cd server && npm test` (75개 통과해야 함), `cd frontend && npm run typecheck`.
+4. 사용자가 Phase 4 착수를 승인했는지 확인한다. 승인 전이면 계획·질문만 한다.
+5. Phase 4 시작 시 OpenAI 키 입력 여부를 사용자에게 묻는다 (없으면 Fake 엔진으로 진행 가능).
+6. Phase를 끝내면: `docs/implementation-plan.md`(결과·검증·미검증)와 이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached`로 키 혼입 검사).
 
 ## 이 PC 환경 (작업 전 알아 둘 것)
 
