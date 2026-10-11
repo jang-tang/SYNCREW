@@ -2,10 +2,11 @@
 
 ## 1. 기술 구성
 
-- 위치: `frontend/` (화면은 `frontend/src/app`, expo-router 파일 기반 라우팅)
+- 위치: `frontend/` (화면은 `frontend/src/app`, expo-router 파일 기반 라우팅). **구현 완료 (2026-10-11)** — 실제 구조는 `frontend/README.md`
+- 동작 모드: `EXPO_PUBLIC_API_MODE=mock`(데모 데이터, 기본) / `live`(Supabase + 서버)
 
 - Expo(dev build) + React Native + TypeScript, Android 우선
-- Expo SDK 57 (React Native 0.86), 라우팅: expo-router / 서버 상태: TanStack Query, 세션·소켓 상태: Zustand (Phase 2부터 도입)
+- Expo SDK 57 (React Native 0.86), 라우팅: expo-router / 서버 상태: TanStack Query, 세션·토스트: Zustand
 - 인증: `@supabase/supabase-js` (세션은 expo-secure-store 어댑터에 저장, 자동 갱신)
 - 오디오: `expo-audio` (녹음·재생), 대체 재생: `expo-speech`
 - QR: 표시 `react-native-qrcode-svg`, 스캔 `expo-camera`

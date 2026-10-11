@@ -13,21 +13,30 @@ export class ApiError extends Error {
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 8000;
+type RequestOptions = Omit<RequestInit, "body"> & {
+  json?: unknown;
+  body?: BodyInit;
+  token?: string | null;
+  timeoutMs?: number;
+  acceptStatuses?: number[];
+};
 
-export async function apiFetch<T>(
-  path: string,
-  init: RequestInit & { timeoutMs?: number; acceptStatuses?: number[] } = {},
-): Promise<T> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, acceptStatuses = [], ...requestInit } = init;
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { json, token, timeoutMs = 15_000, acceptStatuses = [], headers, ...init } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      ...requestInit,
-      headers: { Accept: "application/json", ...requestInit.headers },
+      ...init,
+      body: json !== undefined ? JSON.stringify(json) : init.body,
+      headers: {
+        Accept: "application/json",
+        ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
       signal: controller.signal,
     });
   } catch (error) {
@@ -37,10 +46,10 @@ export async function apiFetch<T>(
     clearTimeout(timer);
   }
 
+  if (response.status === 204) return undefined as T;
   const body: unknown = await response.json().catch(() => undefined);
-  if (response.ok || acceptStatuses.includes(response.status)) {
-    return body as T;
-  }
+  if (response.ok || acceptStatuses.includes(response.status)) return body as T;
+
   const errorBody = body as Partial<ApiErrorBody> | undefined;
   throw new ApiError(
     errorBody?.error?.code ?? "INTERNAL_ERROR",

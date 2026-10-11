@@ -1,18 +1,23 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ServerStatusBar } from "@/components/ServerStatusBar";
-import { ServerHealthProvider } from "@/providers/ServerHealthProvider";
+import { View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ToastHost } from "@/components/ui/ToastHost";
+import { AppProviders } from "@/providers/AppProviders";
 import { colors } from "@/theme";
 
 export default function RootLayout() {
   return (
-    <ServerHealthProvider>
-      <StatusBar style="dark" />
-      <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
-        <ServerStatusBar />
-        <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaView>
-    </ServerHealthProvider>
+    <SafeAreaProvider>
+      <AppProviders>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+            <Stack.Screen name="welcome" options={{ animation: "fade" }} />
+          </Stack>
+          <ToastHost />
+        </View>
+      </AppProviders>
+    </SafeAreaProvider>
   );
 }

@@ -14,7 +14,8 @@
 
 ## 현재 상태 (2026-10-10)
 
-- **Phase 1 완료, 사용자 검토 후 Phase 2 대기.** 진행 현황: `docs/implementation-plan.md`
+- **Phase 1 완료 + 프론트엔드 전체 화면 완료(2026-10-11, 데모 모드).** 다음: 서버 Phase 2(인증·현장·멤버십) — 사용자 승인 후. 진행 현황: `docs/implementation-plan.md`
+- 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API를 만들 때는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것.
 - Phase 2(인증·현장·멤버십): Supabase 값은 `server/.env`, `frontend/.env`에 입력 완료.
 - 미검증: Android 에뮬레이터·실기기 실행, 앱↔서버 실통신 (이 PC에 Android SDK 없음. 사용자가 추후 준비).
 - OpenAI API 키는 아직 미입력 (`cd server && npm run setup:openai`).
@@ -45,7 +46,7 @@
 - `server/src/plugins/`: 교체 가능한 구현 등록 지점 (노이즈 필터, 데이터셋, 보존 정책).
 - 서버 요청 검증은 zod, 오류 응답은 `{error:{code,message}}` (코드: `server/src/shared/api.ts`).
 - 상태 변경은 REST, 서버→앱 알림은 Socket.IO (`docs/realtime-protocol.md`).
-- 앱 화면은 `frontend/src/app` (expo-router). Expo 패키지는 `npx expo install`로 설치. `frontend/AGENTS.md` 참고 (Expo는 SDK마다 API가 바뀌므로 문서 확인).
+- 앱 화면은 `frontend/src/app` (expo-router). 디자인 토큰 `frontend/src/theme.ts`, UI 문구는 `frontend/src/i18n/strings.ts`(5개 언어 모두 채울 것). Expo 패키지는 `npx expo install`로 설치. `frontend/AGENTS.md` 참고 (Expo는 SDK마다 API가 바뀌므로 문서 확인).
 - 비밀 값: `SUPABASE_SECRET_KEY`, `OPENAI_API_KEY`는 `server/.env`에만. 앱에는 publishable key만.
 - Prisma가 AI의 `migrate reset`을 사용자 동의 없이 차단한다. 우회하지 말고 새 마이그레이션을 추가할 것.
 
