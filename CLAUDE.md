@@ -23,6 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 계획 승인, S0 대기 (실기기 10-13) | — |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -37,17 +38,21 @@
 - 테스트 계정(사용자 허락, 2026-10-12): `syncrew-e2e-manager@example.com`, `syncrew-e2e-member@example.com`. 비밀번호는 `server/.e2e-accounts.json`(git 제외). 삭제는 `npx tsx scripts/e2e-accounts.ts --delete`.
 - 미검증: 실기기(휴대폰 2대) + 블루투스 헤드셋, 네이티브 앱 live 모드(휴대폰 → PC 서버).
 
-## 남은 일 (우선순위 순, 2026-10-12 Phase 6 이후)
+## 남은 일 (우선순위 순, 2026-10-12 갱신)
 
-1. **실기기 확인** (휴대폰 2대 + 블루투스 헤드셋, 같은 Wi-Fi): 네이티브 live 모드 로그인 → 통화·일괄 지시, 헤드셋 마이크 선택·출력·연결 해제 감지, 현장 소음 VAD 조정, 백그라운드·화면 꺼짐 (`docs/live-interpretation.md` 9절). 테스트 계정은 이미 있음
-2. 남은 안정화: iOS 시작 화면 로고 "Sync" 글자가 어둡게 보임(웹 정상, 원인 미조사), 서버 재시작 시 세션 정리(`closeStale`)·시작 복구 연결 자동 테스트(공유 테스트 DB 문제), 업로드 MIME 허용 목록, 실제 청구액과 `openai_usage` 대조
-3. 우즈베크어 통역 품질 — 실제 확인에서 안전 지시 의미가 바뀜. **사용자 결정: 일단 보류** (대책 후보: 데이터셋 uz 보강, `gpt-4o-transcribe` 비교)
-4. 결정·준비 필요: 프로젝트 영문 경로 이동(iOS), Supabase 재설정 메일 딥링크 허용, 노이즈 필터 실행 위치(서버/단말), 4개 언어 UI 문구 원어민 검수. OpenAI 키는 사용자가 잔액 충전 때 교체 예정
-5. 추후 개선: 진짜 오디오 스트리밍(네이티브 모듈 — 지연 약 6초의 주원인), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
+**다음 작업: Phase 7 = 진짜 스트리밍 통역 (1:1 통화만) — 사용자 승인 완료 (2026-10-12). 계획·결정: `docs/streaming-plan.md` (0-1절 결정, 7절 단계).**
+
+1. **S0 기술 검증**: ① OpenAI Realtime 스트리밍 측정 스크립트(이 PC, 약 $0.1–0.2 — 실행 직전 예상 비용 다시 안내) ② **실기기·블루투스 헤드셋(사용자가 2026-10-13 준비)**으로 네이티브 오디오 후보 검증(`@speechmatics/expo-two-way-audio` 등) → S0 보고 후 멈추고 승인
+2. 이후 S1 서버 스트리밍 경로(가짜 엔진) → S2 웹 검증 클라이언트 → S3 네이티브 오디오 → S4 1:1 통화 통합 → S6 실기기 튜닝. 음성 경로는 **A안(우리 서버 경유, Socket.IO + PCM)**, 발화 단위 방식은 폴백으로 유지
+3. **일괄 지시 대상 선택 UX 개선 (사용자 요청)**: B1(앱만 — 빠른 선택 칩·전체 선택·검색·지난 선택 기억·요약), B2(작업조 저장 — DB 변경이라 시작 전 별도 승인). 일괄 지시 자체는 **발화 단위 방식 유지**(지연 허용, 스트리밍 S5 취소). 시작 시점은 사용자와 정함 (`docs/streaming-plan.md` 8-1절)
+4. 남은 안정화: iOS 시작 화면 로고 "Sync" 글자가 어둡게 보임(웹 정상, 원인 미조사), 서버 재시작 시 세션 정리(`closeStale`)·시작 복구 연결 자동 테스트, 업로드 MIME 허용 목록, 실제 청구액과 `openai_usage` 대조
+5. 우즈베크어 통역 품질 — **사용자 결정: 일단 보류**
+6. 결정·준비 필요: 실기기 구성·Apple 계정(iOS 실기기 설치), OpenAI 충전 + 한도 상향(S2 실제 확인 전, 충전 때 키 교체), 프로젝트 영문 경로 이동(S3 전 권장), Supabase 재설정 메일 딥링크, 노이즈 필터 실행 위치, UI 문구 원어민 검수
+7. 추후 개선: 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ## 새 세션 시작 순서
 
-1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
+1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), **`docs/streaming-plan.md`(Phase 7 계획·결정)**, `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (Phase 6 변경은 사용자가 커밋을 요청하기 전까지 미커밋 상태일 수 있다.)
 3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**157개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit`.
 4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. live e2e는 `ENGINE=fake` 서버로 비용 없이 다시 돌릴 수 있다 (`docs/operations.md` 6절).

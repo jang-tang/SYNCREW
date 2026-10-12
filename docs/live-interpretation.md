@@ -204,7 +204,7 @@ sequenceDiagram
 
 ## 10. 추후 개선
 
-1. **진짜 스트리밍**: 네이티브 오디오 모듈(iOS playAndRecord+voiceChat+HFP, Android VOICE_COMMUNICATION+SCO, PCM 스트리밍 재생) + 서버 OpenAI Realtime 세션 유지(서버 VAD, 부분 결과 스트리밍). 지연 약 1–2초 기대, 대신 통화 시간 전체에 음성 입력 요금 (비용 한도 재검토 필요)
+1. **진짜 스트리밍** (상세 계획: [streaming-plan.md](streaming-plan.md), 2026-10-12 승인 — 1:1 통화만, 일괄 지시는 이 문서의 발화 단위 방식 유지): 네이티브 오디오 모듈(iOS playAndRecord+voiceChat+HFP, Android VOICE_COMMUNICATION+SCO, PCM 스트리밍 재생) + 서버 OpenAI Realtime 세션 유지(서버 VAD, 부분 결과 스트리밍). 지연 약 1–2초 기대, 대신 통화 시간 전체에 음성 입력 요금 (비용 한도 재검토 필요)
 2. 백그라운드 통화 유지 (iOS 백그라운드 오디오, Android 포그라운드 서비스)
 3. 실제 현장 소음 데이터로 VAD 기준 조정, 노이즈 필터 플러그인과 연동
 4. 통화 중 상대 통역 재생 상태를 보내 "상대가 듣는 중" 표시
