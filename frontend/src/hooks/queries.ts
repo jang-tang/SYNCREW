@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { MemberAction, MessageView, ProfileInput, SiteInput } from "@shared/api";
+import type { InstructionTarget, LiveSession, MemberAction, MessageView, ProfileInput, SessionMode, SiteInput } from "@shared/api";
 import type { Lang } from "@shared/languages";
 import { newId } from "@/lib/id";
 import { services } from "@/services";
@@ -19,6 +19,10 @@ export const qk = {
   instructions: (siteId: string) => ["instructions", siteId] as const,
   instruction: (messageId: string) => ["instruction", messageId] as const,
   inbox: (siteId: string) => ["inbox", siteId] as const,
+  session: (sessionId: string) => ["session", sessionId] as const,
+  sessionMessages: (sessionId: string) => ["sessionMessages", sessionId] as const,
+  openSessions: (siteId: string) => ["openSessions", siteId] as const,
+  sessions: (siteId: string, mode?: SessionMode) => ["sessions", siteId, mode ?? "all"] as const,
 };
 
 /** 현재 선택된 현장 id (사이트 화면 안에서는 항상 있음) */
@@ -150,6 +154,7 @@ export function useSendMessage(conversationId: string, me: { id: string; name: s
         status: "queued",
         requiresAck: false,
         createdAt: new Date().toISOString(),
+        sessionId: null,
       });
     },
     onError: (_error, { clientMessageId }) => {
@@ -199,5 +204,59 @@ export function useRespondInstruction(siteId: string) {
     mutationFn: ({ messageId, action, note }: { messageId: string; action: "ack" | "complete"; note?: string }) =>
       action === "ack" ? api.ackInstruction(messageId) : api.completeInstruction(messageId, note),
     onSuccess: () => client.invalidateQueries({ queryKey: qk.inbox(siteId) }),
+  });
+}
+
+// ─── 실시간 통역 세션 ─────────────────────────────────
+
+export const useSession = (sessionId: string) =>
+  useQuery({ queryKey: qk.session(sessionId), queryFn: () => api.getSession(sessionId), enabled: !!sessionId });
+export const useSessionMessages = (sessionId: string) =>
+  useQuery({ queryKey: qk.sessionMessages(sessionId), queryFn: () => api.listSessionMessages(sessionId), enabled: !!sessionId });
+/** 내가 참여 중인 울림·진행 중 세션 (상단 배너·복원용) */
+export const useOpenSessions = (siteId: string) =>
+  useQuery({ queryKey: qk.openSessions(siteId), queryFn: () => api.listOpenSessions(siteId), enabled: !!siteId });
+
+function cacheSession(client: QueryClient, session: LiveSession) {
+  client.setQueryData(qk.session(session.id), session);
+  void client.invalidateQueries({ queryKey: qk.openSessions(session.siteId) });
+}
+
+export function useStartCall(siteId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.startCall(siteId, userId),
+    onSuccess: (session) => {
+      cacheSession(client, session);
+      void client.invalidateQueries({ queryKey: qk.conversations(siteId) });
+    },
+  });
+}
+
+export function useStartBroadcast(siteId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (target: InstructionTarget) => api.startBroadcast(siteId, target),
+    onSuccess: (session) => cacheSession(client, session),
+  });
+}
+
+/** 받기·거절·끊기 */
+export function useSessionAction() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, action }: { sessionId: string; action: "accept" | "decline" | "end" }) =>
+      action === "accept" ? api.acceptSession(sessionId) : action === "decline" ? api.declineSession(sessionId) : api.endSession(sessionId),
+    onSuccess: (session) => cacheSession(client, session),
+  });
+}
+
+/** 핸즈프리로 감지한 발화 1건 전송 */
+export function useSendUtterance(sessionId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { uri: string; mimeType: string }) =>
+      api.sendUtterance(sessionId, { clientMessageId: newId(), audioUri: input.uri, mimeType: input.mimeType }),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.sessionMessages(sessionId) }),
   });
 }

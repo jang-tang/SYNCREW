@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { Composer } from "@/components/chat/Composer";
@@ -7,7 +7,16 @@ import { Avatar } from "@/components/ui/Avatar";
 import { LangBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Screen, StackHeader } from "@/components/ui/Screen";
-import { useConversations, useMe, useMessages, useRetryMessage, useSendMessage, useSiteId, newClientMessageId } from "@/hooks/queries";
+import {
+  newClientMessageId,
+  useConversations,
+  useMe,
+  useMessages,
+  useRetryMessage,
+  useSendMessage,
+  useSiteId,
+  useStartCall,
+} from "@/hooks/queries";
 import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
 import { nativeNameOf } from "@/lib/format";
@@ -26,6 +35,7 @@ export default function Chat() {
   const profile = me.data;
   const send = useSendMessage(id, { id: profile?.id ?? "", name: profile?.displayName ?? "", lang: profile?.preferredLang ?? "ko" });
   const retry = useRetryMessage(id);
+  const startCall = useStartCall(siteId);
 
   // 대화를 열면 읽음 처리된 목록으로 갱신
   useEffect(() => {
@@ -37,6 +47,10 @@ export default function Chat() {
   const group = conversation?.type === "group";
 
   const onError = (error: unknown) => toast(errorMessage(error), "error");
+  const peer = conversation?.peer;
+  const call = peer
+    ? () => startCall.mutate(peer.userId, { onSuccess: (session) => router.push(`/site/call/${session.id}`), onError })
+    : undefined;
 
   const header = conversation?.peer ? (
     <View style={styles.title}>
@@ -86,6 +100,7 @@ export default function Chat() {
         />
       )}
       <Composer
+        onCall={call}
         onSendText={(text) => send.mutate({ input: { kind: "text", text }, clientMessageId: newClientMessageId() }, { onError })}
         onSendAudio={(recording) =>
           send.mutate(

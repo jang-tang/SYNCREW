@@ -2,6 +2,8 @@
 // 명세: docs/realtime-protocol.md
 import type { Lang } from "./languages";
 import type {
+  DeviceStatus,
+  LiveSession,
   MembershipStatus,
   MessageStatus,
   MessageView,
@@ -36,6 +38,12 @@ export type ServerToClientEvents = {
   ) => void;
   "presence:changed": (payload: Envelope & { userId: string; online: boolean }) => void;
   "sync:required": (payload: Envelope & { siteId?: string }) => void;
+  /** 나에게 걸려 온 1:1 통화, 내가 수신 대상인 일괄 지시 시작 (user: 방) */
+  "session:invite": (payload: Envelope & { session: LiveSession }) => void;
+  /** 세션 상태·참여자 연결 변화 (참여자 전원의 user: 방) */
+  "session:updated": (payload: Envelope & { session: LiveSession }) => void;
+  /** 구성원 오디오 장치 상태 변화 (site: 방) */
+  "device:changed": (payload: Envelope & { siteId: string; userId: string; device: DeviceStatus | null }) => void;
   "auth:expired": (payload: Envelope) => void;
 };
 
@@ -45,6 +53,8 @@ export type ClientToServerEvents = {
   "site:subscribe": (payload: { siteId: string }, ack: (result: AckResult) => void) => void;
   "site:unsubscribe": (payload: { siteId: string }, ack: (result: AckResult) => void) => void;
   "receipt:delivered": (payload: { messageIds: string[] }, ack: (result: AckResult) => void) => void;
+  /** 내 오디오 장치 상태 알림 (헤드셋 연결·마이크 권한). 바뀔 때마다 보낸다. */
+  "device:status": (payload: DeviceStatus, ack: (result: AckResult) => void) => void;
 };
 
 export type ServerEventName = keyof ServerToClientEvents;

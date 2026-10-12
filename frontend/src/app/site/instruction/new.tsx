@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Lang } from "@shared/languages";
-import { HoldToTalk } from "@/components/chat/HoldToTalk";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, Divider, SectionTitle } from "@/components/ui/Card";
@@ -133,20 +132,6 @@ export default function NewInstruction() {
         </Card>
       </View>
 
-      <Card style={styles.voice}>
-        <Text style={[font.label, { color: colors.inkSoft }]}>{t("instr.orSpeak")}</Text>
-        <HoldToTalk
-          size={72}
-          label
-          onRecorded={(recording) => {
-            if (targets.length === 0) return toast(t("instr.noRecipients"), "error");
-            create.mutate(
-              { clientMessageId: newClientMessageId(), target, requiresAck, audioUri: recording.uri, mimeType: recording.mimeType },
-              { onSuccess: done, onError },
-            );
-          }}
-        />
-      </Card>
     </Screen>
   );
 }
@@ -158,5 +143,4 @@ const styles = StyleSheet.create({
   langs: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm },
   langChip: { paddingHorizontal: spacing.sm + 2, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   langText: { ...font.caption, fontWeight: "700", color: colors.inkSoft },
-  voice: { alignItems: "center", gap: spacing.md, backgroundColor: colors.brandSoft, borderColor: colors.brandBorder },
 });

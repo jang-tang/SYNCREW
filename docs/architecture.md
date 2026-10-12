@@ -71,6 +71,8 @@ SYNCREW/
 
 ## 4. 통역 파이프라인
 
+> Phase 5: 1:1 통역 통화·관리자 실시간 일괄 지시는 이 파이프라인을 "핸즈프리 발화 단위"로 사용한다 (앱이 말 끝을 감지해 문장마다 자동 전송, 받는 쪽 자동 재생). 세션 관리·이어폰 처리: [live-interpretation.md](live-interpretation.md)
+
 ### 4-1. 흐름
 
 ```mermaid

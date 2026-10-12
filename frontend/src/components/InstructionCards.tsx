@@ -11,12 +11,26 @@ import { formatTime } from "@/lib/format";
 import { colors, font, radius, spacing } from "@/theme";
 
 /** 관리자: 보낸 지시 한 건의 진행 현황 */
+/** 실시간 일괄 지시 중에 말한 지시 표시 */
+function LiveTag() {
+  const { t } = useT();
+  return (
+    <View style={styles.liveTag}>
+      <Ionicons name="radio" size={11} color="#FFFFFF" />
+      <Text style={styles.liveText}>{t("instr.liveTag")}</Text>
+    </View>
+  );
+}
+
 export function SentInstructionCard({ item }: { item: InstructionSummary }) {
   const { t, lang } = useT();
   const confirmed = item.counts.acknowledged + item.counts.completed;
+  // 실시간 지시는 확인 응답을 받지 않으므로 전달 수를 보여 준다
+  const delivered = item.counts.sent + item.counts.delivered + item.counts.acknowledged + item.counts.completed;
   return (
     <Card onPress={() => router.push(`/site/instruction/${item.id}`)} style={{ gap: spacing.md }}>
       <View style={styles.top}>
+        {item.sessionId && <LiveTag />}
         <Text style={[font.bodyStrong, { flex: 1 }]} numberOfLines={2}>
           {item.text}
         </Text>
@@ -24,7 +38,9 @@ export function SentInstructionCard({ item }: { item: InstructionSummary }) {
       </View>
       <RecipientProgress counts={item.counts} total={item.total} />
       <View style={styles.top}>
-        <Text style={styles.progress}>{t("instr.progress", { a: confirmed, b: item.total })}</Text>
+        <Text style={styles.progress}>
+          {item.requiresAck ? t("instr.progress", { a: confirmed, b: item.total }) : t("bc.delivery", { a: delivered, b: item.total })}
+        </Text>
         <View style={styles.legend}>
           {item.counts.completed > 0 && <Legend color={colors.success} label={`${t("status.completed")} ${item.counts.completed}`} />}
           {item.counts.failed > 0 && <Legend color={colors.danger} label={`${t("status.failed")} ${item.counts.failed}`} />}
@@ -53,6 +69,7 @@ export function InboxCard({ item, onAck, acking }: { item: InboxItem; onAck: () 
     <Card onPress={() => router.push(`/site/instruction/${item.id}`)} style={[{ gap: spacing.md }, fresh && styles.fresh]}>
       <View style={styles.top}>
         <View style={styles.from}>
+          {item.sessionId && <LiveTag />}
           <Ionicons name="megaphone" size={14} color={fresh ? colors.brand : colors.muted} />
           <Text style={[styles.time, fresh && { color: colors.brandPressed, fontWeight: "700" }]} numberOfLines={1}>
             {t("instr.from", { name: item.senderName })}
@@ -74,6 +91,16 @@ export function InboxCard({ item, onAck, acking }: { item: InboxItem; onAck: () 
 export { isNew as isUnacknowledged };
 
 const styles = StyleSheet.create({
+  liveTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: colors.danger,
+  },
+  liveText: { fontSize: 11, fontWeight: "800", color: "#FFFFFF" },
   top: { flexDirection: "row", alignItems: "center", gap: spacing.md, justifyContent: "space-between" },
   time: { ...font.caption, color: colors.muted },
   progress: { ...font.label, color: colors.ink },

@@ -26,5 +26,9 @@ export function createMockRealtime(): RealtimeService {
     async sendReceipts(messageIds) {
       mockDb.markDelivered(messageIds);
     },
+    async reportDevice(device) {
+      const me = mockDb.users.get("me");
+      if (me) me.device = device;
+    },
   };
 }

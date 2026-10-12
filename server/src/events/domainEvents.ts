@@ -1,4 +1,14 @@
-import type { MembershipStatus, MessageStatus, MessageView, RecipientCounts, SiteRole, TranslationStatus } from "../shared/api";
+import type {
+  DeviceStatus,
+  LiveSession,
+  MembershipStatus,
+  MessageStatus,
+  MessageView,
+  RecipientCounts,
+  RecipientStatus,
+  SiteRole,
+  TranslationStatus,
+} from "../shared/api";
 import type { Lang } from "../shared/languages";
 
 export type MessageStatusEvent = {
@@ -19,6 +29,14 @@ export interface DomainEvents {
   messageNew(event: { userId: string; message: MessageView }): void;
   /** 발신자에게 처리 상태 (user:{id} 방) */
   messageStatus(event: { userId: string } & MessageStatusEvent): void;
+  /** 지시 수신자 상태 변화(수신·확인·완료) → 현장 관리자들 */
+  instructionRecipient(event: { siteId: string; messageId: string; userId: string; status: RecipientStatus }): void;
+  /** 통화 수신·일괄 지시 시작 알림 (대상자 user: 방) */
+  sessionInvite(event: { userId: string; session: LiveSession }): void;
+  /** 세션 상태 변화 (참여자 전원) */
+  sessionUpdated(event: { userIds: string[]; session: LiveSession }): void;
+  /** 구성원 오디오 장치 상태 변화 (그 사람이 속한 현장들) */
+  deviceChanged(event: { siteIds: string[]; userId: string; device: DeviceStatus | null }): void;
 }
 
 export const noopEvents: DomainEvents = {
@@ -26,4 +44,8 @@ export const noopEvents: DomainEvents = {
   joinRequested() {},
   messageNew() {},
   messageStatus() {},
+  instructionRecipient() {},
+  sessionInvite() {},
+  sessionUpdated() {},
+  deviceChanged() {},
 };

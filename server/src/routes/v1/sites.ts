@@ -113,7 +113,7 @@ export function sitesRouter(context: AppContext): Router {
       include: { user: true },
       orderBy: [{ status: "asc" }, { createdAt: "asc" }],
     });
-    res.json(rows.map((row) => toMember(row, context.presence.isOnline(row.userId))));
+    res.json(rows.map((row) => toMember(row, context.presence.isOnline(row.userId), context.devices.get(row.userId))));
   });
 
   router.patch("/sites/:siteId/members/:userId", manager, async (req, res) => {
@@ -167,6 +167,8 @@ export function sitesRouter(context: AppContext): Router {
 
     // 커밋 후 실시간 알림 (Phase 3에서 Socket.IO로 전달)
     if (result) context.events.membershipChanged({ siteId, userId: targetId, role: result.role, status: result.status });
+    // 제외되면 진행 중인 통화·일괄 지시에서도 즉시 뺀다.
+    if (result?.status === "removed") await context.sessions.memberRemoved(siteId, targetId);
     res.status(204).end();
   });
 

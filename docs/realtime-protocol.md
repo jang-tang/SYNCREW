@@ -33,7 +33,8 @@
 |---|---|---|---|
 | `site:subscribe` | `{siteId}` | `{ok:true}` 또는 `{ok:false, code}` | DB에서 active 멤버십 확인 후 `site:`(관리자는 `:managers`도) 방 참여 |
 | `site:unsubscribe` | `{siteId}` | `{ok:true}` | |
-| `receipt:delivered` | `{messageIds: string[]}` (최대 100) | `{ok:true, updated:n}` | 본인이 수신자인 행만 `sent → delivered`. 멱등 |
+| `receipt:delivered` | `{messageIds: string[]}` (최대 100) | `{ok:true, updated:n}` | 본인이 수신자인 행만 `sent → delivered`. 멱등. 지시면 관리자에게 `instruction:recipient` |
+| `device:status` | `{audioRoute, inputName, micPermission}` | `{ok:true}` | 내 오디오 장치 상태(헤드셋·마이크 권한). 서버 메모리에 저장, 마지막 연결이 끊기면 삭제. 앱은 재연결 시 다시 보낸다 |
 
 ack 타임아웃 5초. 실패하면 클라이언트는 재연결 후 다시 보낸다.
 ack 실패 코드: `NOT_FOUND`(활성 멤버 아님 — 현장 존재 여부 비노출), `VALIDATION_ERROR`(형식 오류).
@@ -51,6 +52,9 @@ ack 실패 코드: `NOT_FOUND`(활성 멤버 아님 — 현장 존재 여부 비
 | `presence:changed` | `site:{id}` | `{userId, online}` |
 | `sync:required` | `user:` | `{siteId?}` 서버가 상태 불일치를 감지하거나 재시작 직후 |
 | `auth:expired` | 해당 소켓 | `{}` |
+| `session:invite` | 대상 `user:` | `{session}` 1:1 통화 수신, 내가 대상인 일괄 지시 시작 |
+| `session:updated` | 참여자 전원 `user:` | `{session}` 상태(수락·종료)·참여자 접속·장치 변화 |
+| `device:changed` | 그 사용자가 속한 `site:` 방마다 | `{siteId, userId, device}` |
 
 ## 5. 메시지 생명주기와 이벤트
 
@@ -88,6 +92,13 @@ POST 메시지 → 202
 - 재시도 시에는 실패했던 수신자에게만 `message:new`가 간다 (이미 받은 사람은 중복 수신 없음).
 - `message:status.translations[].text`: 완료된 번역문, 같은 언어(`skipped`)는 원문.
 
-## 9. 확장
+## 9. 구현 메모 (Phase 5 — 실시간 통역 세션)
+
+- 상태 변경은 REST(`/calls`, `/broadcasts`, `/sessions/:id/*`), 알림은 `session:invite`·`session:updated` (docs/live-interpretation.md).
+- 참여자의 마지막 연결이 끊기면 `session:updated`(online=false). 통화 상대·지시 관리자는 20초 유예 후 `connection_lost`로 종료, 그 안에 다시 연결하면 유지. 지시 수신자가 끊기면 상태만 알린다.
+- 세션 발화도 `message:new`(`sessionId` 포함)로 오며, 앱은 자동 재생 설정과 무관하게 재생한다.
+- 서버 시작 시 열린 채 남은 세션은 `connection_lost`로 닫는다 (모든 연결이 끊겼으므로).
+
+## 10. 확장
 
 - 서버 다중화 시 `@socket.io/redis-adapter` 도입. 현재 설계(사용자 방, 서버 측 방 참여)는 그대로 동작한다.

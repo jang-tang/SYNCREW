@@ -155,6 +155,32 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 
 - PK(message_id, user_id). INDEX(user_id, status), INDEX(user_id, updated_at).
 
+### live_sessions (Phase 5)
+실시간 통역 세션. call: 1:1 통역 통화 / broadcast: 관리자 일괄 지시 (docs/live-interpretation.md).
+
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| site_id | uuid | FK sites |
+| mode | text | CHECK in ('call','broadcast') |
+| status | text | CHECK in ('ringing','active','ended'). CHECK: ended ↔ ended_at NOT NULL |
+| conversation_id | uuid | NULL. call이면 NOT NULL (두 사람의 1:1 대화, 발화가 여기 저장) |
+| started_by / ended_by | uuid | |
+| end_reason | text | NULL. CHECK in ('hangup','declined','missed','cancelled','connection_lost','removed') |
+| answered_at / ended_at | timestamptz | NULL |
+
+- INDEX(site_id, mode, created_at), INDEX(status).
+
+### live_session_participants (Phase 5)
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| session_id | uuid | FK live_sessions |
+| user_id | uuid | |
+| role | text | CHECK in ('caller','callee','speaker','listener') |
+| joined_at / left_at | timestamptz | NULL. 종료·제외 시 left_at |
+
+- PK(session_id, user_id). INDEX(user_id).
+- `messages.session_id` (uuid NULL, FK live_sessions ON DELETE SET NULL, INDEX(session_id, seq)): 세션 중 발화. 기존 메시지는 NULL로 그대로 호환.
+
 ### openai_usage (Phase 1 구현 완료)
 OpenAI 호출 1건의 사용량과 추정 비용. 비용 한도의 기준 데이터.
 

@@ -66,6 +66,7 @@ export function MessageBubble({
           )}
         </View>
         <View style={[styles.meta, { justifyContent: "flex-end" }]}>
+          {message.sessionId && <LiveTag instruction={message.kind === "instruction"} />}
           <MineStatus message={message} onRetry={onRetry} />
           <Text style={styles.time}>{time}</Text>
         </View>
@@ -109,8 +110,22 @@ export function MessageBubble({
             </Pressable>
           )}
         </View>
-        <Text style={styles.time}>{time}</Text>
+        <View style={styles.meta}>
+          {message.sessionId && <LiveTag instruction={message.kind === "instruction"} />}
+          <Text style={styles.time}>{time}</Text>
+        </View>
       </View>
+    </View>
+  );
+}
+
+/** 실시간 통역 중 발화 표시: 1:1 통화는 '통화', 일괄 지시는 '실시간' */
+function LiveTag({ instruction }: { instruction: boolean }) {
+  const { t } = useT();
+  return (
+    <View style={styles.statusRow}>
+      <Ionicons name={instruction ? "radio" : "call"} size={11} color={colors.success} />
+      <Text style={[styles.statusText, { color: colors.success, fontWeight: "700" }]}>{t(instruction ? "instr.liveTag" : "chat.callTag")}</Text>
     </View>
   );
 }

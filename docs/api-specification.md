@@ -83,6 +83,8 @@
 | POST | `/instructions/:id/ack` | 수신자 | 확인. 멱등 |
 | POST | `/instructions/:id/complete` | 수신자 | `{note?}` 작업 완료 응답. 멱등 |
 
+- 7절 API는 Phase 5에서 구현(`server/src/routes/v1/instructions.ts`). 지시 목록·받은 지시의 각 항목에 `sessionId`(실시간 일괄 지시 발화면 세션 id, 문자 지시는 null). 확인·완료는 되돌리지 않고(완료 뒤 확인 = 변화 없음), 전달 실패한 지시는 409. 관리자에게 `instruction:recipient`
+
 ## 8. 음성
 
 | 메서드 | 경로 | 권한 | 설명 |
@@ -106,3 +108,21 @@
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | GET | `/health` | 인증 없음. DB 연결, OpenAI 키 설정 여부, 데이터셋 요약, (개발 환경만) 비용 한도 사용액. **Phase 1 구현 완료** |
+
+## 11. 실시간 통역 세션 (Phase 5, docs/live-interpretation.md)
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| POST | `/sites/:siteId/calls` | 멤버 | `{userId}` 1:1 통역 통화 걸기 → 201 `LiveSession(ringing)`, 상대에게 `session:invite`. 자기 자신 400, 비멤버 대상 404, 상대 미접속 409 `CONFLICT`, 어느 한쪽이 통화 중 409 `BUSY` |
+| POST | `/sites/:siteId/broadcasts` | 관리자 | `{target:'all'\|{userIds}}` 실시간 일괄 지시 시작 → 201 `LiveSession(active)`, 대상자에게 `session:invite`. 구성원 403, 현장 밖 대상 400, 대상 없음 409, 이미 지시 중 409 `BUSY` |
+| GET | `/sites/:siteId/sessions/open` | 멤버 | 내가 참여 중인 울림·진행 중 세션 (재시작·재연결 후 복원) |
+| GET | `/sites/:siteId/sessions?mode=call\|broadcast&limit=20` | 멤버 | 내가 참여한 최근 세션 (기록) |
+| GET | `/sessions/:id` | 참여자 | 세션 상태·참여자(이름·언어·역할·접속·장치) |
+| POST | `/sessions/:id/accept` · `/decline` | 받는 사람 | 울리는 통화만 (끝났거나 이미 연결 409, 다른 사람 403) |
+| POST | `/sessions/:id/end` | 참여자 | 울리는 중 건 사람 → `cancelled`, 통화 중 → `hangup`. 일괄 지시는 관리자만(구성원 403). 이미 끝났으면 그대로 반환 |
+| POST | `/sessions/:id/utterances` | 통화 참여자 / 지시 관리자 | 발화 1건: multipart `clientMessageId`, `audio` 또는 JSON `{clientMessageId, text}` → 202. 통화 = 상대에게 1:1 메시지, 지시 = 대상 전원에게 `instruction`(확인 응답 없음). 진행 중이 아니면 409, 지시 구성원 발화 403 |
+| GET | `/sessions/:id/messages` | 참여자 | 그 세션 발화 중 내가 보냈거나 받은 것 (내 언어) |
+
+- 참여자가 아니거나 현장 활성 멤버가 아니면 세션 경로는 모두 404 (존재 비노출).
+- 종료 사유(`endReason`): `hangup` `declined` `missed`(울림 30초) `cancelled` `connection_lost`(연결 끊김 20초) `removed`(현장에서 제외).
+- 메시지 전송·발화·지시 작성은 사용자당 1분 30회 한도를 함께 쓴다.

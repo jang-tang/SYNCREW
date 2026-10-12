@@ -1,0 +1,245 @@
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type RecordingOptions,
+} from "expo-audio";
+import { useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
+import type { DeviceStatus } from "@shared/api";
+import { selectHeadsetInput } from "./audioDevice";
+import { usePlaybackStore } from "./playback";
+import { preprocessRecording } from "./preprocess";
+import type { Recording } from "./useVoiceRecorder";
+import { createVad } from "./vad";
+
+// 핸즈프리 통역: 통화·일괄 지시가 연결된 동안 계속 듣다가, 말이 끝나면(VAD) 그 구간을 잘라 보내고 바로 다음 구간을 녹음한다.
+// - 버튼을 누를 필요가 없다. 받은 통역 음성이 재생되는 동안에는 듣기를 멈춘다(내 이어폰 소리가 다시 들어가지 않게).
+// - 블루투스 헤드셋이 있으면 그 마이크를 쓰고, 상태를 onDevice 로 알린다.
+// - 진짜 오디오 스트리밍이 아니라 "발화 단위" 전송이다. 지연은 말이 끝난 뒤 처리 시간만큼 생긴다 (docs/live-interpretation.md).
+
+/** 음성 인식용: 16kHz mono AAC (30초 ≈ 120KB, 서버 제한 2MB 안) */
+const OPTIONS: RecordingOptions = {
+  ...RecordingPresets.HIGH_QUALITY,
+  sampleRate: 16_000,
+  numberOfChannels: 1,
+  bitRate: 32_000,
+  isMeteringEnabled: true,
+  // 통화용 입력: 기기의 에코 제거·자동 음량 조절을 쓰고, 블루투스 SCO 마이크와 함께 동작한다.
+  android: { ...RecordingPresets.HIGH_QUALITY.android, audioSource: "voice_communication" },
+};
+
+const TICK_MS = 100;
+/** 헤드셋 연결·해제 확인 간격 */
+const DEVICE_CHECK_MS = 5000;
+
+export type HandsFreeState =
+  /** 꺼짐 */
+  | "off"
+  /** 마이크 준비 중 */
+  | "starting"
+  /** 듣는 중 (말하면 자동 감지) */
+  | "listening"
+  /** 말하는 중 */
+  | "speaking"
+  /** 받은 통역 재생 중이라 잠시 멈춤 */
+  | "paused"
+  /** 내가 마이크를 끔 */
+  | "muted"
+  /** 마이크 권한 없음·녹음 실패 */
+  | "error";
+
+export type HandsFreeError = "permission" | "failed";
+
+export function useHandsFree(options: {
+  /** 세션이 연결된 동안 true */
+  active: boolean;
+  muted: boolean;
+  onUtterance: (recording: Recording) => void;
+  onDevice?: (device: DeviceStatus) => void;
+}) {
+  const recorder = useAudioRecorder(OPTIONS);
+  const playing = usePlaybackStore((state) => state.playingId !== null);
+  const [state, setState] = useState<HandsFreeState>("off");
+  const [error, setError] = useState<HandsFreeError | null>(null);
+  const [level, setLevel] = useState(0);
+  const [device, setDevice] = useState<DeviceStatus | null>(null);
+
+  // 최신 콜백·상태를 타이머 안에서 쓰기 위한 참조
+  const callbacks = useRef(options);
+  callbacks.current = options;
+  const loop = useRef({ recording: false, busy: false, speaking: false, startedAt: 0 });
+  const vad = useRef(createVad());
+
+  const reportDevice = (next: DeviceStatus) => {
+    setDevice((current) => {
+      if (current && current.audioRoute === next.audioRoute && current.inputName === next.inputName && current.micPermission === next.micPermission) {
+        return current;
+      }
+      callbacks.current.onDevice?.(next);
+      return next;
+    });
+  };
+
+  const paused = options.muted || playing;
+  const shouldRecord = options.active && !paused && error === null;
+
+  // ─── 녹음 구간 시작·종료 ───────────────────────────
+
+  async function startSegment() {
+    const l = loop.current;
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    l.recording = true;
+    l.speaking = false;
+    l.startedAt = Date.now();
+    vad.current.reset(Date.now());
+  }
+
+  async function stopSegment(): Promise<Recording | null> {
+    const l = loop.current;
+    if (!l.recording) return null;
+    l.recording = false;
+    const durationMs = Date.now() - l.startedAt;
+    try {
+      await recorder.stop();
+    } catch {
+      return null;
+    }
+    if (!recorder.uri) return null;
+    return { uri: recorder.uri, mimeType: Platform.OS === "web" ? "audio/webm" : "audio/mp4", durationMs };
+  }
+
+  /** 구간을 끝내고(보내거나 버리고) 계속 들어야 하면 다음 구간을 시작한다 */
+  async function cut(send: boolean) {
+    const l = loop.current;
+    l.busy = true;
+    try {
+      const recording = await stopSegment();
+      if (send && recording) {
+        const uri = await preprocessRecording(recording.uri);
+        callbacks.current.onUtterance({ ...recording, uri });
+      }
+      if (shouldRecordRef.current) {
+        await startSegment();
+        setState("listening");
+      } else {
+        // 발화 중에 통역 재생이 시작됐거나 마이크를 끈 경우: 이 발화를 보낸 뒤 멈춘다
+        setState(callbacks.current.muted ? "muted" : "paused");
+      }
+    } catch {
+      setError("failed");
+      setState("error");
+    } finally {
+      l.busy = false;
+      setLevel(0);
+    }
+  }
+
+  const shouldRecordRef = useRef(shouldRecord);
+  shouldRecordRef.current = shouldRecord;
+
+  // ─── 켜기·끄기·일시 정지 ───────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    const l = loop.current;
+
+    if (!options.active) {
+      setState("off");
+      setError(null);
+      return;
+    }
+    if (error) return;
+
+    if (!shouldRecord) {
+      // 말하는 도중에 통역 재생이 시작되면 그 발화는 끝까지 듣고 보낸다 (끊으면 말이 잘린다)
+      if (l.speaking && !options.muted) return;
+      setState(options.muted ? "muted" : "paused");
+      if (l.recording && !l.busy) void stopSegment();
+      return;
+    }
+
+    (async () => {
+      setState("starting");
+      const permission = await requestRecordingPermissionsAsync().catch(() => null);
+      if (cancelled) return;
+      if (!permission?.granted) {
+        setError("permission");
+        setState("error");
+        reportDevice({ audioRoute: "unknown", inputName: null, micPermission: "denied" });
+        return;
+      }
+      try {
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+          interruptionMode: "doNotMix",
+          shouldRouteThroughEarpiece: false,
+        });
+        if (!l.recording && !l.busy) await startSegment();
+        if (cancelled) return;
+        reportDevice({ ...(await selectHeadsetInput(recorder)), micPermission: "granted" });
+        setState("listening");
+      } catch {
+        setError("failed");
+        setState("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.active, shouldRecord, error]);
+
+  // 세션이 끝나면 녹음을 멈추고 녹음 모드를 푼다
+  useEffect(() => {
+    if (options.active) return;
+    void stopSegment().then(() => setAudioModeAsync({ allowsRecording: false }).catch(() => undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.active]);
+
+  // ─── 음량 감시 → 말 시작·끝 ─────────────────────────
+
+  useEffect(() => {
+    if (!options.active) return;
+    const timer = setInterval(() => {
+      const l = loop.current;
+      if (!l.recording || l.busy) return;
+      const metering = recorder.getStatus().metering ?? -160;
+      setLevel(Math.max(0, Math.min(1, (metering + 60) / 60)));
+      const event = vad.current.push(metering, Date.now());
+      if (!event) return;
+      if (event.type === "speechStart") {
+        l.speaking = true;
+        setState("speaking");
+      } else {
+        l.speaking = false;
+        void cut(event.type === "utteranceEnd");
+      }
+    }, TICK_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.active]);
+
+  // ─── 헤드셋 연결·해제 감시 ──────────────────────────
+
+  useEffect(() => {
+    if (!options.active) return;
+    const timer = setInterval(() => {
+      if (!loop.current.recording) return;
+      void selectHeadsetInput(recorder).then((input) => reportDevice({ ...input, micPermission: "granted" }));
+    }, DEVICE_CHECK_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.active]);
+
+  /** 권한 오류 뒤 다시 시도 (설정에서 권한을 켠 뒤) */
+  const retry = () => {
+    setError(null);
+  };
+
+  return { state, error, level, device, retry };
+}

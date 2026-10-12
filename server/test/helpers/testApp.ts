@@ -40,6 +40,10 @@ export function recordEvents() {
     joinRequested: (payload) => log.push({ type: "joinRequested", payload }),
     messageNew: (payload) => log.push({ type: "messageNew", payload }),
     messageStatus: (payload) => log.push({ type: "messageStatus", payload }),
+    instructionRecipient: (payload) => log.push({ type: "instructionRecipient", payload }),
+    sessionInvite: (payload) => log.push({ type: "sessionInvite", payload }),
+    sessionUpdated: (payload) => log.push({ type: "sessionUpdated", payload }),
+    deviceChanged: (payload) => log.push({ type: "deviceChanged", payload }),
   };
   return { events, log };
 }
@@ -90,6 +94,7 @@ export async function createTestApp(options: TestAppOptions = {}) {
     events: recorder.log,
     user,
     close: async () => {
+      context.sessions.dispose();
       await context.pipeline.idle();
       await context.prisma.$disconnect();
     },

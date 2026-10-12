@@ -1,4 +1,4 @@
-import type { PrismaClient } from "../generated/prisma/client";
+import { Prisma, type PrismaClient } from "../generated/prisma/client";
 import { AppError } from "../lib/errors";
 import type { ConversationSummary, ConversationType } from "../shared/api";
 import type { Lang } from "../shared/languages";
@@ -95,4 +95,33 @@ export async function conversationSummaries(
     if (a.type !== b.type) return a.type === "group" ? -1 : 1;
     return (b.lastMessage?.createdAt ?? "").localeCompare(a.lastMessage?.createdAt ?? "");
   });
+}
+
+/**
+ * 두 사람의 1:1 대화를 연다 (현장당 1개, 멱등). 동시에 열어도 한쪽만 생성된다.
+ * 이미 있으면 두 사람 모두 다시 참여시킨다 (제외됐다가 다시 승인된 경우 등).
+ */
+export async function ensureDirectConversation(prisma: PrismaClient, siteId: string, userId: string, peerId: string) {
+  const directKey = [userId, peerId].sort().join(":");
+  const find = () => prisma.conversation.findFirst({ where: { siteId, type: "direct", directKey } });
+  let conversation = await find();
+  if (!conversation) {
+    try {
+      conversation = await prisma.conversation.create({
+        data: { siteId, type: "direct", directKey, participants: { create: [{ userId }, { userId: peerId }] } },
+      });
+      return { conversation, created: true };
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+      conversation = (await find())!;
+    }
+  }
+  for (const id of [userId, peerId]) {
+    await prisma.conversationParticipant.upsert({
+      where: { conversationId_userId: { conversationId: conversation.id, userId: id } },
+      create: { conversationId: conversation.id, userId: id },
+      update: { leftAt: null },
+    });
+  }
+  return { conversation, created: false };
 }

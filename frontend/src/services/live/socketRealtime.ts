@@ -1,4 +1,5 @@
 import { io, type Socket } from "socket.io-client";
+import type { DeviceStatus } from "@shared/api";
 import { REALTIME_NAMESPACE, type ClientToServerEvents, type ServerToClientEvents } from "@shared/realtime";
 import { API_BASE_URL } from "@/config";
 import type { ConnectionState } from "@/stores/session";
@@ -20,7 +21,12 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
   const connectionListeners = new Set<(state: ConnectionState) => void>();
   const emitState = (state: ConnectionState) => connectionListeners.forEach((listener) => listener(state));
 
-  socket.on("connect", () => emitState("connected"));
+  // 마지막으로 알린 장치 상태: 다시 연결되면 서버에 다시 보낸다 (서버는 연결이 끊기면 지운다).
+  let lastDevice: DeviceStatus | null = null;
+  socket.on("connect", () => {
+    emitState("connected");
+    if (lastDevice) void socket.timeout(ACK_TIMEOUT_MS).emitWithAck("device:status", lastDevice).catch(() => undefined);
+  });
   socket.on("disconnect", () => emitState("offline"));
   socket.on("connect_error", () => emitState("offline"));
   socket.io.on("reconnect_attempt", () => emitState("connecting"));
@@ -55,6 +61,11 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
     async sendReceipts(messageIds) {
       if (messageIds.length === 0 || !socket.connected) return;
       await socket.timeout(ACK_TIMEOUT_MS).emitWithAck("receipt:delivered", { messageIds });
+    },
+    async reportDevice(device) {
+      lastDevice = device;
+      if (!socket.connected) return;
+      await socket.timeout(ACK_TIMEOUT_MS).emitWithAck("device:status", device);
     },
   };
 }

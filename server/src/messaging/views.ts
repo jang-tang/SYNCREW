@@ -44,6 +44,7 @@ export function toMessageView(
     status: message.status as MessageStatus,
     requiresAck: message.requiresAck,
     createdAt: message.createdAt.toISOString(),
+    sessionId: message.sessionId,
   };
   if (isSender) view.translations = translationStates(message);
   if (mine) view.myStatus = mine.status as RecipientStatus;

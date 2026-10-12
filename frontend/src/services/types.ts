@@ -1,5 +1,6 @@
 import type {
   ConversationSummary,
+  DeviceStatus,
   HealthResponse,
   InboxItem,
   InstructionDetail,
@@ -8,6 +9,7 @@ import type {
   JoinCode,
   JoinCodeInput,
   JoinResult,
+  LiveSession,
   Member,
   MemberAction,
   MessageView,
@@ -17,6 +19,8 @@ import type {
   SendAudioInput,
   SendResult,
   SendTextInput,
+  SendUtteranceInput,
+  SessionMode,
   SiteInput,
 } from "@shared/api";
 import type { ServerEventName, ServerToClientEvents } from "@shared/realtime";
@@ -74,6 +78,20 @@ export interface ApiService {
   getInbox(siteId: string): Promise<InboxItem[]>;
   ackInstruction(messageId: string): Promise<void>;
   completeInstruction(messageId: string, note?: string): Promise<void>;
+
+  // 실시간 통역 세션 (docs/live-interpretation.md)
+  startCall(siteId: string, userId: string): Promise<LiveSession>;
+  startBroadcast(siteId: string, target: InstructionTarget): Promise<LiveSession>;
+  getSession(sessionId: string): Promise<LiveSession>;
+  /** 내가 참여 중인 울림·진행 중 세션 */
+  listOpenSessions(siteId: string): Promise<LiveSession[]>;
+  listSessions(siteId: string, mode?: SessionMode): Promise<LiveSession[]>;
+  acceptSession(sessionId: string): Promise<LiveSession>;
+  declineSession(sessionId: string): Promise<LiveSession>;
+  endSession(sessionId: string): Promise<LiveSession>;
+  /** 말이 끝날 때마다 문장 단위 음성을 보낸다 */
+  sendUtterance(sessionId: string, input: SendUtteranceInput): Promise<SendResult>;
+  listSessionMessages(sessionId: string): Promise<MessageView[]>;
 }
 
 export interface RealtimeService {
@@ -83,6 +101,8 @@ export interface RealtimeService {
   on<E extends ServerEventName>(event: E, handler: ServerToClientEvents[E]): () => void;
   onConnection(listener: (state: ConnectionState) => void): () => void;
   sendReceipts(messageIds: string[]): Promise<void>;
+  /** 내 오디오 장치 상태(헤드셋·마이크 권한)를 알린다 */
+  reportDevice(device: DeviceStatus): Promise<void>;
 }
 
 export type Services = { mode: "mock" | "live"; auth: AuthService; api: ApiService; realtime: RealtimeService };

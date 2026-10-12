@@ -2,7 +2,8 @@ import { createSupabaseVerifier } from "./auth/verifier";
 import type { Env } from "./config/env";
 import type { AppContext } from "./context";
 import { noopEvents } from "./events/domainEvents";
-import { PresenceRegistry } from "./realtime/presence";
+import { DeviceRegistry, PresenceRegistry } from "./realtime/presence";
+import { LiveSessionService, type SessionTimings } from "./sessions/liveSessions";
 import { BudgetGuard } from "./engine/budget/budgetGuard";
 import { buildPricingTable } from "./engine/budget/pricing";
 import { PrismaUsageStore } from "./engine/budget/prismaUsageStore";
@@ -22,6 +23,7 @@ import { FileStorage } from "./messaging/storage";
 
 export type ContextOverrides = Partial<Pick<AppContext, "verifier" | "events" | "limits" | "stt" | "translator">> & {
   pipeline?: Partial<PipelineOptions>;
+  sessions?: Partial<SessionTimings>;
 };
 
 /** 환경 변수로부터 서버 의존성을 만든다. 설정 오류는 시작 시점에 바로 실패시킨다. */
@@ -80,11 +82,13 @@ export async function createContext(
     events: overrides.events ?? noopEvents,
     limits: overrides.limits ?? { joinPerMinute: 5, messagesPerMinute: 30 },
     presence: new PresenceRegistry(),
+    devices: new DeviceRegistry(),
     stt: overrides.stt !== undefined ? overrides.stt : stt,
     translator: overrides.translator !== undefined ? overrides.translator : translator,
     storage: new FileStorage(env.STORAGE_DIR),
     audioUrls: new AudioUrlSigner(env.AUDIO_URL_SECRET),
-  } as Omit<AppContext, "pipeline"> as AppContext;
+  } as Omit<AppContext, "pipeline" | "sessions"> as AppContext;
+  context.sessions = new LiveSessionService(context, overrides.sessions);
   context.pipeline = new MessagePipeline(context, {
     concurrency: env.TRANSLATION_CONCURRENCY,
     withAudio: env.TRANSLATION_AUDIO === "on",

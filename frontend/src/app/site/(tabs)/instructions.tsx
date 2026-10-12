@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { InboxCard, SentInstructionCard } from "@/components/InstructionCards";
+import { InfoNotice, SiteBanners } from "@/components/live/LiveParts";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,6 +10,8 @@ import { SiteEyebrow } from "@/components/SiteEyebrow";
 import { useCurrentSite, useInbox, useInstructions, useRespondInstruction, useSiteId } from "@/hooks/queries";
 import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
+import { services } from "@/services";
+import { demoIncomingBroadcast } from "@/services/mock/demo";
 import { toast } from "@/stores/toast";
 import { colors, spacing } from "@/theme";
 
@@ -26,12 +29,26 @@ export default function Instructions() {
   return (
     <Screen edges={["top"]}>
       <LargeHeader eyebrow={<SiteEyebrow />} title={t("instr.title")} />
+      <SiteBanners />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.brand} />}
       >
         {manager && (
-          <Button title={t("instr.new")} icon="megaphone" onPress={() => router.push("/site/instruction/new")} style={{ marginBottom: spacing.sm }} />
+          <>
+            <Button title={t("bc.start")} icon="radio" onPress={() => router.push("/site/broadcast/new")} />
+            <InfoNotice tone="info" text={t("bc.startDesc")} />
+            <Button
+              title={t("instr.written")}
+              icon="create-outline"
+              variant="secondary"
+              onPress={() => router.push("/site/instruction/new")}
+              style={{ marginBottom: spacing.sm }}
+            />
+          </>
+        )}
+        {!manager && services.mode === "mock" && (
+          <Button title={t("bc.demoReceive")} icon="sparkles-outline" variant="ghost" onPress={() => demoIncomingBroadcast(siteId)} />
         )}
         {manager
           ? sent.data?.map((item) => <SentInstructionCard key={item.id} item={item} />)

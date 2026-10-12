@@ -21,23 +21,34 @@
 | Phase 2 인증·현장·멤버십 (서버) | 완료 | `c637a6b` |
 | Phase 3 실시간 (Socket.IO) | 완료 | `92e3620` |
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
-| **Phase 5 그룹·일괄 지시** | **다음 차례 — 사용자 승인 후 착수** | — |
+| **Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시)** | **구현 완료, 커밋 전** (에뮬레이터 확인은 추후로 미룸) | — |
 | Phase 6 안정화 | 대기 | — |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
-- 통역: `server/src/messaging/pipeline.ts`(작업 큐), 엔진은 `context.stt`·`context.translator`(키 없으면 null, `ENGINE=fake`면 가짜). 메시지 전송·조회는 그룹 대화에도 그대로 동작한다 — Phase 5는 일괄 지시 API(`/sites/:id/instructions`, inbox, ack/complete, `instruction:recipient`)와 그룹 화면 검증이 중심.
+- 통역: `server/src/messaging/pipeline.ts`(작업 큐), 엔진은 `context.stt`·`context.translator`(키 없으면 null, `ENGINE=fake`면 가짜). 메시지 생성은 `messaging/createMessage.ts` 하나로 (대화·통화 발화·지시 공통).
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`). **미입력: OpenAI API 키** (`cd server && npm run setup:openai`).
 - Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
+- Phase 5 실시간 통역: `docs/live-interpretation.md` (핸즈프리 발화 단위 방식, 세션 API, VAD, 이어폰 처리, 검증·미검증). 세션 서비스 `server/src/sessions/liveSessions.ts`, 앱 `frontend/src/audio/useHandsFree.ts`.
 - 미검증: 실제 OpenAI 호출(키 미입력, 나중에 진행), 실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
+
+## 남은 일 (우선순위 순, 2026-10-12 기준)
+
+1. **Phase 5 커밋** — 사용자가 요청하면 (커밋 전 키 혼입 검사). 미커밋 상태로 세션이 끝났다면 `git status`로 Phase 5 변경이 그대로 있는지 확인
+2. **실제 OpenAI 확인** (키 입력 필요): 5개 언어 통역 품질, 말 끝 → 상대 이어폰까지 지연, 실제 비용(`docs/phase4-report.md` 3절 보정), 우즈베크어 STT
+3. **앱 live 모드 ↔ 서버 실통신** (실제 Supabase 테스트 계정 — 사용자 허락 필요): 로그인 → 현장 → 통화·일괄 지시
+4. **기기 확인** (미뤄 둠): 에뮬레이터에서 일괄 지시·구성원 수신·iOS 실행 마저 확인, `Error: undefined` 로그 조사. 실기기 + 블루투스 헤드셋으로 마이크 선택·출력·말소리 자동 감지·현장 소음 VAD 조정 (`docs/live-interpretation.md` 8–9절)
+5. **Phase 6 안정화**: 권한 매트릭스 테스트, 네트워크 단절 시나리오, 동시 발화 성능, 시나리오 1–17·A–G 결과표, 운영 문서(설치·플러그인 연결)
+6. 결정·준비 필요: 프로젝트 영문 경로 이동(iOS 빌드), Supabase 재설정 메일 딥링크 허용, 노이즈 필터 실행 위치(서버/단말), 4개 언어 UI 문구 원어민 검수
+7. 추후 개선: 진짜 오디오 스트리밍(네이티브 모듈), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ## 새 세션 시작 순서
 
-1. 이 파일, `docs/implementation-plan.md`의 Phase 5 절, `docs/phase4-report.md`를 읽는다.
+1. 이 파일(특히 "남은 일"), `docs/implementation-plan.md`의 Phase 5 절, `docs/live-interpretation.md`를 읽는다.
 2. `git log --oneline | head -5`와 `git status`로 마지막 커밋이 위 표와 같은지, 미커밋 변경이 없는지 확인한다.
-3. 기준선 확인: `cd server && npm test` (106개 통과해야 함), `cd frontend && npm run typecheck`.
-4. 사용자가 Phase 5 착수를 승인했는지 확인한다. 승인 전이면 계획·질문만 한다.
+3. 기준선 확인: `cd server && npm test` (126개 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit`.
+4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. Phase 6 등 새 단계는 승인 전이면 계획·질문만 한다.
 5. OpenAI 키 입력 여부를 확인한다. 입력됐으면 Phase 4의 실제 호출 확인(5개 언어 왕복·지연·비용, `docs/phase4-report.md` 3·6절)을 먼저 할지 묻는다.
 6. Phase를 끝내면: `docs/implementation-plan.md`(결과·검증·미검증)와 이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached`로 키 혼입 검사).
 
@@ -48,6 +59,8 @@
   - **Android 빌드는 JDK 21** (`/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home`). 기본 JDK 26·Android Studio JDK 25는 CMake 단계에서 실패.
   - **iOS는 한글 경로에서 `pod install` 실패** (hermes-engine.podspec 인코딩 오류) → 영문 경로 복사본에서 네이티브만 빌드하고 JS는 원래 폴더 Metro로 제공.
   - 시뮬레이터 조작 도구가 없어 iOS는 화면 캡처만 가능. Android는 `adb shell input`으로 조작.
+  - **디스크 여유 공간이 적다** (2026-10-12 기준 약 9GB). Android 빌드(Gradle)·iOS 빌드(Pods, 영문 경로 복사본 ~5GB)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인하고, 작업 후 복사본을 지운다.
+  - 에뮬레이터 마이크로는 실제 말소리가 들어오지 않았다 → 말소리 자동 감지는 실기기로 확인.
   - 빠른 확인은 기존대로 타입 검사 + `expo-doctor` + 번들 빌드 + **웹 빌드 헤드리스 Chrome 자동 검증**(`frontend/e2e/`).
 - Node 22, npm. Chrome은 `/Applications/Google Chrome.app` (e2e가 사용).
 - 헤드리스 Chrome은 비밀번호 입력 뒤 실제 키 이벤트를 잃는 현상이 있다(앱 버그 아님). e2e는 글자를 IME 경로로 입력한다.
@@ -91,12 +104,13 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 106개 (임시 Postgres·실제 Socket.IO 통합 테스트 포함)
+cd server && npm run typecheck && npm test       # 테스트 126개 (임시 Postgres·실제 Socket.IO 통합 테스트 포함)
 
 # 앱
 cd frontend && npm run typecheck && npm run doctor
 cd frontend && npm run bundle:android            # Android 번들 빌드 확인
-cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 22개 자동 검증
+cd frontend && npm run test:unit                 # 발화 감지(VAD) 단위 테스트 11개
+cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 50개 자동 검증 (통화·일괄 지시 포함)
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 ```
 

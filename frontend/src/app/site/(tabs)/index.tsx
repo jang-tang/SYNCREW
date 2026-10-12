@@ -7,6 +7,7 @@ import { IconButton } from "@/components/ui/Button";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LargeHeader, Screen } from "@/components/ui/Screen";
+import { SiteBanners } from "@/components/live/LiveParts";
 import { SiteEyebrow } from "@/components/SiteEyebrow";
 import { useConversations, useSiteId } from "@/hooks/queries";
 import { useT } from "@/i18n";
@@ -92,6 +93,7 @@ export default function Conversations() {
         title={t("tab.conversations")}
         right={<IconButton icon="create-outline" label={t("conv.new")} onPress={() => router.push("/site/chat/new")} />}
       />
+      <SiteBanners />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={conversations.isRefetching} onRefresh={() => void conversations.refetch()} tintColor={colors.brand} />}

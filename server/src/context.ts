@@ -11,7 +11,8 @@ import type { Translator } from "./engine/translation/translator";
 import type { AudioUrlSigner } from "./messaging/audioUrls";
 import type { MessagePipeline } from "./messaging/pipeline";
 import type { FileStorage } from "./messaging/storage";
-import type { PresenceRegistry } from "./realtime/presence";
+import type { DeviceRegistry, PresenceRegistry } from "./realtime/presence";
+import type { LiveSessionService } from "./sessions/liveSessions";
 
 export type Limits = {
   /** 가입 코드 입력: 사용자당 1분 횟수 */
@@ -33,6 +34,10 @@ export type AppContext = {
   events: DomainEvents;
   /** 사용자 접속 상태 (실시간 연결 수 기준) */
   presence: PresenceRegistry;
+  /** 사용자별 오디오 장치 상태 (헤드셋·마이크 권한) */
+  devices: DeviceRegistry;
+  /** 실시간 통역 세션 (1:1 통화, 일괄 지시) */
+  sessions: LiveSessionService;
   limits: Limits;
   /** 음성 인식. OpenAI 키가 없으면 null (음성 메시지 503) */
   stt: SttProvider | null;

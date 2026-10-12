@@ -35,6 +35,11 @@ async function main() {
   context.events = realtime.events;
   server.listen(env.PORT, env.HOST, () => {
     logger.info(`SYNCREW 서버 시작: http://${env.HOST}:${env.PORT} (실시간: /rt)`);
+    // 이전 실행에서 열린 채 남은 통역 세션은 실시간 연결이 모두 끊겼으므로 닫는다.
+    void context.sessions
+      .closeStale()
+      .then((count) => count > 0 && logger.info({ count }, "남은 통역 세션 종료"))
+      .catch((err) => logger.error({ err }, "세션 정리 실패"));
     // 지난 실행에서 처리 도중 멈춘 메시지를 다시 처리하고, 접속하는 앱에 동기화를 요청한다.
     void context.pipeline
       .recover({ staleMs: 0 })
@@ -45,6 +50,7 @@ async function main() {
   const shutdown = (signal: string) => {
     logger.info({ signal }, "서버 종료 중");
     stopRetention();
+    context.sessions.dispose();
     // io.close() 는 HTTP 서버도 함께 닫는다.
     void realtime.close().then(async () => {
       // 진행 중인 통역은 최대 5초 기다린다. 끝나지 않은 것은 다음 시작 때 복구된다.

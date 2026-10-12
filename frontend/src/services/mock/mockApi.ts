@@ -111,6 +111,36 @@ export function createMockApi(): ApiService {
       mockDb.respond(messageId, "completed", note);
       await wait(undefined);
     },
+
+    async startCall(siteId, userId) {
+      const outcome = mockDb.startCall(siteId, userId);
+      if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
+      return wait(outcome.session!, 300);
+    },
+    async startBroadcast(siteId, target) {
+      const userIds =
+        target === "all"
+          ? mockDb.members(siteId).filter((m) => m.status === "active" && m.userId !== ME && m.role === "member").map((m) => m.userId)
+          : target.userIds;
+      const outcome = mockDb.startBroadcast(siteId, userIds);
+      if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
+      return wait(outcome.session!, 300);
+    },
+    getSession: async (sessionId) => wait(mockDb.sessionView(mockDb.sessions.get(sessionId)!)),
+    listOpenSessions: async (siteId) =>
+      wait(mockDb.sessionsOf(siteId).filter((s) => s.status !== "ended").map((s) => mockDb.sessionView(s))),
+    listSessions: async (siteId, mode) => wait(mockDb.sessionsOf(siteId, mode).map((s) => mockDb.sessionView(s))),
+    acceptSession: async (sessionId) => wait(mockDb.sessionView(mockDb.sessions.get(sessionId)!)),
+    declineSession: async (sessionId) => wait(mockDb.endSession(sessionId, "declined")),
+    endSession: async (sessionId) => wait(mockDb.endSession(sessionId)),
+    async sendUtterance(sessionId, input) {
+      // 데모: 음성 인식 대신 예문 하나를 말한 것으로 처리
+      const session = mockDb.sessions.get(sessionId)!;
+      const outcome = mockDb.utterance(sessionId, input.clientMessageId, nextVoicePhrase(mockDb.langIn(session.siteId, ME)));
+      if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
+      return wait({ messageId: outcome.message!.id, status: outcome.message!.status }, 400);
+    },
+    listSessionMessages: async (sessionId) => wait(mockDb.sessionMessages(sessionId).map((m) => mockDb.view(m, ME))),
   };
 
   return Object.fromEntries(

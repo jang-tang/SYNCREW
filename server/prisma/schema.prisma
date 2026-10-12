@@ -1,5 +1,6 @@
 // SYNCREW 서버 스키마. 테이블 설계: docs/database-design.md
 // Phase 1: openai_usage / Phase 2: 프로필·현장·멤버십·가입 코드·그룹 대화 / Phase 4: 메시지·번역·수신자
+// Phase 5: 실시간 통역 세션 (1:1 통화, 관리자 일괄 지시)
 
 generator client {
   provider = "prisma-client"
@@ -59,6 +60,7 @@ model Site {
   joinCodes     SiteJoinCode[]
   conversations Conversation[]
   messages      Message[]
+  liveSessions  LiveSession[]
 
   @@map("sites")
 }
@@ -118,6 +120,7 @@ model Conversation {
   site         Site                      @relation(fields: [siteId], references: [id], onDelete: Cascade)
   participants ConversationParticipant[]
   messages     Message[]
+  liveSessions LiveSession[]
 
   @@index([siteId])
   @@map("conversations")
@@ -165,11 +168,14 @@ model Message {
   errorCode       String?   @map("error_code")
   /// 단계별 처리 시간(ms): decode, preprocess, stt, domain
   timings         Json?
+  /// 실시간 통역 세션 중 발화면 그 세션 (1:1 통화 → direct, 일괄 지시 → instruction)
+  sessionId       String?   @map("session_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   site         Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
   conversation Conversation?        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  session      LiveSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   translations MessageTranslation[]
   recipients   MessageRecipient[]
 
@@ -177,6 +183,7 @@ model Message {
   @@index([conversationId, seq])
   @@index([siteId, kind, createdAt])
   @@index([status])
+  @@index([sessionId, seq])
   @@map("messages")
 }
 
@@ -227,4 +234,49 @@ model MessageRecipient {
   @@index([userId, status])
   @@index([userId, updatedAt])
   @@map("message_recipients")
+}
+
+/// 실시간 통역 세션. call: 1:1 통역 통화 / broadcast: 관리자 → 여러 구성원 일괄 지시
+model LiveSession {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  siteId         String    @map("site_id") @db.Uuid
+  /// call | broadcast
+  mode           String
+  /// ringing | active | ended
+  status         String
+  /// call 이면 두 사람의 1:1 대화 (발화가 이 대화의 메시지로 저장된다)
+  conversationId String?   @map("conversation_id") @db.Uuid
+  startedBy      String    @map("started_by") @db.Uuid
+  /// hangup | declined | missed | cancelled | connection_lost | removed
+  endReason      String?   @map("end_reason")
+  endedBy        String?   @map("ended_by") @db.Uuid
+  answeredAt     DateTime? @map("answered_at") @db.Timestamptz(6)
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  site         Site                     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  conversation Conversation?            @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  participants LiveSessionParticipant[]
+  messages     Message[]
+
+  @@index([siteId, mode, createdAt])
+  @@index([status])
+  @@map("live_sessions")
+}
+
+/// 세션 참여자. call: caller·callee / broadcast: speaker(관리자)·listener(수신 대상)
+model LiveSessionParticipant {
+  sessionId String    @map("session_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// caller | callee | speaker | listener
+  role      String
+  joinedAt  DateTime? @map("joined_at") @db.Timestamptz(6)
+  leftAt    DateTime? @map("left_at") @db.Timestamptz(6)
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@index([userId])
+  @@map("live_session_participants")
 }

@@ -2,10 +2,12 @@
 // 앱을 다시 시작하면 초기 데이터로 돌아간다 (프로필·로그인만 기기에 저장).
 import type {
   ConversationSummary,
+  DeviceStatus,
   InboxItem,
   InstructionDetail,
   InstructionSummary,
   JoinCode,
+  LiveSession,
   Member,
   MembershipStatus,
   MessageKind,
@@ -15,6 +17,8 @@ import type {
   Profile,
   RecipientCounts,
   RecipientStatus,
+  SessionEndReason,
+  SessionRole,
   SiteRole,
   TranslationStatus,
 } from "@shared/api";
@@ -25,7 +29,20 @@ import { demoTranslate, P, PHRASES } from "./phrases";
 
 export const ME = "me";
 
-type User = { id: string; displayName: string; lang: Lang; online: boolean };
+type User = { id: string; displayName: string; lang: Lang; online: boolean; device?: DeviceStatus };
+type Session = {
+  id: string;
+  siteId: string;
+  mode: "call" | "broadcast";
+  status: "ringing" | "active" | "ended";
+  conversationId: string | null;
+  startedBy: string;
+  createdAt: string;
+  answeredAt: string | null;
+  endedAt: string | null;
+  endReason: SessionEndReason | null;
+  participants: { userId: string; role: SessionRole }[];
+};
 type Site = { id: string; name: string; address: string | null };
 type Membership = { siteId: string; userId: string; role: SiteRole; status: MembershipStatus; langOverride: Lang | null };
 type Conversation = { id: string; siteId: string; type: "direct" | "group"; participants: Set<string> };
@@ -52,6 +69,7 @@ type Message = {
   requiresAck: boolean;
   createdAt: string;
   recipients: Map<string, Recipient>;
+  sessionId: string | null;
 };
 type Code = JoinCode & { siteId: string; revoked: boolean };
 
@@ -69,6 +87,7 @@ class MockDb {
   messages = new Map<string, Message>();
   codes: Code[] = [];
   lastRead = new Map<string, number>();
+  sessions = new Map<string, Session>();
   private seq = 1;
 
   constructor() {
@@ -90,6 +109,14 @@ class MockDb {
       { id: "u_dilnoza", displayName: "Dilnoza Yusupova", lang: "uz", online: true },
     ];
     users.forEach((user) => this.users.set(user.id, user));
+    // 데모: 접속 중인 작업자들의 오디오 장치 (대부분 블루투스 헤드셋, 한 명은 휴대폰 스피커)
+    const bt = (name: string): DeviceStatus => ({ audioRoute: "bluetooth", inputName: name, micPermission: "granted" });
+    this.users.get("u_kim")!.device = bt("SafeHelmet BT-2");
+    this.users.get("u_nguyen")!.device = bt("SafeHelmet BT-2");
+    this.users.get("u_li")!.device = { audioRoute: "builtin", inputName: null, micPermission: "granted" };
+    this.users.get("u_ivan")!.device = bt("Jabra Talk");
+    this.users.get("u_park")!.device = bt("SafeHelmet BT-2");
+    this.users.get("u_dilnoza")!.device = bt("SafeHelmet BT-2");
 
     this.sites.set("s_a", { id: "s_a", name: "A동 신축 현장", address: "경기도 안산시 단원구" });
     this.sites.set("s_b", { id: "s_b", name: "평택 물류센터 현장", address: "경기도 평택시 포승읍" });
@@ -204,6 +231,7 @@ class MockDb {
     recipientIds: string[];
     clientMessageId?: string;
     createdAt?: string;
+    sessionId?: string | null;
   }): Message {
     const sourceLang = this.langIn(input.siteId, input.senderId);
     const recipients = new Map<string, Recipient>();
@@ -230,6 +258,7 @@ class MockDb {
       requiresAck: input.requiresAck,
       createdAt: input.createdAt ?? new Date().toISOString(),
       recipients,
+      sessionId: input.sessionId ?? null,
     };
     this.messages.set(message.id, message);
     return message;
@@ -281,6 +310,7 @@ class MockDb {
       status: message.status,
       requiresAck: message.requiresAck,
       createdAt: message.createdAt,
+      sessionId: message.sessionId,
     };
     if (isSender) view.translations = [...message.translations].map(([lang, t]) => ({ lang, status: t.status }));
     const mine = message.recipients.get(viewerId);
@@ -358,7 +388,15 @@ class MockDb {
       .filter((m) => m.siteId === siteId && (m.status === "active" || m.status === "pending"))
       .map((m) => {
         const user = this.users.get(m.userId)!;
-        return { userId: m.userId, displayName: this.nameOf(m.userId), role: m.role, status: m.status, lang: m.langOverride ?? user.lang, online: user.online };
+        return {
+          userId: m.userId,
+          displayName: this.nameOf(m.userId),
+          role: m.role,
+          status: m.status,
+          lang: m.langOverride ?? user.lang,
+          online: user.online,
+          device: user.online ? (user.device ?? null) : null,
+        };
       });
   }
 
@@ -417,7 +455,7 @@ class MockDb {
   }
 
   /** 내 메시지 전송: 통역 → 전달 → (데모) 상대 응답 */
-  send(conversationId: string, clientMessageId: string, text: string) {
+  send(conversationId: string, clientMessageId: string, text: string, sessionId: string | null = null) {
     const duplicate = [...this.messages.values()].find((m) => m.clientMessageId === clientMessageId);
     if (duplicate) return duplicate;
     const conversation = this.conversations.get(conversationId)!;
@@ -430,6 +468,7 @@ class MockDb {
       requiresAck: false,
       recipientIds: this.defaultRecipients(conversation.type, conversation.siteId, conversationId, ME),
       clientMessageId,
+      sessionId,
     });
     this.lastRead.set(conversationId, message.seq);
     this.process(message, 900);
@@ -437,14 +476,16 @@ class MockDb {
     // 데모: 상대방(그룹이면 접속 중인 한 명)이 응답
     const responders = [...conversation.participants].filter((id) => id !== ME && this.users.get(id)!.online);
     const responder = responders[Math.floor(Math.random() * responders.length)];
-    if (responder) later(2600, () => this.receive(conversationId, responder, P.understood));
+    if (responder) later(2600, () => this.receive(conversationId, responder, P.understood, sessionId));
     return message;
   }
 
   /** 다른 사람이 보낸 메시지가 나에게 도착 */
-  private receive(conversationId: string, senderId: string, phrase: number) {
+  private receive(conversationId: string, senderId: string, phrase: number, sessionId: string | null = null) {
     const conversation = this.conversations.get(conversationId)!;
     if (!conversation.participants.has(ME)) return;
+    // 통화가 그 사이 끝났으면 통화 발화로 오지 않는다
+    if (sessionId && this.sessions.get(sessionId)?.status !== "active") return;
     const message = this.createMessage({
       kind: conversation.type,
       siteId: conversation.siteId,
@@ -453,6 +494,7 @@ class MockDb {
       text: PHRASES[phrase]![this.langIn(conversation.siteId, senderId)],
       requiresAck: false,
       recipientIds: this.defaultRecipients(conversation.type, conversation.siteId, conversationId, senderId),
+      sessionId,
     });
     this.completeTranslations(message);
     mockBus.emit("message:new", { message: this.view(message, ME) });
@@ -482,11 +524,11 @@ class MockDb {
 
   // ─── 일괄 지시 ─────────────────────────────────────
 
-  createInstruction(siteId: string, clientMessageId: string, text: string, userIds: string[], requiresAck: boolean) {
+  createInstruction(siteId: string, clientMessageId: string, text: string, userIds: string[], requiresAck: boolean, sessionId: string | null = null) {
     const duplicate = [...this.messages.values()].find((m) => m.clientMessageId === clientMessageId);
     if (duplicate) return duplicate;
     const message = this.createMessage({
-      kind: "instruction", siteId, conversationId: null, senderId: ME, text, requiresAck, recipientIds: userIds, clientMessageId,
+      kind: "instruction", siteId, conversationId: null, senderId: ME, text, requiresAck, recipientIds: userIds, clientMessageId, sessionId,
     });
     this.process(message, 1100);
 
@@ -498,7 +540,10 @@ class MockDb {
           message.recipients.get(userId)![status === "delivered" ? "deliveredAt" : status === "acknowledged" ? "acknowledgedAt" : "completedAt"] = new Date().toISOString();
           mockBus.emit("instruction:recipient", { messageId: message.id, userId, status });
         });
+      // 접속 중인 작업자만 단말 수신 확인. 실시간 지시(확인 응답 없음)는 수신까지만.
+      if (!this.users.get(userId)?.online) return;
       step(1600 + index * 500, "delivered");
+      if (!requiresAck) return;
       if (index % 3 !== 2) step(3500 + index * 900, "acknowledged");
       if (index === 0) step(8000, "completed");
     });
@@ -508,6 +553,7 @@ class MockDb {
   instructionSummary(message: Message): InstructionSummary {
     return {
       id: message.id,
+      sessionId: message.sessionId,
       senderName: this.nameOf(message.senderId),
       text: message.originalText,
       sourceLang: message.sourceLang,
@@ -570,6 +616,141 @@ class MockDb {
       mine.deliveredAt ??= now;
       if (note) mine.note = note;
     }
+  }
+
+  // ─── 실시간 통역 세션 ───────────────────────────────
+
+  sessionView(session: Session): LiveSession {
+    return {
+      id: session.id,
+      siteId: session.siteId,
+      mode: session.mode,
+      status: session.status,
+      conversationId: session.conversationId,
+      startedBy: session.startedBy,
+      startedByName: this.nameOf(session.startedBy),
+      createdAt: session.createdAt,
+      answeredAt: session.answeredAt,
+      endedAt: session.endedAt,
+      endReason: session.endReason,
+      participants: session.participants.map(({ userId, role }) => {
+        const user = this.users.get(userId)!;
+        return {
+          userId,
+          displayName: this.nameOf(userId),
+          lang: this.langIn(session.siteId, userId),
+          role,
+          online: user.online,
+          device: user.online ? (user.device ?? null) : null,
+          joinedAt: session.answeredAt,
+          leftAt: session.endedAt,
+        };
+      }),
+    };
+  }
+
+  private publishSession(session: Session) {
+    mockBus.emit("session:updated", { session: this.sessionView(session) });
+  }
+
+  private openSession(mode: Session["mode"]) {
+    return [...this.sessions.values()].find((s) => s.mode === mode && s.status !== "ended" && s.participants.some((p) => p.userId === ME));
+  }
+
+  /** 1:1 통화 걸기. 데모: 접속 중인 상대는 1.5초 뒤 받는다. */
+  startCall(siteId: string, userId: string) {
+    if (!this.users.get(userId)?.online) return { error: "CONFLICT" as const };
+    if (this.openSession("call")) return { error: "BUSY" as const };
+    const conversation = this.openDirect(siteId, userId);
+    const session: Session = {
+      id: newId(), siteId, mode: "call", status: "ringing", conversationId: conversation.id, startedBy: ME,
+      createdAt: new Date().toISOString(), answeredAt: null, endedAt: null, endReason: null,
+      participants: [{ userId: ME, role: "caller" }, { userId, role: "callee" }],
+    };
+    this.sessions.set(session.id, session);
+    later(1500, () => {
+      if (session.status !== "ringing") return;
+      session.status = "active";
+      session.answeredAt = new Date().toISOString();
+      this.publishSession(session);
+    });
+    return { session: this.sessionView(session) };
+  }
+
+  /** 관리자 일괄 지시 시작 */
+  startBroadcast(siteId: string, userIds: string[]) {
+    if (this.membership(siteId, ME)?.role !== "manager") return { error: "FORBIDDEN" as const };
+    if (userIds.length === 0) return { error: "CONFLICT" as const };
+    if (this.openSession("broadcast")) return { error: "BUSY" as const };
+    const now = new Date().toISOString();
+    const session: Session = {
+      id: newId(), siteId, mode: "broadcast", status: "active", conversationId: null, startedBy: ME,
+      createdAt: now, answeredAt: now, endedAt: null, endReason: null,
+      participants: [{ userId: ME, role: "speaker" }, ...userIds.map((userId) => ({ userId, role: "listener" as const }))],
+    };
+    this.sessions.set(session.id, session);
+    return { session: this.sessionView(session) };
+  }
+
+  endSession(sessionId: string, reason: SessionEndReason = "hangup") {
+    const session = this.sessions.get(sessionId)!;
+    if (session.status !== "ended") {
+      session.endReason = session.status === "ringing" ? "cancelled" : reason;
+      session.status = "ended";
+      session.endedAt = new Date().toISOString();
+      this.publishSession(session);
+    }
+    return this.sessionView(session);
+  }
+
+  /** 세션 발화: 통화는 1:1 메시지, 일괄 지시는 수신 대상 전원에게 지시 */
+  utterance(sessionId: string, clientMessageId: string, text: string) {
+    const session = this.sessions.get(sessionId)!;
+    if (session.status !== "active") return { error: "CONFLICT" as const };
+    if (session.mode === "call") return { message: this.send(session.conversationId!, clientMessageId, text, sessionId) };
+    const listeners = session.participants.filter((p) => p.role === "listener").map((p) => p.userId);
+    return { message: this.createInstruction(session.siteId, clientMessageId, text, listeners, false, sessionId) };
+  }
+
+  /**
+   * 데모: 현장 관리자가 나에게 실시간 일괄 지시를 시작해 두 번 말하고 끝낸다 (구성원 화면 확인용).
+   * 실제 서버에서는 관리자 앱이 POST /broadcasts 와 발화를 보낸다.
+   */
+  simulateIncomingBroadcast(siteId: string) {
+    const manager = this.memberships.find((m) => m.siteId === siteId && m.role === "manager" && m.userId !== ME && m.status === "active");
+    if (!manager) return false;
+    const listeners = this.memberships.filter((m) => m.siteId === siteId && m.status === "active" && m.role === "member").map((m) => m.userId);
+    const now = new Date().toISOString();
+    const session: Session = {
+      id: newId(), siteId, mode: "broadcast", status: "active", conversationId: null, startedBy: manager.userId,
+      createdAt: now, answeredAt: now, endedAt: null, endReason: null,
+      participants: [{ userId: manager.userId, role: "speaker" }, ...listeners.map((userId) => ({ userId, role: "listener" as const }))],
+    };
+    this.sessions.set(session.id, session);
+    mockBus.emit("session:invite", { session: this.sessionView(session) });
+    const speak = (phrase: number) => {
+      if (session.status !== "active") return;
+      const message = this.createMessage({
+        kind: "instruction", siteId, conversationId: null, senderId: manager.userId,
+        text: PHRASES[phrase]![this.langIn(siteId, manager.userId)], requiresAck: false, recipientIds: listeners, sessionId: session.id,
+      });
+      this.completeTranslations(message);
+      mockBus.emit("message:new", { message: this.view(message, ME) });
+    };
+    later(1500, () => speak(P.helmet));
+    later(4500, () => speak(P.gateB));
+    later(8000, () => this.endSession(session.id));
+    return true;
+  }
+
+  sessionMessages(sessionId: string) {
+    return [...this.messages.values()].filter((m) => m.sessionId === sessionId).sort((a, b) => a.seq - b.seq);
+  }
+
+  sessionsOf(siteId: string, mode?: Session["mode"]) {
+    return [...this.sessions.values()]
+      .filter((s) => s.siteId === siteId && (!mode || s.mode === mode) && s.participants.some((p) => p.userId === ME))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   markDelivered(messageIds: string[]) {

@@ -31,6 +31,11 @@ export const rooms = {
 
 const siteInput = z.object({ siteId: z.string().regex(UUID) });
 const receiptInput = z.object({ messageIds: z.array(z.string().regex(UUID)).min(1).max(100) });
+const deviceInput = z.object({
+  audioRoute: z.enum(["bluetooth", "wired", "builtin", "unknown"]),
+  inputName: z.string().trim().max(80).nullable(),
+  micPermission: z.enum(["granted", "denied", "undetermined"]),
+});
 
 /** 모든 서버 발행 이벤트에 붙는 중복 제거용 id 와 시각 */
 const envelope = () => ({ eventId: randomUUID(), at: new Date().toISOString() });
@@ -44,7 +49,7 @@ export type RealtimeGateway = {
 };
 
 export function attachRealtime(server: HttpServer, context: AppContext): RealtimeGateway {
-  const { prisma, logger, presence } = context;
+  const { prisma, logger, presence, devices } = context;
   // 네이티브 앱은 CORS 와 무관하지만, 웹(e2e·개발) 접속을 위해 허용한다. 로컬 호스팅 전제.
   const io = new Server(server, { serveClient: false, cors: { origin: true } });
   const nsp: RtNamespace = io.of(REALTIME_NAMESPACE);
@@ -59,6 +64,9 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
   const reply = (ack: unknown, result: AckResult) => {
     if (typeof ack === "function") ack(result);
   };
+
+  const activeSiteIds = async (userId: string) =>
+    (await prisma.siteMembership.findMany({ where: { userId, status: "active" }, select: { siteId: true } })).map((m) => m.siteId);
 
   /** 사용자가 속한 현장들에 접속 상태 변화를 알린다 */
   async function broadcastPresence(userId: string, online: boolean) {
@@ -96,7 +104,11 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
       }, Math.max(0, expiresAt * 1000 - Date.now()));
     }
 
-    if (presence.connect(userId)) void broadcastPresence(userId, true).catch((err) => logger.warn({ err }, "presence 알림 실패"));
+    if (presence.connect(userId)) {
+      void broadcastPresence(userId, true).catch((err) => logger.warn({ err }, "presence 알림 실패"));
+      // 통화·일괄 지시 중에 다시 연결되면 연결 끊김 유예를 푼다.
+      void context.sessions.userOnline(userId).catch((err) => logger.warn({ err }, "세션 재연결 처리 실패"));
+    }
 
     socket.on("site:subscribe", async (payload, ack) => {
       const parsed = siteInput.safeParse(payload);
@@ -126,20 +138,49 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
       const parsed = receiptInput.safeParse(payload);
       if (!parsed.success) return reply(ack, { ok: false, code: "VALIDATION_ERROR" });
       try {
-        const { count } = await prisma.messageRecipient.updateMany({
+        const targets = await prisma.messageRecipient.findMany({
           where: { userId, messageId: { in: parsed.data.messageIds }, status: "sent" },
+          select: { messageId: true, message: { select: { kind: true, siteId: true } } },
+        });
+        const { count } = await prisma.messageRecipient.updateMany({
+          where: { userId, messageId: { in: targets.map((t) => t.messageId) }, status: "sent" },
           data: { status: "delivered", deliveredAt: new Date() },
         });
         reply(ack, { ok: true, updated: count });
+        // 지시는 관리자에게 수신 상태를 알린다.
+        for (const target of targets) {
+          if (target.message.kind === "instruction") {
+            context.events.instructionRecipient({ siteId: target.message.siteId, messageId: target.messageId, userId, status: "delivered" });
+          }
+        }
       } catch (err) {
         logger.warn({ err }, "수신 확인 반영 실패");
         reply(ack, { ok: false, code: "INTERNAL_ERROR" });
       }
     });
 
+    // 오디오 장치 상태 (헤드셋 연결·마이크 권한): 저장하고 현장·세션 참여자에게 알린다.
+    socket.on("device:status", async (payload, ack) => {
+      const parsed = deviceInput.safeParse(payload);
+      if (!parsed.success) return reply(ack, { ok: false, code: "VALIDATION_ERROR" });
+      devices.set(userId, parsed.data);
+      reply(ack, { ok: true });
+      try {
+        const siteIds = await activeSiteIds(userId);
+        context.events.deviceChanged({ siteIds, userId, device: parsed.data });
+        await context.sessions.deviceChanged(userId);
+      } catch (err) {
+        logger.warn({ err }, "장치 상태 알림 실패");
+      }
+    });
+
     socket.on("disconnect", () => {
       clearTimeout(expiryTimer);
-      if (presence.disconnect(userId)) void broadcastPresence(userId, false).catch((err) => logger.warn({ err }, "presence 알림 실패"));
+      if (presence.disconnect(userId)) {
+        devices.delete(userId);
+        void broadcastPresence(userId, false).catch((err) => logger.warn({ err }, "presence 알림 실패"));
+        void context.sessions.userOffline(userId).catch((err) => logger.warn({ err }, "세션 연결 끊김 처리 실패"));
+      }
     });
   });
 
@@ -162,6 +203,19 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
     },
     messageStatus({ userId, ...status }) {
       emit(rooms.user(userId), "message:status", status);
+    },
+    instructionRecipient({ siteId, messageId, userId, status }) {
+      emit(rooms.managers(siteId), "instruction:recipient", { messageId, userId, status });
+    },
+    sessionInvite({ userId, session }) {
+      emit(rooms.user(userId), "session:invite", { session });
+    },
+    sessionUpdated({ userIds, session }) {
+      // 주의: nsp.to([]) 는 전체 전송이 되므로 빈 대상은 보내지 않는다.
+      if (userIds.length > 0) emit(userIds.map(rooms.user), "session:updated", { session });
+    },
+    deviceChanged({ siteIds, userId, device }) {
+      for (const siteId of siteIds) emit(rooms.site(siteId), "device:changed", { siteId, userId, device });
     },
   };
 

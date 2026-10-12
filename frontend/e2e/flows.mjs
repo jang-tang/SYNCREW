@@ -34,6 +34,8 @@ const browser = await puppeteer.launch({
   userDataDir: profileDir,
   args: ["--disable-features=AutofillServerCommunication,PasswordGeneration,AutofillEnableAccountStorageForPasswords"],
 });
+// 헤드리스 Chrome 에는 마이크가 없으므로 권한을 거부해 둔다 (핸즈프리는 '마이크 권한 필요' 안내 → 데모 발화 버튼으로 검증)
+await browser.defaultBrowserContext().overridePermissions(base, []);
 const page = await browser.newPage();
 await page.setViewport({ width: 390, height: 844 });
 const errors = [];
@@ -177,6 +179,85 @@ await wait(300);
 await page.evaluate(() => [...document.querySelectorAll('[aria-label="send"]')].find((n) => n.checkVisibility())?.click());
 await check("내 메시지 표시", "Bu qismni qayta tekshiring.");
 await check("상대 응답이 내 언어로", "Tushundim. Hozir boshlayman.", 8000);
+
+console.log("7) 1:1 실시간 통역 통화 (관리자 ↔ 베트남어 작업자)");
+await page.evaluate(() => {
+  localStorage.setItem("syncrew.mockProfile", JSON.stringify({ id: "me", email: "m@syncrew.app", displayName: "장태웅", preferredLang: "ko", autoPlay: false, speechRate: 1 }));
+  localStorage.setItem("syncrew.siteId", "s_a");
+  localStorage.setItem("syncrew.uiLang", "ko");
+});
+await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
+await check("멤버 이어폰 상태: 블루투스", "SafeHelmet BT-2");
+await check("멤버 이어폰 상태: 휴대폰 스피커", "휴대폰 마이크·스피커");
+await tap("Nguyễn Văn An");
+await tap("통역 통화");
+await check("통화 거는 중", "Nguyễn Văn An 님을 부르는 중…");
+await check("상대가 받으면 통화 중", "통화 중", 6000);
+await check("마이크 권한 없음 안내", "마이크 권한이 필요해요");
+await check("버튼 없이 말하면 된다는 안내", "버튼을 누를 필요가 없어요");
+await page.screenshot({ path: path.join(outDir, "flow-7-call.png") });
+await tap("데모: 말한 것으로 보내기");
+await check("상대 통역 응답(한국어)", "알겠습니다. 바로 시작하겠습니다.", 8000);
+await tap("끊기");
+await check("통화 종료", "통화가 끝났어요");
+await tap("대화 기록 보기");
+await wait(1000);
+{
+  // 대화 기록 화면에서 통화 중 발화에 '통화' 표시가 붙는지 (화면에 보이는 표시 개수)
+  const tags = await page.evaluate(() => [...document.querySelectorAll("div")].filter((n) => n.innerText?.trim() === "통화" && n.checkVisibility() && n.children.length === 0).length);
+  const onChat = page.url().includes("/site/chat/");
+  if (onChat && tags >= 2) { pass++; console.log("  ✓ 대화 기록에 통화 발화 표시"); }
+  else { fail++; console.log("  ✗ 대화 기록에 통화 발화 표시", { url: page.url(), tags }); }
+}
+await page.screenshot({ path: path.join(outDir, "flow-7-history.png") });
+
+console.log("8) 관리자 실시간 일괄 지시 (여러 언어)");
+await page.goto(base + "/site/instructions", { waitUntil: "networkidle0" });
+await tap("실시간 지시 시작");
+await check("대상 선택 화면", "실시간 일괄 지시");
+await check("대상자 연결 상태 요약", "명 연결됨");
+await check("연결 끊긴 대상 안내", "다시 접속하면");
+await tap("직접 선택");
+await tap("Nguyễn Văn An");
+await tap("Иван Петров");
+await check("선택 인원 반영", "2명에게 실시간 지시 시작");
+await tap("2명에게 실시간 지시 시작");
+await check("지시 중 화면", "구성원 연결 상태");
+await check("구성원별 이어폰 상태", "Jabra Talk");
+await tap("데모: 말한 것으로 보내기");
+await check("언어별 통역 상태(베트남어)", "VI", 6000);
+await check("언어별 통역 상태(러시아어)", "RU");
+await wait(1500);
+await page.screenshot({ path: path.join(outDir, "flow-8-broadcast.png") });
+await tap("안전모를 착용하고 작업을 시작하세요.");
+await check("발화별 상세: 베트남어 통역문", "Hãy đội mũ bảo hộ");
+await check("발화별 상세: 러시아어 통역문", "Наденьте каску");
+await page.goBack();
+await wait(800);
+await tap("지시 끝내기");
+await check("지시 종료", "실시간 지시가 끝났어요");
+await tap("작업 지시");
+await check("지시 기록에 실시간 표시", "실시간");
+await check("실시간 지시 전달 수", "명 전달", 8000);
+
+console.log("9) 구성원: 관리자 실시간 지시 자동 수신 (우즈베크어)");
+await page.evaluate(() => {
+  localStorage.setItem("syncrew.mockProfile", JSON.stringify({ id: "me", email: "w@syncrew.app", displayName: "Aziz", preferredLang: "uz", autoPlay: false, speechRate: 1 }));
+  localStorage.setItem("syncrew.siteId", "s_b");
+  localStorage.setItem("syncrew.uiLang", "uz");
+});
+await page.goto(base + "/site/instructions", { waitUntil: "networkidle0" });
+await tap("Demo: jonli topshiriqni qabul qilish");
+await check("지시 시작 시 수신 화면 자동 열림", "박현우ning jonli topshirigʻi", 6000);
+await check("내 언어로 통역된 지시", "Kaskani kiyib, ishni boshlang.", 6000);
+await check("관리자 원문 함께 표시", "안전모를 착용하고 작업을 시작하세요.");
+await check("두 번째 지시", "Materiallarni B darvoza orqali olib kiring.", 6000);
+await page.screenshot({ path: path.join(outDir, "flow-9-listener.png") });
+await check("관리자가 끝내면 종료 표시", "Jonli topshiriq tugadi", 8000);
+// 새로 고치면 데모 데이터가 초기화되므로 앱 안에서 뒤로 간다
+await page.goBack();
+await wait(1000);
+await check("받은 지시 기록에 실시간 표시", "Jonli");
 
 console.log(`\n결과: 통과 ${pass} / 실패 ${fail}`);
 console.log("콘솔 오류:", errors.length ? [...new Set(errors)].join("\n") : "없음");

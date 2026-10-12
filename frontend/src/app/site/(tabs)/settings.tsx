@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { playNow } from "@/audio/playback";
+import { SiteBanners } from "@/components/live/LiveParts";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -61,6 +62,7 @@ export default function Settings() {
   return (
     <Screen edges={["top"]}>
       <LargeHeader title={t("tab.settings")} />
+      <SiteBanners />
       <ScrollView contentContainerStyle={styles.content}>
         <Card style={styles.profile}>
           <Avatar id={profile.id} name={profile.displayName} size={60} />

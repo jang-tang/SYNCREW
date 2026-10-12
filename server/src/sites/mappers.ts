@@ -1,4 +1,4 @@
-import type { JoinCode, Member, MembershipStatus, MySite, Profile, SiteRole } from "../shared/api";
+import type { DeviceStatus, JoinCode, Member, MembershipStatus, MySite, Profile, SiteRole } from "../shared/api";
 import type { Lang } from "../shared/languages";
 
 // DB 행 → 앱과 공유하는 응답 형식 (server/src/shared/api.ts)
@@ -34,13 +34,14 @@ type MemberRow = {
   user: { displayName: string; preferredLang: string };
 };
 
-export const toMember = (row: MemberRow, online: boolean): Member => ({
+export const toMember = (row: MemberRow, online: boolean, device: DeviceStatus | null): Member => ({
   userId: row.userId,
   displayName: row.user.displayName,
   role: row.role as SiteRole,
   status: row.status as MembershipStatus,
   lang: (row.langOverride ?? row.user.preferredLang) as Lang,
   online,
+  device: online ? device : null,
 });
 
 type CodeRow = { id: string; code: string; expiresAt: Date | null; maxUses: number | null; useCount: number };

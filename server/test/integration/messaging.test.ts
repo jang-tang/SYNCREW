@@ -1,9 +1,4 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import ffmpegPath from "ffmpeg-static";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { AudioPreprocessor, PcmAudio } from "../../src/engine/audio/audioPreprocessor";
@@ -11,6 +6,7 @@ import type { Dataset } from "../../src/engine/dataset/types";
 import { DomainProcessor } from "../../src/engine/domain/domainProcessor";
 import { FakeStt, FakeTranslator } from "../../src/engine/fake";
 import type { MessageView } from "../../src/shared/api";
+import { makeM4a } from "../helpers/audio";
 import { createRealtimeTestApp, nextEvent, noEvent } from "../helpers/testApp";
 
 // Phase 4: 통역 파이프라인 + 1:1 대화 (Fake 엔진, 실제 Postgres·Socket.IO)
@@ -33,13 +29,7 @@ let m4a: Buffer;
 beforeAll(async () => {
   t = await createRealtimeTestApp({ stt, translator });
   originalDomain = t.context.domain;
-  const file = path.join(mkdtempSync(path.join(tmpdir(), "syncrew-m4a-")), "speech.m4a");
-  execFileSync(ffmpegPath as unknown as string, [
-    "-hide_banner", "-loglevel", "error",
-    "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
-    "-c:a", "aac", file,
-  ]);
-  m4a = readFileSync(file);
+  m4a = makeM4a();
   // moov 가 끝에 있는지 확인 (stdin 파이프로 읽으면 실패하는 형식)
   expect(m4a.indexOf("moov")).toBeGreaterThan(m4a.indexOf("mdat"));
 });

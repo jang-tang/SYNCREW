@@ -6,6 +6,7 @@ import type {
   InstructionSummary,
   JoinCode,
   JoinResult,
+  LiveSession,
   Member,
   MessageView,
   MySite,
@@ -101,5 +102,21 @@ export function createHttpApi(auth: AuthService): ApiService {
     ackInstruction: (messageId) => call<void>(`/instructions/${messageId}/ack`, { method: "POST" }),
     completeInstruction: (messageId, note) =>
       call<void>(`/instructions/${messageId}/complete`, { method: "POST", json: note ? { note } : {} }),
+
+    startCall: (siteId, userId) => call<LiveSession>(`/sites/${siteId}/calls`, { method: "POST", json: { userId } }),
+    startBroadcast: (siteId, target) => call<LiveSession>(`/sites/${siteId}/broadcasts`, { method: "POST", json: { target } }),
+    getSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}`),
+    listOpenSessions: (siteId) => call<LiveSession[]>(`/sites/${siteId}/sessions/open`),
+    listSessions: (siteId, mode) => call<LiveSession[]>(`/sites/${siteId}/sessions${mode ? `?mode=${mode}` : ""}`),
+    acceptSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/accept`, { method: "POST" }),
+    declineSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/decline`, { method: "POST" }),
+    endSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/end`, { method: "POST" }),
+    sendUtterance: (sessionId, input) =>
+      call<SendResult>(`/sessions/${sessionId}/utterances`, {
+        method: "POST",
+        body: audioForm({ clientMessageId: input.clientMessageId }, { uri: input.audioUri, mimeType: input.mimeType }),
+        timeoutMs: 30_000,
+      }),
+    listSessionMessages: (sessionId) => call<MessageView[]>(`/sessions/${sessionId}/messages`),
   };
 }
