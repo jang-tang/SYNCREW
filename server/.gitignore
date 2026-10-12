@@ -6,3 +6,5 @@ node_modules
 # 로컬 Postgres 데이터, 저장 음성
 /.pgdata
 /storage
+# live 모드 e2e 테스트 계정 (비밀번호 포함)
+/.e2e-accounts.json

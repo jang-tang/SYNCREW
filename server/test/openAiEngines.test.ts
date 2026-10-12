@@ -171,14 +171,14 @@ describe("OpenAiStt (gpt-4o-mini-transcribe)", () => {
     });
     const { store, guard } = budget();
     const stt = new OpenAiStt("sk-test", "gpt-4o-mini-transcribe", guard, server.url);
-    const out = await stt.transcribe({ audio, lang: "uz", prompt: "Workplace speech." });
+    const out = await stt.transcribe({ audio, lang: "vi", prompt: "Workplace speech." });
     expect(out.text).toBe("안전모 착용하세요");
     expect(out.usage).toEqual({ inputAudioTokens: 50, inputTextTokens: 10, outputTextTokens: 8 });
 
     const form = server.form();
     expect(server.auth()).toBe("Bearer sk-test");
     expect(form.get("model")).toBe("gpt-4o-mini-transcribe");
-    expect(form.get("language")).toBe("uz");
+    expect(form.get("language")).toBe("vi");
     expect(form.get("prompt")).toBe("Workplace speech.");
     expect(form.get("response_format")).toBe("json");
     const file = form.get("file") as File;
@@ -186,6 +186,15 @@ describe("OpenAiStt (gpt-4o-mini-transcribe)", () => {
     expect(Buffer.from(await file.arrayBuffer()).subarray(0, 4).toString()).toBe("RIFF");
     expect(store.records[0]).toMatchObject({ kind: "stt", model: "gpt-4o-mini-transcribe" });
     expect(store.records[0]!.costUsd).toBeCloseTo((50 * 1.25 + 10 * 1.25 + 8 * 5) / 1e6, 9);
+  });
+
+  it("우즈베크어는 language 코드를 받지 않으므로 빼고 프롬프트로 언어를 알려 준다", async () => {
+    const server = await fakeTranscriptions(200, { text: "Dubulg'a kiying" });
+    const { guard } = budget();
+    const stt = new OpenAiStt("k", "gpt-4o-mini-transcribe", guard, server.url);
+    await stt.transcribe({ audio, lang: "uz", prompt: "Workplace speech." });
+    expect(server.form().get("language")).toBeNull();
+    expect(server.form().get("prompt")).toBe("The speaker speaks Uzbek. Transcribe in Uzbek (Latin script). Workplace speech.");
   });
 
   it("HTTP 오류는 응답 내용과 함께 실패하고 비용은 기록하지 않는다", async () => {

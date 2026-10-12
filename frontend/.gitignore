@@ -42,6 +42,7 @@ yarn-error.*
 
 # 번들 검증 출력
 dist-check/
+dist-live/
 .env
 
 # e2e 출력

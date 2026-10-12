@@ -40,7 +40,8 @@ async function main() {
       .closeStale()
       .then((count) => count > 0 && logger.info({ count }, "남은 통역 세션 종료"))
       .catch((err) => logger.error({ err }, "세션 정리 실패"));
-    // 지난 실행에서 처리 도중 멈춘 메시지를 다시 처리하고, 접속하는 앱에 동기화를 요청한다.
+    // 지난 실행에서 처리 도중 멈춘 메시지를 다시 처리한다. 시작 시점에는 연결된 앱이 없으므로 sync:required 는 보내지 않고,
+    // 앱이 다시 연결될 때 화면 데이터를 새로 불러온다 (frontend/src/providers/RealtimeBridge.tsx).
     void context.pipeline
       .recover({ staleMs: 0 })
       .then((count) => count > 0 && logger.info({ count }, "멈춘 메시지 다시 처리"))

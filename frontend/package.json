@@ -45,8 +45,12 @@
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
     "bundle:android": "expo export --platform android --output-dir dist-check",
-    "bundle:web": "expo export --platform web --output-dir dist-check",
+    "bundle:web": "expo export --platform web --output-dir dist-check --clear",
+    "bundle:web:live": "EXPO_PUBLIC_API_MODE=live EXPO_PUBLIC_API_BASE_URL=http://localhost:8767 expo export --platform web --output-dir dist-live --clear",
     "e2e": "node e2e/flows.mjs",
+    "e2e:live": "node e2e/live.mjs",
+    "e2e:mic": "node e2e/mic.mjs",
+    "e2e:latency": "node e2e/latency.mjs",
     "e2e:screens": "node e2e/screens.mjs",
     "test:unit": "node --no-warnings --test e2e/vad.test.mjs"
   },

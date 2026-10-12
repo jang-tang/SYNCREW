@@ -36,7 +36,7 @@ export const DEFAULT_PIPELINE_OPTIONS: PipelineOptions = {
 };
 
 /** STT 인식 힌트 (기존 PoC 프롬프트 기반) */
-const STT_PROMPT =
+export const STT_PROMPT =
   "Construction and manufacturing workplace speech. Preserve machine names, PPE terms, emergency stop, safety helmet, defects, and numbers.";
 
 export type PipelineErrorCode =

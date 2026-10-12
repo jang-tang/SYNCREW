@@ -13,17 +13,27 @@ import type {
   Profile,
   SendResult,
 } from "@shared/api";
+import { Platform } from "react-native";
 import type { ApiService, AuthService } from "../types";
 import { ApiError, request } from "./http";
 
 const V1 = "/api/v1";
 
-/** 음성 파일 multipart 업로드용 (React Native FormData 파일 형식) */
-function audioForm(fields: Record<string, string>, audio: { uri: string; mimeType: string }) {
+/**
+ * 음성 파일 multipart 업로드용.
+ * 네이티브는 React Native FormData 파일 형식({uri,name,type})을 쓰고,
+ * 웹은 그 형식을 모르므로(문자열 "[object Object]"로 바뀜) 녹음 blob URL 을 읽어 Blob 으로 붙인다.
+ */
+async function audioForm(fields: Record<string, string>, audio: { uri: string; mimeType: string }) {
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(key, value);
   const extension = audio.mimeType.includes("mp4") || audio.mimeType.includes("m4a") ? "m4a" : "webm";
-  form.append("audio", { uri: audio.uri, name: `speech.${extension}`, type: audio.mimeType } as unknown as Blob);
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(audio.uri)).blob();
+    form.append("audio", blob.type ? blob : new Blob([blob], { type: audio.mimeType }), `speech.${extension}`);
+  } else {
+    form.append("audio", { uri: audio.uri, name: `speech.${extension}`, type: audio.mimeType } as unknown as Blob);
+  }
   return form;
 }
 
@@ -71,15 +81,15 @@ export function createHttpApi(auth: AuthService): ApiService {
     listMessages: (conversationId) => call<MessageView[]>(`/conversations/${conversationId}/messages?limit=100`),
     sendText: (conversationId, input) =>
       call<SendResult>(`/conversations/${conversationId}/messages`, { method: "POST", json: input }),
-    sendAudio: (conversationId, input) =>
+    sendAudio: async (conversationId, input) =>
       call<SendResult>(`/conversations/${conversationId}/messages`, {
         method: "POST",
-        body: audioForm({ clientMessageId: input.clientMessageId }, { uri: input.audioUri, mimeType: input.mimeType }),
+        body: await audioForm({ clientMessageId: input.clientMessageId }, { uri: input.audioUri, mimeType: input.mimeType }),
         timeoutMs: 30_000,
       }),
     retryMessage: (messageId) => call<SendResult>(`/messages/${messageId}/retry`, { method: "POST" }),
 
-    createInstruction: (siteId, input) => {
+    createInstruction: async (siteId, input) => {
       const { clientMessageId, target, requiresAck } = input;
       if ("text" in input) {
         return call<SendResult>(`/sites/${siteId}/instructions`, {
@@ -89,7 +99,7 @@ export function createHttpApi(auth: AuthService): ApiService {
       }
       return call<SendResult>(`/sites/${siteId}/instructions`, {
         method: "POST",
-        body: audioForm(
+        body: await audioForm(
           { clientMessageId, target: JSON.stringify(target), requiresAck: String(requiresAck) },
           { uri: input.audioUri, mimeType: input.mimeType },
         ),
@@ -111,10 +121,10 @@ export function createHttpApi(auth: AuthService): ApiService {
     acceptSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/accept`, { method: "POST" }),
     declineSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/decline`, { method: "POST" }),
     endSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}/end`, { method: "POST" }),
-    sendUtterance: (sessionId, input) =>
+    sendUtterance: async (sessionId, input) =>
       call<SendResult>(`/sessions/${sessionId}/utterances`, {
         method: "POST",
-        body: audioForm({ clientMessageId: input.clientMessageId }, { uri: input.audioUri, mimeType: input.mimeType }),
+        body: await audioForm({ clientMessageId: input.clientMessageId }, { uri: input.audioUri, mimeType: input.mimeType }),
         timeoutMs: 30_000,
       }),
     listSessionMessages: (sessionId) => call<MessageView[]>(`/sessions/${sessionId}/messages`),

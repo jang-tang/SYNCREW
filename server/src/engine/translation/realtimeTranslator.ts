@@ -67,6 +67,8 @@ type ServerEvent = {
     status?: string;
     status_details?: { reason?: string; error?: { message?: string } };
     usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
       input_token_details?: { text_tokens?: number; audio_tokens?: number; cached_tokens?: number };
       output_token_details?: { text_tokens?: number; audio_tokens?: number };
     };
@@ -172,6 +174,12 @@ export class RealtimeTranslator implements Translator {
             if (!text) return finish(new Error("Realtime 응답에 번역문이 없습니다."));
             const usage = response?.usage;
             const cached = usage?.input_token_details?.cached_tokens ?? 0;
+            const outputAudioTokens = usage?.output_token_details?.audio_tokens ?? 0;
+            // 추론 토큰은 세부 항목에 없을 수 있다. 전체 출력에서 음성을 뺀 나머지를 텍스트 출력 단가로 계산한다.
+            const outputTextTokens = Math.max(
+              usage?.output_token_details?.text_tokens ?? 0,
+              (usage?.output_tokens ?? 0) - outputAudioTokens,
+            );
             finish(null, {
               text,
               ...(withAudio && audio.length > 0 ? { audio: { data: Buffer.concat(audio), sampleRate: OUTPUT_SAMPLE_RATE } } : {}),
@@ -181,8 +189,8 @@ export class RealtimeTranslator implements Translator {
                 inputTextTokens: Math.max(0, (usage?.input_token_details?.text_tokens ?? 0) - cached),
                 inputAudioTokens: usage?.input_token_details?.audio_tokens ?? 0,
                 cachedInputTokens: cached,
-                outputTextTokens: usage?.output_token_details?.text_tokens ?? 0,
-                outputAudioTokens: usage?.output_token_details?.audio_tokens ?? 0,
+                outputTextTokens,
+                outputAudioTokens,
               },
             });
             break;

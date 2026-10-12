@@ -1,10 +1,25 @@
 import type { BudgetGuard } from "../budget/budgetGuard";
 import { metered } from "../budget/metered";
 import { encodeWav } from "../audio/codec";
+import type { Lang } from "../../shared/languages";
 import type { SttProvider, TranscribeInput, TranscribeOutput } from "./sttProvider";
 
 const ENDPOINT = "https://api.openai.com/v1/audio/transcriptions";
 const TIMEOUT_MS = 15_000;
+
+/**
+ * language 파라미터가 받지 않는 언어 (2026-10-12 실제 호출: uz → 400 "Language code 'uz' is not recognized").
+ * 이 언어는 language 를 빼고 프롬프트에 언어 이름을 적어 인식시킨다.
+ */
+const PROMPT_ONLY_LANGUAGES: Partial<Record<Lang, string>> = { uz: "Uzbek" };
+
+/** STT 요청의 language·prompt 값. 지원하지 않는 언어는 프롬프트로 언어를 알려 준다. */
+export function sttLanguageParams(lang: Lang, prompt?: string): { language?: string; prompt?: string } {
+  const trimmed = prompt?.trim() || undefined;
+  const name = PROMPT_ONLY_LANGUAGES[lang];
+  if (!name) return { language: lang, prompt: trimmed };
+  return { prompt: [`The speaker speaks ${name}. Transcribe in ${name} (Latin script).`, trimmed].filter(Boolean).join(" ") };
+}
 
 type TranscriptionResponse = {
   text?: unknown;
@@ -43,9 +58,10 @@ export class OpenAiStt implements SttProvider {
     return metered(this.budget, { kind: "stt", model: this.model, estimate }, async () => {
       const form = new FormData();
       form.append("model", this.model);
-      form.append("language", input.lang);
+      const params = sttLanguageParams(input.lang, input.prompt);
+      if (params.language) form.append("language", params.language);
       form.append("response_format", "json");
-      if (input.prompt?.trim()) form.append("prompt", input.prompt.trim());
+      if (params.prompt) form.append("prompt", params.prompt);
       const wav = encodeWav(input.audio.data, input.audio.sampleRate);
       form.append("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "speech.wav");
 
