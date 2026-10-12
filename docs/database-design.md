@@ -89,7 +89,10 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 | user_id | uuid | FK |
 | left_at | timestamptz | NULL |
 
+| last_read_seq | bigint | default 0. 마지막으로 읽은 메시지 seq (안 읽은 수 계산, Phase 4 추가) |
+
 - PK(conversation_id, user_id). 멤버 제외 시 `left_at` 설정.
+- 메시지 목록을 조회하면 `last_read_seq`를 조회한 마지막 seq로 올린다. 내가 보낸 메시지는 보낸 시점에 읽은 것으로 처리.
 
 ### messages
 1:1, 그룹, 일괄 지시를 모두 담는다.
@@ -103,15 +106,18 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 | client_message_id | text | NOT NULL |
 | seq | bigint | identity. 정렬 기준 |
 | input_type | text | CHECK in ('text','audio') |
+| input_audio_path | text | NULL. 음성 입력 원본(`storage/uploads/<id>.<ext>`). CHECK: audio ↔ NOT NULL. 재시도 시 다시 인식 |
 | source_lang | text | 발신 시점 발신자 언어 |
 | raw_text | text | NULL. 입력 텍스트 또는 STT 결과 |
 | corrected_text | text | NULL. 현장 특화 보정 결과 |
 | glossary_hits | jsonb | default '[]' |
 | requires_ack | boolean | default false (instruction에서 사용) |
 | status | text | CHECK in ('queued','processing','done','partially_failed','failed') |
-| error_code | text | NULL |
+| error_code | text | NULL (`STT_FAILED`, `STT_EMPTY`, `AUDIO_INVALID`, `AUDIO_TOO_LONG`, `BUDGET_EXCEEDED`, `OPENAI_NOT_CONFIGURED`) |
+| timings | jsonb | NULL. 단계별 ms: decodeMs, preprocessMs, preprocessApplied, sttMs, domainMs |
+| updated_at | timestamptz | 동기화(`GET /sync`)·복구 기준 |
 
-- UNIQUE(sender_id, client_message_id) → 중복 전송 방지.
+- UNIQUE(sender_id, client_message_id) → 중복 전송 방지. CHECK client_message_id 1–64자.
 - INDEX(conversation_id, seq), INDEX(site_id, kind, created_at).
 - CHECK: kind='instruction' ↔ conversation_id IS NULL.
 
@@ -131,8 +137,9 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 | timings | jsonb | NULL |
 | error_code | text | NULL |
 
-- UNIQUE(message_id, target_lang).
-- `skipped`: 원어와 대상 언어가 같을 때.
+- UNIQUE(message_id, target_lang). `updated_at`(복구 기준) 추가.
+- `skipped`: 원어와 대상 언어가 같을 때. `error_code`: `TRANSLATION_FAILED`, `BUDGET_EXCEEDED`, `OPENAI_NOT_CONFIGURED`.
+- `attempts`: 누적 시도 횟수 (1회 + 재시도 2회 = 3, 사용자 재시도마다 증가).
 
 ### message_recipients
 수신자별 전달 상태 1행.
@@ -178,7 +185,8 @@ messages.status (집계값, 파이프라인 종료 시 갱신):
 
 - 메시지 생성 시 `messages`, `message_translations`(대상 언어별), `message_recipients`(대상자별)를 **한 트랜잭션**으로 INSERT.
 - 소켓 이벤트는 트랜잭션 커밋 후에 발행. 유실되면 클라이언트 동기화로 보정.
-- 서버 시작 시 `processing` 상태로 2분 이상 멈춘 번역 행과 `pending` 행을 다시 큐에 넣는다.
+- 서버 시작 시 `queued`/`processing` 메시지를 다시 큐에 넣고, 그 메시지의 `processing` 번역 행은 `pending`으로 되돌린다 (`MessagePipeline.recover`). 시작 직후에는 이 프로세스에서 처리 중인 것이 없으므로 시간 조건 없이, 실행 중 호출할 때는 2분 이상 멈춘 행만 대상으로 한다.
+- **DB 세션 시간대는 UTC로 고정**한다 (`src/lib/prisma.ts`). Prisma pg 어댑터는 시각을 시간대 없이 주고받으므로, DB 시간대가 `Asia/Seoul`이면 저장값이 9시간 어긋나고 DB `now()`와의 비교가 틀어진다 (Phase 4에서 발견·수정).
 - 동시 재시도 경쟁은 `UPDATE ... SET status='processing' WHERE id=$1 AND status IN ('pending','failed')` 조건부 갱신으로 방지.
 
 ## 5. 보존과 삭제

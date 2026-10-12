@@ -1,6 +1,6 @@
 import type { Lang } from "@shared/languages";
 
-// 데모 번역용 예문. 실제 번역은 서버의 gpt-realtime-2 가 담당한다.
+// 데모 번역용 예문. 실제 번역은 서버의 gpt-realtime-2.1 이 담당한다.
 export const PHRASES: Record<Lang, string>[] = [
   {
     ko: "안전모를 착용하고 작업을 시작하세요.",

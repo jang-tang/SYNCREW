@@ -18,7 +18,18 @@ const envSchema = z.object({
   OPENAI_BUDGET_PERIOD: z.enum(["month", "total"]).default("month"),
   OPENAI_PRICING_JSON: optionalString,
   STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
-  TRANSLATION_MODEL: z.string().default("gpt-realtime-2"),
+  TRANSLATION_MODEL: z.string().default("gpt-realtime-2.1"),
+  /** openai: 실제 호출 / fake: 키 없이 개발·앱 연동 확인용 가짜 엔진 (비용 없음) */
+  ENGINE: z.enum(["openai", "fake"]).default("openai"),
+  /** 번역 음성 생성 (off면 텍스트만, 앱은 기기 TTS로 읽음) */
+  TRANSLATION_AUDIO: z.enum(["on", "off"]).default("on"),
+  TRANSLATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
+  TRANSLATION_REASONING: z.enum(["minimal", "low", "medium", "high"]).default("low"),
+  TRANSLATION_VOICE: z.string().default("marin"),
+  /** 업로드 음성·번역 음성 저장 위치 */
+  STORAGE_DIR: z.string().default("./storage"),
+  /** 음성 URL 서명 키. 비우면 서버 시작마다 새로 만든다 (재시작 후 이전 URL 무효 → 앱이 목록을 다시 받음) */
+  AUDIO_URL_SECRET: optionalString,
 
   // Supabase는 인증에만 쓴다. Phase 2에서 JWT 검증에 사용 (그때 필수로 전환).
   SUPABASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),

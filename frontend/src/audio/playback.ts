@@ -2,6 +2,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-aud
 import * as Speech from "expo-speech";
 import { create } from "zustand";
 import type { Lang } from "@shared/languages";
+import { API_BASE_URL } from "@/config";
 import { localeOf } from "@/lib/format";
 
 export type PlayItem = {
@@ -9,7 +10,7 @@ export type PlayItem = {
   id: string;
   text: string | null;
   lang: Lang;
-  /** 서버가 만든 번역 음성. 없으면 기기 음성 합성(TTS)으로 읽는다. */
+  /** 서버가 만든 번역 음성(서버 기준 상대 경로의 서명 URL). 없으면 기기 음성 합성(TTS)으로 읽는다. */
   audioUrl: string | null;
   rate: number;
 };
@@ -49,7 +50,7 @@ async function start(item: PlayItem) {
   if (!item.audioUrl) return speak(item);
 
   try {
-    player = createAudioPlayer({ uri: item.audioUrl });
+    player = createAudioPlayer({ uri: resolveAudioUrl(item.audioUrl) });
     player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) finish();
     });
@@ -60,6 +61,11 @@ async function start(item: PlayItem) {
     player = null;
     speak(item);
   }
+}
+
+/** 서버는 "/api/v1/messages/…/audio?…" 형태로 주므로 서버 주소를 붙인다. */
+export function resolveAudioUrl(url: string): string {
+  return url.startsWith("/") ? `${API_BASE_URL}${url}` : url;
 }
 
 /** 지금 바로 재생 (다시 듣기). 재생 중인 것은 멈춘다. */

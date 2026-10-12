@@ -14,7 +14,7 @@
 | 앱 | 프론트엔드 전체 화면 (데모 모드 + live 연동 계층) | 1 | 완료 `3fea4e7` |
 | 2 | 인증·현장·멤버십 | 1 | 완료 `c637a6b` |
 | 3 | 실시간 통신 (Socket.IO) | 2 | 완료 `92e3620` |
-| 4 | 통역 파이프라인 + 1:1 대화 | 3 | **다음** |
+| 4 | 통역 파이프라인 + 1:1 대화 | 3 | **완료, 검토 대기** |
 | 5 | N:N 그룹 대화 + 1:N 일괄 지시 | 4 | 대기 |
 | 6 | 안정화·실기기 검증 | 1–5 | 대기 |
 
@@ -109,33 +109,43 @@
 - 완료 기준: 소켓 통합 테스트(인증 거부, 권한 없는 구독 거부, 제외 시 즉시 차단 = 시나리오 12) 통과
 - 위험: Android 백그라운드 전환 시 연결 끊김 → 포그라운드 복귀 시 동기화로 보완
 
-## Phase 4. 통역 파이프라인 + 1:1 대화 — 다음 차례 (사용자 승인 후 착수)
+## Phase 4. 통역 파이프라인 + 1:1 대화 — 구현 완료, 검토 대기 (2026-10-12)
 
-### 착수 전 확인
-- **OpenAI API 키**: 아직 미입력. 사용자에게 `cd server && npm run setup:openai` 입력을 요청한다. 키가 없어도 Fake 엔진으로 개발·테스트는 가능하다.
-- **`gpt-realtime-2` 세부 규격**: Realtime API 이벤트 이름·세션 파라미터(출력 모달리티, 음성 포맷, 추론 강도)는 구현 시점에 OpenAI 공식 문서로 확인한다 (기억에 의존하지 말 것). 단가는 `server/src/engine/budget/pricing.ts`.
-- 비용 한도 $5/월: 실제 API 호출 테스트는 최소한으로 하고, 호출 전후 `/health`의 `budget`을 기록한다.
+작업 정리(비용 추정·결정 사항 포함): [phase4-report.md](phase4-report.md)
 
-### 이미 있는 것 (재사용)
-- 엔진 인터페이스: `SttProvider`(`server/src/engine/stt/sttProvider.ts`), `Translator`(`engine/translation/translator.ts`), `AudioPreprocessor` + `runPreprocessorSafely`(`engine/audio/`), `DomainProcessor`(용어 감지·보정·컨텍스트), `BudgetGuard`(reserve → commit/release)
-- DB: `conversations`(현장 그룹 자동 생성), `conversation_participants`(승인 시 참여, 제외 시 `left_at`)
-- 실시간: `server/src/realtime/gateway.ts` — `user:{id}` 방으로 개인 발행, `receipt:delivered` 핸들러 자리(현재 형식 검증만)
-- 계약: `server/src/shared/api.ts`(`MessageView`, `SendResult`, `ConversationSummary` …), `shared/realtime.ts`(`message:new`, `message:status`)
-- **앱은 이미 완성**: 대화 목록·대화방·누르고 말하기·자동 재생·다시 듣기·재시도. live 모드 호출은 `frontend/src/services/live/httpApi.ts`(경로·본문 형식 확인용). 서버는 이 호출 형식에 맞춘다.
-
-### 할 일 (서버)
-1. DB: `messages`, `message_translations`, `message_recipients` (docs/database-design.md) + CHECK·UNIQUE(sender_id, client_message_id)
-2. 엔진 구현: `OpenAiStt`(기존 PoC `requestAudioTranscription` 이식), `RealtimeTranslator`(서버→OpenAI WebSocket), 오디오 디코딩(`ffmpeg-static`, m4a→PCM16), 번역 음성 WAV 저장(`server/storage/audio`), 모든 호출에 BudgetGuard
-3. 테스트용 `FakeStt`·`FakeTranslator`(지연·실패 주입)
-4. 팬아웃 작업 큐: 대상 언어별 1회 번역, 동시성 제한, 재시도 2회, 서버 재시작 시 `pending`/`processing` 복구
-5. API: `GET /sites/:siteId/conversations`, `POST /sites/:siteId/conversations/direct`, `GET /conversations/:id/messages`, `POST /conversations/:id/messages`(JSON 텍스트 / multipart 음성), `POST /messages/:id/retry`, `GET /messages/:id/audio`
-6. 실시간: `message:new`(수신자별 `user:` 방), `message:status`(발신자), `receipt:delivered` 실제 반영, `GET /sync`에 대화·메시지 변경분 추가
-7. 앱 mock(`frontend/src/services/mock/`)과 동작이 다르면 계약 쪽으로 맞추고 둘 다 고친다
-
-### 완료 기준
-- 시나리오 5, 6, 13, 14, 15 자동 테스트 통과 (Fake 엔진)
-- 실제 OpenAI로 5개 언어 왕복 수동 확인 + 단계별 지연(ms) 기록 — 키가 있을 때
-- 위험: Realtime 세션 연결 지연, 우즈베크어 번역·음성 품질, 블루투스 마이크 입력(실기기 필요)
+- 구현 내용 (서버)
+  - DB 마이그레이션 `phase4_messages`: `messages`, `message_translations`, `message_recipients` + CHECK(종류·상태·언어·instruction↔conversation_id·audio↔원본 경로)·UNIQUE(sender_id, client_message_id), `conversation_participants.last_read_seq`(안 읽은 수)
+  - 엔진: `OpenAiStt`(PoC `requestAudioTranscription` 이식, WAV 업로드), `RealtimeTranslator`(gpt-realtime-2.1 GA WebSocket, 음성+전사, 공식 문서로 이벤트·파라미터 확인), `codec.ts`(ffmpeg-static 디코딩 16kHz, WAV 인코딩), `metered.ts`(모든 OpenAI 호출을 BudgetGuard 예약→기록), `FakeStt`·`FakeTranslator`(지연·실패 주입)
+  - 파이프라인 `messaging/pipeline.ts`: 디코딩 → 노이즈 필터 플러그인(실패 시 원본) → STT → 현장 특화 처리 → 언어별 1회 번역(동시성 4, 1회+재시도 2회, 15초 제한) → 번역 음성 WAV 저장 → 언어별 수신자 전달. 서버 시작 시 멈춘 메시지 복구
+  - API: 대화 목록·1:1 열기(멱등)·메시지 목록(읽음 처리)·전송(JSON 텍스트 / multipart 음성, 1분 30회)·재시도·음성 다운로드(서명 URL), `GET /sync`에 대화·메시지 변경분
+  - 실시간: `message:new`(수신자 `user:` 방), `message:status`(발신자), `receipt:delivered` 실제 반영
+  - `ENGINE=fake`: 키 없이 서버·앱 live 모드 확인용 가짜 엔진
+  - 앱: 서버가 주는 상대 경로 음성 URL에 서버 주소를 붙여 재생 (`frontend/src/audio/playback.ts`)
+- 계획 대비 변경·결정
+  - 음성 URL: 앱 플레이어가 Authorization 헤더를 못 붙이므로 **조회자별 서명 URL**(HMAC, 24시간)로 인증하고, 다운로드 시 권한을 다시 확인
+  - `last_read_seq` 컬럼 추가 (DB 문서에 없던 안 읽은 수 계산용)
+  - m4a는 파이프가 아닌 파일 경로로 디코딩 (휴대폰 녹음은 moov가 파일 끝)
+  - STT 단가를 공식 값으로 갱신 ($3 추정 → $1.25)
+  - 같은 대화 경로라 그룹 대화 메시지도 동작하지만(시나리오 9 테스트에 사용), 그룹 화면 검증·시나리오 7은 Phase 5에서 한다
+- 버그 수정 (기존 코드)
+  - **DB 시각 9시간 어긋남**: Prisma pg 어댑터가 시각을 시간대 없이 주고받는데 로컬 DB 시간대가 Asia/Seoul이라 저장값이 9시간 밀리고 DB `now()` 비교가 틀어짐 → 연결 세션 시간대를 UTC로 고정. 회귀 테스트 추가, 수정 제거 시 실패함을 확인(변이 검증). **기존 개발 DB(`server/.pgdata`)에 이미 저장된 시각은 9시간 어긋나 있음** (개발 데이터라 그대로 둠)
+- 검증 결과
+  - 서버 `tsc` 통과, 테스트 **106개 통과** (Phase 4 추가 31개)
+    - 통합(실제 Postgres + Socket.IO, Fake 엔진) 20개: 시나리오 5(텍스트·음성 양방향, 실제 m4a→16kHz→STT→번역→WAV 재생), 6(대조군 포함), 9(부분 실패·재시도 시 실패 언어만 재전달·STT 실패 후 재시도), 12(제외 후 대화·음성 URL 차단), 13(순차·동시 중복 전송), 14(필터 교체·오류 시 원본 진행), 15(데이터셋 교체 시 보정·용어 컨텍스트, 대조군 포함), 수신 확인, 동기화, 재시작 복구, 엔진 없음 503, 입력 검증, 안 읽은 수, 서명 위조 거부
+    - OpenAI 엔진 프로토콜 7개(로컬 가짜 Realtime·STT 서버): 세션 설정·이벤트 처리·사용량→비용 기록, 오류·실패·시간 초과 시 비용 미기록, 한도 초과 시 미연결, 요청 형식(WAV·language·prompt·json)
+    - 오디오 변환·URL 서명 4개
+  - 실제 서버 기동(`ENGINE=fake`): `/health` 정상, 토큰 없음 401, 위조 음성 URL 401, 경고·오류 로그 없음
+  - **앱 실행 (처음으로 에뮬레이터·시뮬레이터에서 확인, 데모 모드)**: Android 에뮬레이터 빌드·실행 후 언어 전환·로그인·프로필·현장 목록·대화·1:1 대화·지시 탭 조작 확인, 오류 0건. iOS 시뮬레이터 빌드·실행 후 첫 화면 확인. 앱 코드 수정 없음. 상세·명령: [phase4-report.md](phase4-report.md) 7절
+- 미검증
+  - **실제 OpenAI 호출** (API 키 미입력): 5개 언어 왕복, 단계별 지연(ms), 우즈베크어 STT(`language=uz`) 수용 여부, 실제 비용
+  - 실제 Supabase 계정 토큰으로 대화 API·실시간 연결, 앱 live 모드 ↔ 서버 실통신
+  - 블루투스 헤드셋 녹음·재생 (실기기 필요)
+  - iOS 시뮬레이터 화면 이동(조작 도구 없음), 에뮬레이터에서 마이크 녹음·음성 재생·QR 카메라
+- 알려진 문제·제약
+  - **iOS 빌드는 한글이 든 프로젝트 경로에서 `pod install` 실패** → 영문 경로 복사본에서 빌드함. **Android 빌드는 JDK 21 필요** (JDK 25·26은 CMake 단계 실패)
+  - 음성 URL 서명 키를 비워 두면 서버 재시작 후 이전 URL이 무효 (앱이 목록을 다시 받으면 새 URL)
+  - 그룹에 나중에 들어온 사람은 가입 전 메시지를 보지 않는다 (수신자 행이 없음 — 의도된 동작)
+  - 작업 큐·비용 예약은 서버 1대 메모리 기준
 
 ## Phase 5. N:N 그룹 대화 + 1:N 일괄 지시
 
@@ -155,7 +165,7 @@
 
 | 담당 | 연결 지점 | 계약 |
 |---|---|---|
-| 딥러닝 노이즈 필터 | `server/src/plugins/audioPreprocessor.ts` (서버) 또는 `frontend/src/audio/preprocess.ts` (단말, Phase 4에서 생성) | `AudioPreprocessor.process(PcmAudio) → PcmAudio` / `preprocessRecording(uri) → uri` |
+| 딥러닝 노이즈 필터 | `server/src/plugins/audioPreprocessor.ts` (서버) 또는 `frontend/src/audio/preprocess.ts` (단말, 녹음 직후 호출 — 현재 그대로 반환) | `AudioPreprocessor.process(PcmAudio) → PcmAudio` / `preprocessRecording(uri) → uri` |
 | 데이터 보존 정책 | `server/src/plugins/retentionPolicy.ts` | `RetentionPolicy.run(ctx)` |
 | 현장 데이터셋 | `server/src/plugins/datasetAdapter.ts`에 어댑터 등록 또는 정규화 JSON 제공(`DATASET_ADAPTER=normalized-json`) | `DatasetAdapter.load() → {lexicon, phrases}` |
 
@@ -163,6 +173,6 @@
 
 1. 노이즈 필터 실행 위치(서버 / 단말)와 입력 형식 — 양쪽 훅을 준비해 두고, 담당 개발자와 확정
 2. Supabase 대시보드에서 비밀번호 재설정 메일의 앱 딥링크(`syncrew://reset-password`) Redirect URL 허용 — 사용자 확인 필요 (프로젝트 URL·키는 `.env`에 입력 완료)
-3. 앱 실행 검증을 위한 Android SDK(에뮬레이터) 또는 실기기 준비 (사용자가 추후 준비)
-4. OpenAI API 키 입력 (Phase 4 실제 번역 확인에 필요)
+3. 앱 실행 검증: Android 에뮬레이터·iOS 시뮬레이터 준비 완료(2026-10-12). 실기기는 추후
+4. OpenAI API 키 입력 (Phase 4 실제 번역 확인에 필요 — 아직 미입력)
 5. 실제 Supabase 계정 토큰으로 API·실시간 연결 확인 — 테스트 계정 생성은 사용자 허락 후

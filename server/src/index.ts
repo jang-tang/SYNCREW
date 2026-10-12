@@ -17,7 +17,9 @@ async function main() {
   if (!(await checkDatabase(context.prisma))) {
     logger.warn("데이터베이스에 연결할 수 없습니다. `npm run db:start` 실행 여부를 확인하세요.");
   }
-  if (!env.OPENAI_API_KEY) {
+  if (env.ENGINE === "fake") {
+    logger.warn("ENGINE=fake: 가짜 통역 엔진으로 실행합니다 (\"[vi] 원문\" 형식, OpenAI 호출 없음).");
+  } else if (!env.OPENAI_API_KEY) {
     logger.warn("OPENAI_API_KEY가 없습니다. 통역 기능은 비활성화됩니다 (`npm run setup:openai`).");
   }
 
@@ -33,6 +35,11 @@ async function main() {
   context.events = realtime.events;
   server.listen(env.PORT, env.HOST, () => {
     logger.info(`SYNCREW 서버 시작: http://${env.HOST}:${env.PORT} (실시간: /rt)`);
+    // 지난 실행에서 처리 도중 멈춘 메시지를 다시 처리하고, 접속하는 앱에 동기화를 요청한다.
+    void context.pipeline
+      .recover({ staleMs: 0 })
+      .then((count) => count > 0 && logger.info({ count }, "멈춘 메시지 다시 처리"))
+      .catch((err) => logger.error({ err }, "메시지 복구 실패"));
   });
 
   const shutdown = (signal: string) => {
@@ -40,6 +47,8 @@ async function main() {
     stopRetention();
     // io.close() 는 HTTP 서버도 함께 닫는다.
     void realtime.close().then(async () => {
+      // 진행 중인 통역은 최대 5초 기다린다. 끝나지 않은 것은 다음 시작 때 복구된다.
+      await Promise.race([context.pipeline.idle(), new Promise((resolve) => setTimeout(resolve, 5000))]);
       await context.prisma.$disconnect();
       process.exit(0);
     });

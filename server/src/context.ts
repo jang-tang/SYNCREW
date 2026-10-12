@@ -6,11 +6,18 @@ import type { DomainProcessor } from "./engine/domain/domainProcessor";
 import type { DomainEvents } from "./events/domainEvents";
 import type { Logger } from "./lib/logger";
 import type { PrismaClient } from "./lib/prisma";
+import type { SttProvider } from "./engine/stt/sttProvider";
+import type { Translator } from "./engine/translation/translator";
+import type { AudioUrlSigner } from "./messaging/audioUrls";
+import type { MessagePipeline } from "./messaging/pipeline";
+import type { FileStorage } from "./messaging/storage";
 import type { PresenceRegistry } from "./realtime/presence";
 
 export type Limits = {
   /** 가입 코드 입력: 사용자당 1분 횟수 */
   joinPerMinute: number;
+  /** 메시지 전송: 사용자당 1분 횟수 */
+  messagesPerMinute: number;
 };
 
 /** 서버 전역 의존성. 테스트에서는 일부를 가짜로 바꿔 넣는다. */
@@ -27,4 +34,12 @@ export type AppContext = {
   /** 사용자 접속 상태 (실시간 연결 수 기준) */
   presence: PresenceRegistry;
   limits: Limits;
+  /** 음성 인식. OpenAI 키가 없으면 null (음성 메시지 503) */
+  stt: SttProvider | null;
+  /** 번역. OpenAI 키가 없으면 null (다른 언어 대상 메시지 503) */
+  translator: Translator | null;
+  /** 통역 파이프라인 (메시지 처리 작업 큐) */
+  pipeline: MessagePipeline;
+  storage: FileStorage;
+  audioUrls: AudioUrlSigner;
 };

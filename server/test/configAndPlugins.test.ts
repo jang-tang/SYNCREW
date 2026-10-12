@@ -5,13 +5,13 @@ import { createRetentionPolicy, nextRunAt, NoopRetentionPolicy } from "../src/pl
 describe("환경 변수", () => {
   const base = { DATABASE_URL: "postgresql://u:p@localhost:5433/db" };
 
-  it("기본값을 채운다 (비용 한도 $5, 월 단위, gpt-realtime-2)", () => {
+  it("기본값을 채운다 (비용 한도 $5, 월 단위, gpt-realtime-2.1)", () => {
     const env = loadEnv({ ...base, OPENAI_API_KEY: "  " });
     expect(env).toMatchObject({
       PORT: 4000,
       OPENAI_BUDGET_USD: 5,
       OPENAI_BUDGET_PERIOD: "month",
-      TRANSLATION_MODEL: "gpt-realtime-2",
+      TRANSLATION_MODEL: "gpt-realtime-2.1",
       AUDIO_PREPROCESSOR: "passthrough",
     });
     expect(env.OPENAI_API_KEY).toBeUndefined();

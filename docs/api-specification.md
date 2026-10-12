@@ -52,19 +52,26 @@
 |---|---|---|---|
 | GET | `/sites/:siteId/conversations` | 멤버 | 내가 참여한 대화 목록 (최근 메시지 포함) |
 | POST | `/sites/:siteId/conversations/direct` | 멤버 | `{userId}` → 기존 1:1 대화가 있으면 반환, 없으면 생성 (멱등) |
-| GET | `/conversations/:id/messages?afterSeq=&beforeSeq=&limit=50` | 참여자 | 메시지 목록. 각 메시지는 **요청자 언어 기준** 번역문과 음성 URL 포함 |
+| GET | `/conversations/:id/messages?afterSeq=&beforeSeq=&limit=50` | 참여자 | 메시지 목록(seq 오름차순, limit ≤100). 각 메시지는 **요청자 언어 기준** 번역문과 음성 URL 포함. 본인이 보냈거나 수신자인 메시지만. 조회하면 읽음 처리 |
+
+- 1:1 열기: 자기 자신 400, 상대가 현장 활성 멤버가 아니면 404. 새로 만들면 201, 기존이면 200 (제외 후 재승인된 참여자는 다시 참여).
+- 대화 목록 정렬: 그룹 먼저, 그다음 최근 메시지 순. `unreadCount`는 내가 수신자인 메시지 중 `last_read_seq` 이후 개수.
+- 참여자가 아니거나(나간 경우 포함) 현장 활성 멤버가 아니면 대화 관련 경로는 모두 404.
 
 ## 6. 메시지 전송
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| POST | `/conversations/:id/messages` | 참여자 | 텍스트: JSON `{clientMessageId, text}` / 음성: multipart `clientMessageId`, `audio`(m4a, ≤30초, ≤2MB) |
+| POST | `/conversations/:id/messages` | 참여자 | 텍스트: JSON `{clientMessageId(1–64자), text(1–1000자)}` / 음성: multipart `clientMessageId`, `audio`(m4a·webm 등, ≤30초, ≤2MB) |
 | POST | `/sites/:siteId/instructions` | 관리자 | 일괄 지시. `{clientMessageId, text 또는 audio, target:'all'\|{userIds:[]}, requiresAck:true}` |
-| POST | `/messages/:id/retry` | 발신자 | 실패한 언어만 재시도 |
+| POST | `/messages/:id/retry` | 발신자 | 실패한 언어만 재시도 (음성 인식 단계에서 실패했으면 인식부터). `failed`/`partially_failed`가 아니면 409, 발신자가 아니면 404 |
 
 - 응답: `202 { messageId, status:'queued' }`. 같은 `clientMessageId` 재요청은 기존 메시지를 그대로 반환(200).
 - 원어 = 발신 시점 발신자의 현장 언어. 대상 언어 = 수신자별 현장 언어(`lang_override` 또는 `preferred_lang`).
 - 처리 결과는 Socket.IO로 통지된다 (realtime-protocol.md).
+- 받을 사람(대화에 참여 중인 다른 활성 멤버)이 없으면 409 `CONFLICT`.
+- 번역이 필요한데(대상 언어 ≠ 원어) 번역 엔진이 없거나, 음성인데 STT가 없으면 503 `OPENAI_NOT_CONFIGURED`. 같은 언어끼리의 텍스트는 엔진 없이 전달된다. `ENGINE=openai`에서 남은 한도가 0이면 402.
+- 음성 길이(30초) 초과·디코딩 실패는 처리 단계에서 메시지 `failed`(`AUDIO_TOO_LONG`/`AUDIO_INVALID`)로 기록된다.
 
 ## 7. 일괄 지시 조회와 응답
 
@@ -80,13 +87,19 @@
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| GET | `/messages/:id/audio?lang=` | 수신자·발신자 | 권한 확인 후 서버 로컬 음성 파일(WAV)을 스트리밍 |
+| GET | `/messages/:id/audio?lang=&u=&exp=&sig=` | 서명 URL | 번역 음성 WAV. **Bearer 토큰 대신 서명 URL로 인증**한다 |
+
+- 앱의 오디오 플레이어는 Authorization 헤더를 붙일 수 없어(특히 웹) 서버가 조회자별 서명 URL을 `MessageView.audioUrl`로 준다. 서명은 (메시지, 언어, 조회자, 만료 24시간)에 묶인 HMAC-SHA256 (`AUDIO_URL_SECRET`, 비우면 서버 시작마다 새 키).
+- `audioUrl`은 서버 기준 **상대 경로**(`/api/v1/messages/…`)이고 앱이 서버 주소를 붙인다 (`frontend/src/audio/playback.ts`).
+- 다운로드 시점에도 권한을 다시 확인: 해당 언어의 수신자이고 현장 활성 멤버여야 한다 (제외 후 404). 서명 오류·만료 401.
 
 ## 9. 동기화
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | GET | `/sync?siteId=&since=` | 재접속용. `since` 이후 변경된 대화 목록 요약, 내 수신 상태가 바뀐 메시지, 멤버십 변화를 한 번에 반환. 응답의 `cursor`를 다음 `since`로 사용 |
+
+- 메시지: 활성 멤버인 현장에서 내가 보냈거나 받은 것 중 메시지 또는 내 수신 행이 `since` 이후 바뀐 것, 최대 200개(최신 기준, seq 오름차순). 대화 요약은 그 메시지들이 속한 대화만.
 
 ## 10. 운영
 

@@ -20,7 +20,7 @@ flowchart LR
     PIPE --> STT[STT]
     PIPE --> DOM[현장 특화 처리]
     DOM --> DS[데이터셋 어댑터]
-    PIPE --> TR[gpt-realtime-2 번역기]
+    PIPE --> TR[gpt-realtime-2.1 번역기]
     RET[보존 정책 훅]
   end
   SB --> SA[(Supabase Auth)]
@@ -42,7 +42,7 @@ flowchart LR
 | 실시간 | Socket.IO | 메시지·상태 푸시, 수신 확인, 연결 상태 |
 | DB | 로컬 Postgres (`embedded-postgres`, Docker 불필요) + Prisma 7 | 영구 데이터 |
 | 음성 저장 | 서버 로컬 디스크 (`server/storage/audio`) | 번역 음성 파일, 다시 듣기·재접속 재생용 |
-| 통역 엔진 | `server/src/engine` | STT, 현장 특화 처리, `gpt-realtime-2` 번역, 비용 한도 |
+| 통역 엔진 | `server/src/engine` | STT, 현장 특화 처리, `gpt-realtime-2.1` 번역, 비용 한도 |
 
 Redis·메시지 큐는 MVP에서 도입하지 않는다. 단일 서버 프로세스 안의 동시성 제한 큐로 처리하고, 서버 재시작 시 DB 상태로 복구한다. 서버를 여러 대로 늘릴 때 `@socket.io/redis-adapter`와 별도 작업 큐를 도입한다.
 
@@ -88,7 +88,7 @@ sequenceDiagram
   P->>O: STT
   P->>P: 현장 특화 처리 (용어 감지 → 자동 보정)
   par 대상 언어별 1회
-    P->>O: gpt-realtime-2 세션 (텍스트 입력 → 텍스트+음성 출력)
+    P->>O: gpt-realtime-2.1 세션 (텍스트 입력 → 텍스트+음성 출력)
   end
   P->>S: 번역·음성 저장, 수신자 status=sent
   S-->>B: message:new (번역문, 음성 URL)
@@ -102,30 +102,36 @@ sequenceDiagram
 | 단계 | 구현 | 설정 |
 |---|---|---|
 | 1. 입력 | 텍스트 또는 음성(m4a/aac, 최대 30초, 2MB) | |
-| 2. 디코딩 | `ffmpeg-static`으로 PCM16 mono 16kHz로 변환 | |
+| 2. 디코딩 | `ffmpeg-static`으로 PCM16 mono 16kHz로 변환. 업로드 파일을 디스크에 저장한 뒤 **파일 경로로** 읽는다 (휴대폰 m4a는 moov 색인이 파일 끝에 있어 파이프 입력 불가) | `STORAGE_DIR` |
 | 3. 노이즈 필터 | `AudioPreprocessor` 플러그인 호출 (5절) | `AUDIO_PREPROCESSOR` |
-| 4. STT | OpenAI 음성 인식. 발신자 언어를 힌트로 전달, 데이터셋 용어를 프롬프트로 전달 | `STT_MODEL` (기본 `gpt-4o-mini-transcribe`, `gpt-realtime-whisper`로 교체 가능) |
+| 4. STT | OpenAI `/v1/audio/transcriptions` (WAV 업로드, `language`=발신자 언어, 현장 용어 프롬프트, `response_format=json`) | `STT_MODEL` (기본 `gpt-4o-mini-transcribe`) |
 | 5. 현장 특화 처리 | 용어 감지 → 자동 보정 → 컨텍스트 생성 (6절) | `DATASET_ADAPTER` |
-| 6. 번역 | `gpt-realtime-2` (4-3) | `TRANSLATION_MODEL=gpt-realtime-2` |
+| 6. 번역 | `gpt-realtime-2.1` (4-3) | `TRANSLATION_MODEL=gpt-realtime-2.1` |
 | 7. 음성 출력 | Realtime 음성 출력(PCM16 24kHz)을 WAV로 감싸 로컬 디스크에 저장 | `TRANSLATION_AUDIO=on` |
-| 8. 전달 | 수신자별 `message:new` 발행 | |
+| 8. 전달 | 언어별 번역이 끝날 때마다 그 언어 수신자에게 `message:new` | |
+
+구현: `server/src/messaging/pipeline.ts`(작업 큐·재시도·복구), `engine/stt/openAiStt.ts`, `engine/translation/realtimeTranslator.ts`, `engine/audio/codec.ts`. 테스트·개발용 `engine/fake.ts`(`ENGINE=fake`면 키 없이 "[vi] 원문" 형식으로 동작).
 
 - 발신자와 수신자 언어가 같으면 번역을 생략하고 원문을 그대로 전달한다.
 - 그룹 대화와 일괄 지시는 **대상 언어별로 한 번만** 번역하고 결과를 해당 언어의 모든 수신자에게 재사용한다.
 - 동시 Realtime 세션 수는 `TRANSLATION_CONCURRENCY`(기본 4)로 제한한다.
+- STT·번역은 1회 + 재시도 2회. 비용 한도 초과는 재시도하지 않는다. 같은 메시지 작업은 순서대로 실행하고, 번역 행은 조건부 UPDATE(`pending|failed → processing`)로 선점해 중복 처리를 막는다.
+- 단계별 시간은 `messages.timings`(decode·preprocess·stt·domain)와 `message_translations.timings`(translate·save), `latency_ms`에 기록한다.
 
-### 4-3. gpt-realtime-2 사용 방식
+### 4-3. gpt-realtime-2.1 사용 방식
 
 - 서버가 OpenAI Realtime API에 **WebSocket으로 서버 간 연결**한다. API 키는 서버에만 존재한다.
 - 번역 작업 1건(메시지 1개 × 대상 언어 1개)마다 세션을 열고 응답 완료 후 닫는다.
-- 세션 설정
-  - `instructions`: 역할(현장 통역사), 원문·대상 언어, 도메인 규칙(기존 PoC 프롬프트 문구 재사용), 현장 특화 처리에서 만든 용어 컨텍스트, "번역문만 말할 것"
-  - 출력: 음성 + 음성의 텍스트 전사 (`TRANSLATION_AUDIO=off`면 텍스트만)
-  - 추론 강도: 지연을 위해 낮은 단계 (`TRANSLATION_REASONING`, 기본 `low`)
-- 입력: 보정된 원문 텍스트를 대화 항목으로 넣고 응답 생성 요청
-- 결과: 출력 음성의 전사 텍스트를 **번역문**으로, 음성 청크를 **번역 음성**으로 저장
+- 프로토콜 (2026-10-12 OpenAI 공식 문서 확인, GA 인터페이스)
+  - 연결: `wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1`, 헤더는 `Authorization: Bearer`만 (`OpenAI-Beta` 헤더 없음)
+  - `session.update`: `session.type="realtime"`, `instructions`, `output_modalities`, `audio.input.turn_detection=null`, `audio.output.format={type:"audio/pcm", rate:24000}`, `audio.output.voice`(`TRANSLATION_VOICE`, 기본 `marin`), `reasoning.effort`(`TRANSLATION_REASONING`, 기본 `low`)
+  - 입력: `conversation.item.create`(role user, `input_text`) → `response.create`
+  - 수신: `response.output_audio.delta`(base64 PCM16 24kHz), `response.output_audio_transcript.delta/done`, (텍스트만이면 `response.output_text.*`), `response.done`(상태·`usage`), `error`
+- `output_modalities`는 `["audio"]`(음성 + 전사) 또는 `["text"]` 중 하나만 가능하다. 음성을 켜면 `["audio"]`로 요청하고 전사를 번역문으로 쓴다 (`TRANSLATION_AUDIO=off`면 `["text"]`).
+- `instructions`: 역할(현장 통역사), 원문·대상 언어, 도메인 규칙(기존 PoC 프롬프트 문구 재사용), 현장 특화 처리에서 만든 용어 컨텍스트·검증 문장, "번역문만 말할 것"
+- 입력 텍스트는 현장 특화 처리로 보정된 원문
 - 타임아웃 15초. 실패 시 최대 2회 재시도 후 해당 언어를 `failed`로 기록
-- 세부 이벤트 이름과 세션 파라미터는 구현 시점의 OpenAI 공식 문서로 확인한다
+- 모델: 2026-10-12 사용자 결정으로 `gpt-realtime-2` → `gpt-realtime-2.1` (같은 가격, 프로토콜 동일). `TRANSLATION_MODEL`로 되돌릴 수 있고 두 모델 모두 단가표에 있다.
 
 참고: Realtime 세션 연결 비용(수백 ms)이 지연에 포함된다. 측정 후 필요하면 언어별 세션 상시 유지를 추후 도입한다. Realtime 음성 출력 비용은 텍스트 모델보다 높으므로 사용량을 기록한다.
 
@@ -225,8 +231,11 @@ export interface RetentionPolicy {
   2. 호출 후 `commit(실제 usage)`: 토큰 사용량과 비용을 `openai_usage` 테이블에 기록
   3. 호출 실패 시 `release`
 - 한도: `OPENAI_BUDGET_USD=5`, 기간: `OPENAI_BUDGET_PERIOD=month`(매월 1일 UTC 초기화) 또는 `total`(누적).
-- 단가: `gpt-realtime-2`는 OpenAI 모델 페이지 기준(텍스트 입력 $4 / 출력 $24, 음성 입력 $32 / 출력 $64, 캐시 입력 $0.4, 1M 토큰당).
-  `gpt-4o-mini-transcribe`는 공식 단가 미확인으로 추정값. `OPENAI_PRICING_JSON`으로 덮어쓸 수 있다.
+- 단가: `gpt-realtime-2.1`(= `gpt-realtime-2`)은 OpenAI 모델 페이지 기준(텍스트 입력 $4 / 출력 $24, 음성 입력 $32 / 출력 $64, 캐시 입력 $0.4, 1M 토큰당).
+  `gpt-4o-mini-transcribe`는 음성 입력 $1.25 / 출력 $5 (2026-10-12 가격 페이지). 텍스트 프롬프트 단가는 미공개라 음성 입력과 같게 둔다. `OPENAI_PRICING_JSON`으로 덮어쓸 수 있다.
+- 호출 단위 래퍼: `engine/budget/metered.ts` (예상 사용량으로 예약 → 호출 → `usage`로 기록, 실패 시 예약 해제). OpenAI 엔진이 직접 사용한다.
+- 메시지 전송 시 남은 한도가 0이면 처리 전에 402로 거절한다.
+- 메시지 1건 비용 추정 (계산 근거: `server/src/engine/budget/pricing.ts` 주석): 1:1 음성 메시지(5초 발화) ≈ $0.008–0.01 → $5로 약 500–600건. 그룹·지시는 대상 언어 수만큼 곱한다. 음성 출력 토큰 비율은 추정이므로 실호출 후 `openai_usage`로 보정한다.
 - 단가표에 없는 모델을 설정하면 서버가 시작되지 않는다.
 - 예약은 서버 프로세스 메모리에 있으므로 서버 1대 기준이다.
 - 보조 수단으로 OpenAI 대시보드의 프로젝트 사용 한도 설정을 권장한다.
@@ -242,7 +251,12 @@ export interface RetentionPolicy {
 | `SUPABASE_URL` | 서버 | JWT 검증용 JWKS (Phase 2) |
 | `OPENAI_API_KEY` | 서버 | 사용자 직접 입력. 없으면 통역 기능만 비활성 |
 | `OPENAI_BUDGET_USD`, `OPENAI_BUDGET_PERIOD`, `OPENAI_PRICING_JSON` | 서버 | 비용 한도 |
-| `STT_MODEL`, `TRANSLATION_MODEL` | 서버 | 기본 `gpt-4o-mini-transcribe`, `gpt-realtime-2` |
+| `STT_MODEL`, `TRANSLATION_MODEL` | 서버 | 기본 `gpt-4o-mini-transcribe`, `gpt-realtime-2.1` |
 | `AUDIO_PREPROCESSOR`, `DATASET_ADAPTER`, `DATASET_PATH`, `RETENTION_POLICY`, `RETENTION_RUN_AT` | 서버 | 플러그인 선택 |
 
-Phase 4에서 `TRANSLATION_REASONING`, `TRANSLATION_AUDIO`, `TRANSLATION_CONCURRENCY`, `STORE_INPUT_AUDIO`를 추가한다.
+| `ENGINE` | 서버 | `openai`(기본) / `fake`(키 없이 개발·앱 연동 확인, 비용 없음) |
+| `TRANSLATION_AUDIO`, `TRANSLATION_CONCURRENCY`, `TRANSLATION_REASONING`, `TRANSLATION_VOICE` | 서버 | 번역 음성 on/off, 동시 세션 수(4), 추론 강도(low), 음성(marin) |
+| `STORAGE_DIR` | 서버 | 업로드·번역 음성 저장 위치 (기본 `./storage`, git 제외) |
+| `AUDIO_URL_SECRET` | 서버 | 음성 URL 서명 키 (비우면 시작마다 새로 생성) |
+
+입력 음성 원본은 재시도를 위해 `storage/uploads/`에 보관한다. 삭제 시점은 보존 정책 플러그인이 정한다.

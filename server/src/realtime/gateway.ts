@@ -121,11 +121,20 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
       reply(ack, { ok: true });
     });
 
-    // 단말 수신 확인. 메시지 테이블은 Phase 4에서 생기므로 지금은 형식만 검증한다.
+    // 단말 수신 확인: 본인이 수신자인 행만 sent → delivered (멱등)
     socket.on("receipt:delivered", async (payload, ack) => {
       const parsed = receiptInput.safeParse(payload);
       if (!parsed.success) return reply(ack, { ok: false, code: "VALIDATION_ERROR" });
-      reply(ack, { ok: true, updated: 0 });
+      try {
+        const { count } = await prisma.messageRecipient.updateMany({
+          where: { userId, messageId: { in: parsed.data.messageIds }, status: "sent" },
+          data: { status: "delivered", deliveredAt: new Date() },
+        });
+        reply(ack, { ok: true, updated: count });
+      } catch (err) {
+        logger.warn({ err }, "수신 확인 반영 실패");
+        reply(ack, { ok: false, code: "INTERNAL_ERROR" });
+      }
     });
 
     socket.on("disconnect", () => {
@@ -146,6 +155,13 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
     },
     joinRequested({ siteId, userId, displayName, lang }) {
       emit(rooms.managers(siteId), "join:requested", { siteId, userId, displayName, lang });
+    },
+    // 메시지는 사람마다 언어가 달라 현장 방이 아니라 수신자 개인 방으로 보낸다.
+    messageNew({ userId, message }) {
+      emit(rooms.user(userId), "message:new", { message });
+    },
+    messageStatus({ userId, ...status }) {
+      emit(rooms.user(userId), "message:status", status);
     },
   };
 

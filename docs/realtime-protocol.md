@@ -37,7 +37,7 @@
 
 ack 타임아웃 5초. 실패하면 클라이언트는 재연결 후 다시 보낸다.
 ack 실패 코드: `NOT_FOUND`(활성 멤버 아님 — 현장 존재 여부 비노출), `VALIDATION_ERROR`(형식 오류).
-`receipt:delivered`는 Phase 3에서 형식만 검증하고 `{ok:true, updated:0}`을 돌려준다 (메시지 상태 반영은 Phase 4).
+`receipt:delivered`는 본인이 수신자이고 `sent`인 행만 `delivered`로 바꾸고 바뀐 수를 `updated`로 돌려준다 (Phase 4). 지시의 `instruction:recipient` 발행은 Phase 5.
 
 ### 서버 → 클라이언트
 
@@ -81,6 +81,13 @@ POST 메시지 → 202
 - `presence:changed`는 그 사용자가 활성 멤버인 모든 현장 방에 보내며, 같은 사용자의 두 번째 기기 연결·첫 번째 기기 종료는 상태 변화가 아니므로 보내지 않는다.
 - 웹(e2e·개발) 접속을 위해 CORS를 허용한다 (로컬 호스팅 전제).
 
-## 8. 확장
+## 8. 구현 메모 (Phase 4)
+
+- `message:new`·`message:status`는 현장 방이 아니라 `user:{id}` 방으로 보낸다 (수신자마다 언어가 달라 내용이 다르다). 현장 구독 없이도 받는다.
+- 번역이 언어별로 끝날 때마다 그 언어 수신자에게 `message:new`, 발신자에게 `message:status`. 처리 시작·실패·최종 상태에서도 `message:status`를 보낸다 (`recipients` 집계 포함).
+- 재시도 시에는 실패했던 수신자에게만 `message:new`가 간다 (이미 받은 사람은 중복 수신 없음).
+- `message:status.translations[].text`: 완료된 번역문, 같은 언어(`skipped`)는 원문.
+
+## 9. 확장
 
 - 서버 다중화 시 `@socket.io/redis-adapter` 도입. 현재 설계(사용자 방, 서버 측 방 참여)는 그대로 동작한다.

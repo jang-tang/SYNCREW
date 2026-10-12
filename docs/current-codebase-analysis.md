@@ -62,7 +62,7 @@ workplace-translation-mvp/
 | 8쪽 앱 화면 (다크 테마, 소음 억제, 3초 듣기) | 해당 UI 코드 없음 | UI 신규 제작 (결정) |
 | WebSocket 1:N / N:N | 서버 코드 없음 | 신규 구현 (결정) |
 | 딥러닝 노이즈 필터링 | 코드 없음 | 플러그인 인터페이스만 제공 (결정) |
-| GPT realtime 2.0 | `gpt-4.1-nano` 사용 | `gpt-realtime-2`로 교체 (결정) |
+| GPT realtime 2.0 | `gpt-4.1-nano` 사용 | `gpt-realtime-2`로 교체 (결정) → 2026-10-12 `gpt-realtime-2.1`로 변경 |
 
 ## 5. 재사용 판단
 

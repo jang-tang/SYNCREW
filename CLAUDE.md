@@ -12,7 +12,7 @@
 - 실행하지 않은 테스트를 통과했다고 보고하지 않는다. 결정이 바뀌면 `docs/`도 함께 고친다.
 - 응답은 한국어.
 
-## 현재 상태 (2026-10-11)
+## 현재 상태 (2026-10-12)
 
 | 단계 | 상태 | 커밋 |
 |---|---|---|
@@ -20,7 +20,7 @@
 | 프론트엔드 전체 화면 (데모 모드) | 완료 | `3fea4e7` |
 | Phase 2 인증·현장·멤버십 (서버) | 완료 | `c637a6b` |
 | Phase 3 실시간 (Socket.IO) | 완료 | `92e3620` |
-| **Phase 4 통역 파이프라인 + 1:1 대화** | **다음 차례 — 사용자 승인 후 착수** | — |
+| **Phase 4 통역 파이프라인 + 1:1 대화** | **구현 완료 (Fake 엔진 검증), 실제 OpenAI 확인·커밋 대기** | — |
 | Phase 5 그룹·일괄 지시 / Phase 6 안정화 | 대기 | — |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
@@ -28,7 +28,8 @@
 - 다음 Phase 4에서 할 일 중 Phase 3이 남긴 것: `receipt:delivered` 실제 반영, `GET /sync`의 대화·메시지 변경분.
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`). **미입력: OpenAI API 키** (`cd server && npm run setup:openai`).
-- 미검증 (환경 제약): Android 에뮬레이터·실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
+- Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
+- 미검증: 실제 OpenAI 호출(키 미입력, 나중에 진행), 실기기 실행, 앱 live 모드 ↔ 서버 실통신, 실제 Supabase 계정 토큰으로 API 호출(테스트 계정을 임의로 만들지 않음).
 
 ## 새 세션 시작 순서
 
@@ -42,7 +43,11 @@
 ## 이 PC 환경 (작업 전 알아 둘 것)
 
 - Docker·Postgres 미설치 → 로컬 DB는 `embedded-postgres`(`npm run db:start`, 포트 5433, 데이터 `server/.pgdata/`). 테스트는 매번 임시 Postgres(포트 54331)를 따로 띄운다.
-- Android SDK 미설치 → 앱 검증은 타입 검사 + `expo-doctor` + Android 번들 빌드 + **웹 빌드를 헤드리스 Chrome으로 자동 검증**(`frontend/e2e/`)으로 한다.
+- Android 에뮬레이터(`Pixel_9_Pro_XL`, SDK `~/Library/Android/sdk`)와 Xcode iOS 시뮬레이터 설치됨 (2026-10-12). 개발 빌드(`expo run:*`)로 실행한다. 명령은 `docs/phase4-report.md` 7절.
+  - **Android 빌드는 JDK 21** (`/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home`). 기본 JDK 26·Android Studio JDK 25는 CMake 단계에서 실패.
+  - **iOS는 한글 경로에서 `pod install` 실패** (hermes-engine.podspec 인코딩 오류) → 영문 경로 복사본에서 네이티브만 빌드하고 JS는 원래 폴더 Metro로 제공.
+  - 시뮬레이터 조작 도구가 없어 iOS는 화면 캡처만 가능. Android는 `adb shell input`으로 조작.
+  - 빠른 확인은 기존대로 타입 검사 + `expo-doctor` + 번들 빌드 + **웹 빌드 헤드리스 Chrome 자동 검증**(`frontend/e2e/`).
 - Node 22, npm. Chrome은 `/Applications/Google Chrome.app` (e2e가 사용).
 - 헤드리스 Chrome은 비밀번호 입력 뒤 실제 키 이벤트를 잃는 현상이 있다(앱 버그 아님). e2e는 글자를 IME 경로로 입력한다.
 
@@ -57,7 +62,7 @@
 | 데이터 저장 | 로컬 Postgres(`embedded-postgres`) + Prisma 7. Supabase에는 데이터 저장 안 함. 음성 파일은 서버 로컬 디스크 |
 | 호스팅 | 로컬 PC. 휴대폰은 같은 Wi-Fi로 접속 |
 | 언어 | ko, zh, vi, uz, ru |
-| 번역 모델 | `gpt-realtime-2` (서버→OpenAI Realtime WebSocket, 텍스트+음성 출력). STT는 `gpt-4o-mini-transcribe` 기본 |
+| 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 `gpt-4o-mini-transcribe` 기본 |
 | 비용 | OpenAI 한도 **$5/월**, BudgetGuard가 모든 호출을 감쌈. 키는 사용자가 `.env`에 직접 입력 |
 | 현장 특화 처리 | 로직만 구현, 데이터셋은 어댑터로 교체 (기존 저장소 데이터는 샘플). 제조업 데이터여도 무방 |
 | 노이즈 필터 / 보존 정책 | 다른 개발자가 구현 → 플러그인 인터페이스만 제공 (`server/src/plugins/`) |

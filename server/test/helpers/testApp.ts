@@ -4,7 +4,10 @@ import request from "supertest";
 import { inject } from "vitest";
 import { createApp } from "../../src/app";
 import { createJwtVerifier } from "../../src/auth/verifier";
-import { createContext } from "../../src/bootstrap";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createContext, type ContextOverrides } from "../../src/bootstrap";
 import { loadEnv } from "../../src/config/env";
 import type { AppContext, Limits } from "../../src/context";
 import type { DomainEvents } from "../../src/events/domainEvents";
@@ -35,18 +38,33 @@ export function recordEvents() {
   const events: DomainEvents = {
     membershipChanged: (payload) => log.push({ type: "membershipChanged", payload }),
     joinRequested: (payload) => log.push({ type: "joinRequested", payload }),
+    messageNew: (payload) => log.push({ type: "messageNew", payload }),
+    messageStatus: (payload) => log.push({ type: "messageStatus", payload }),
   };
   return { events, log };
 }
 
-export async function createTestApp(options: { limits?: Limits } = {}) {
-  const env = loadEnv({ NODE_ENV: "test", DATABASE_URL: inject("databaseUrl"), LOG_LEVEL: "silent" });
+export type TestAppOptions = Omit<ContextOverrides, "limits" | "verifier" | "events"> & { limits?: Partial<Limits> };
+
+export async function createTestApp(options: TestAppOptions = {}) {
+  const { limits, ...engine } = options;
+  const env = loadEnv({
+    NODE_ENV: "test",
+    DATABASE_URL: inject("databaseUrl"),
+    LOG_LEVEL: "silent",
+    // 테스트마다 임시 저장소 (업로드·번역 음성)
+    STORAGE_DIR: mkdtempSync(path.join(tmpdir(), "syncrew-test-storage-")),
+  });
   const issuer = await createTokenIssuer();
   const recorder = recordEvents();
   const context: AppContext = await createContext(env, createLogger("silent"), {
     verifier: issuer.verifier,
     events: recorder.events,
-    limits: options.limits ?? { joinPerMinute: 100 },
+    limits: { joinPerMinute: 100, messagesPerMinute: 1000, ...limits },
+    // 기본은 엔진 없음(=OpenAI 키 없음과 같음). 통역 테스트는 Fake 엔진을 넣는다.
+    stt: null,
+    translator: null,
+    ...engine,
   });
   const app = createApp(context);
 
@@ -65,7 +83,17 @@ export async function createTestApp(options: { limits?: Limits } = {}) {
     return api;
   };
 
-  return { app, context, issuer, events: recorder.log, user, close: () => context.prisma.$disconnect() };
+  return {
+    app,
+    context,
+    issuer,
+    events: recorder.log,
+    user,
+    close: async () => {
+      await context.pipeline.idle();
+      await context.prisma.$disconnect();
+    },
+  };
 }
 
 // ─── 실시간 (Socket.IO) ─────────────────────────────
@@ -79,8 +107,8 @@ import { REALTIME_NAMESPACE, type ClientToServerEvents, type ServerToClientEvent
 export type RtClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
 /** REST + Socket.IO 를 실제 포트(임의)로 띄운다 */
-export async function createRealtimeTestApp() {
-  const base = await createTestApp();
+export async function createRealtimeTestApp(options: TestAppOptions = {}) {
+  const base = await createTestApp(options);
   const server: HttpServer = createServer(base.app);
   const gateway = attachRealtime(server, base.context);
   base.context.events = gateway.events;

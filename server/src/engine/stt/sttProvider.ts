@@ -16,7 +16,7 @@ export type TranscribeOutput = {
   usage: UsageTokens;
 };
 
-/** STT 제공자 인터페이스. OpenAI 구현은 Phase 4. */
+/** STT 제공자 인터페이스. 구현: OpenAiStt, FakeStt(테스트·개발) */
 export interface SttProvider {
   readonly name: string;
   transcribe(input: TranscribeInput): Promise<TranscribeOutput>;

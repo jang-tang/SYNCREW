@@ -46,7 +46,7 @@
 | API 통합 | Vitest + supertest + 테스트용 임시 Postgres(embedded-postgres, 테스트마다 생성·삭제) | 현장·가입·멤버·대화·메시지·지시 API, DB 제약 |
 | 소켓 통합 | socket.io-client | 인증 거부, 구독 권한, 대상 외 노출 없음, 제외 시 차단, 재연결 동기화 |
 | 파이프라인 | `FakeTranslator`, `FakeStt` (지연·실패 주입) | 언어별 팬아웃, 부분 실패, 재시도, 재시작 복구 |
-| 외부 연동 (수동, 비용 발생) | 스크립트 | 실제 `gpt-realtime-2`·STT 호출로 5개 언어 샘플 번역, 지연 측정 |
+| 외부 연동 (수동, 비용 발생) | 스크립트 | 실제 `gpt-realtime-2.1`·STT 호출로 5개 언어 샘플 번역, 지연 측정 |
 | 모바일 | Jest + React Native Testing Library | 전송 대기열, 소켓 이벤트 → 캐시 반영 로직 |
 | 실기기 | 체크리스트 | Android 2대(관리자·구성원) + 블루투스 헤드셋 |
 

@@ -14,13 +14,13 @@ export type TranslateInput = {
 
 export type TranslateOutput = {
   text: string;
-  /** PCM16 24kHz mono 등 번역기 출력 음성 */
-  audio?: { data: Buffer; mime: string };
+  /** 번역 음성: PCM16 little-endian mono (Realtime 출력은 24kHz). 서버가 WAV로 감싸 저장한다. */
+  audio?: { data: Buffer; sampleRate: number };
   model: string;
   usage: UsageTokens;
 };
 
-/** 번역기 인터페이스. gpt-realtime-2 구현(RealtimeTranslator)은 Phase 4. */
+/** 번역기 인터페이스. 구현: RealtimeTranslator(gpt-realtime-2.1), FakeTranslator(테스트·개발) */
 export interface Translator {
   readonly name: string;
   translate(input: TranslateInput): Promise<TranslateOutput>;
