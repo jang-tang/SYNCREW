@@ -23,7 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: **B1·S0 ①·S1(서버 스트리밍 경로 + 같은 언어 직접 전달) 완료** (2026-10-13, **미커밋**). **다음: S2** | — |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: **B1·S0 ①·S1(서버 스트리밍 경로 + 같은 언어 직접 전달) 완료** (2026-10-13). **다음: S2** | `b1eb6d6` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -65,7 +65,7 @@
 ## 새 세션 시작 순서
 
 1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), **`docs/streaming-plan.md`(Phase 7 계획·결정)**, **`docs/s0-report.md`(S0 결과·다음 절차)**, `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
-2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (2026-10-13 B1·S0 ① 변경은 사용자가 커밋을 요청하기 전까지 미커밋 상태일 수 있다.)
+2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (B1·S0 ①·S1 은 `b1eb6d6` 로 커밋·푸시됨. 이후 변경은 사용자가 요청할 때 커밋)
 3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**181개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**17개**).
 4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. live e2e는 `ENGINE=fake` 서버로 비용 없이 다시 돌릴 수 있다 (`docs/operations.md` 6절).
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $0.5 누적 중 $0.2348 사용). 확인 스크립트: `cd server && npx tsx scripts/openai-check.ts` (1회 약 $0.05), 스트리밍 측정 `npx tsx scripts/stream-measure.ts --dry-run`으로 예상 비용 먼저 (턴당 약 $0.01).
