@@ -181,6 +181,23 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 - PK(session_id, user_id). INDEX(user_id).
 - `messages.session_id` (uuid NULL, FK live_sessions ON DELETE SET NULL, INDEX(session_id, seq)): 세션 중 발화. 기존 메시지는 NULL로 그대로 호환.
 
+### target_groups (B2, 2026-10-14)
+일괄 지시 작업조. 현장 단위로 관리자끼리 공유.
+
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| id | uuid | PK |
+| site_id | uuid | FK sites ON DELETE CASCADE |
+| name | text | UNIQUE(site_id, name), 앱·API 에서 1–30자 |
+| created_by | uuid | NOT NULL |
+| created_at / updated_at | timestamptz | |
+
+### target_group_members (B2)
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| group_id | uuid | PK(group_id, user_id), FK target_groups ON DELETE CASCADE |
+| user_id | uuid | INDEX. 현장에서 제외되면 멤버 관리 API 가 지운다 |
+
 ### openai_usage (Phase 1 구현 완료)
 OpenAI 호출 1건의 사용량과 추정 비용. 비용 한도의 기준 데이터.
 

@@ -11,16 +11,27 @@ export type Candidate = {
   device: { audioRoute: "bluetooth" | "wired" | "builtin" | "unknown" } | null;
 };
 
-export type QuickGroup = { key: string; kind: "last" | "online" | "headset" | "lang"; lang?: Lang; userIds: string[] };
+export type QuickGroup = {
+  key: string;
+  kind: "last" | "group" | "online" | "headset" | "lang";
+  lang?: Lang;
+  /** 작업조 (kind group) */
+  groupId?: string;
+  name?: string;
+  userIds: string[];
+};
+
+/** 저장된 작업조 (B2) — 서버 TargetGroup 중 필요한 것 */
+export type SavedGroup = { id: string; name: string; userIds: string[] };
 
 /** 접속 중이고 이어폰(블루투스·유선)으로 확인된 사람 */
 export const hasHeadset = (c: Candidate) => c.online && (c.device?.audioRoute === "bluetooth" || c.device?.audioRoute === "wired");
 
 /**
- * 빠른 선택 묶음: 지난번 대상 → 접속 중 → 이어폰 연결됨 → 언어별 (인원 많은 순).
- * 지난번 대상은 지금 후보에 남아 있는 사람만 (그 사이 제외된 사람은 자동으로 빠짐). 빈 묶음은 만들지 않는다.
+ * 빠른 선택 묶음: 지난번 대상 → 작업조(이름순) → 접속 중 → 이어폰 연결됨 → 언어별 (인원 많은 순).
+ * 지난번 대상·작업조는 지금 후보에 남아 있는 사람만 (그 사이 제외된 사람은 자동으로 빠짐). 빈 묶음은 만들지 않는다.
  */
-export function quickGroups(candidates: Candidate[], lastUserIds: readonly string[] | null): QuickGroup[] {
+export function quickGroups(candidates: Candidate[], lastUserIds: readonly string[] | null, saved: readonly SavedGroup[] = []): QuickGroup[] {
   const groups: QuickGroup[] = [];
   const ids = (list: Candidate[]) => list.map((c) => c.userId);
   if (lastUserIds) {
@@ -28,6 +39,13 @@ export function quickGroups(candidates: Candidate[], lastUserIds: readonly strin
     const last = candidates.filter((c) => alive.has(c.userId));
     if (last.length > 0) groups.push({ key: "last", kind: "last", userIds: ids(last) });
   }
+  const present = new Set(ids(candidates));
+  [...saved]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((g) => {
+      const userIds = g.userIds.filter((id) => present.has(id));
+      if (userIds.length > 0) groups.push({ key: `group:${g.id}`, kind: "group", groupId: g.id, name: g.name, userIds });
+    });
   const online = candidates.filter((c) => c.online);
   if (online.length > 0) groups.push({ key: "online", kind: "online", userIds: ids(online) });
   const headset = candidates.filter(hasHeadset);

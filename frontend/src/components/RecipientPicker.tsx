@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DeviceChip, InfoNotice } from "@/components/live/LiveParts";
@@ -6,7 +7,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Card, Divider, SectionTitle } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import { TextField } from "@/components/ui/TextField";
-import { useMe, useMembers } from "@/hooks/queries";
+import { useMe, useMembers, useSaveTargetGroup, useTargetGroups } from "@/hooks/queries";
+import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
 import { nativeNameOf } from "@/lib/format";
 import {
@@ -21,14 +23,17 @@ import {
   type QuickGroup,
 } from "@/lib/recipients";
 import { secureStorage } from "@/lib/storage";
+import { toast } from "@/stores/toast";
 import { colors, font, radius, spacing } from "@/theme";
 
 // 일괄 지시 대상 선택 (문자 지시·실시간 지시 화면 공통).
 // 서버로는 지금처럼 "all" 또는 { userIds }만 보낸다. 지난 선택은 단말에만 저장한다.
+// 작업조(B2): 현장 관리자끼리 공유하는 저장 묶음 — 칩으로 고르고, 지금 선택을 작업조로 저장(같은 이름이면 확인 후 덮어쓰기).
 
 export function useRecipientPicker(siteId: string) {
   const me = useMe();
   const members = useMembers(siteId);
+  const saved = useTargetGroups(siteId);
   const [mode, setMode] = useState<"all" | "select">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -53,10 +58,12 @@ export function useRecipientPicker(siteId: string) {
   );
   const targets = mode === "all" ? candidates : candidates.filter((m) => selected.has(m.userId));
   const summary = useMemo(() => summarize(targets), [targets]);
-  const groups = useMemo(() => quickGroups(candidates, last), [candidates, last]);
+  const groups = useMemo(() => quickGroups(candidates, last, saved.data ?? []), [candidates, last, saved.data]);
   const visible = useMemo(() => filterByName(candidates, query), [candidates, query]);
 
   return {
+    siteId,
+    savedGroups: saved.data ?? [],
     mode,
     setMode,
     selected,
@@ -103,6 +110,7 @@ export function RecipientPicker({ picker }: { picker: RecipientPickerState }) {
     if (group.kind === "last") return t("recip.last", { n });
     if (group.kind === "online") return t("recip.online", { n });
     if (group.kind === "headset") return t("recip.headset", { n });
+    if (group.kind === "group") return `${group.name} · ${n}`;
     return `${nativeNameOf(group.lang!)} · ${n}`;
   };
 
@@ -134,6 +142,7 @@ export function RecipientPicker({ picker }: { picker: RecipientPickerState }) {
                 style={[styles.chip, active && styles.chipActive]}
               >
                 {group.kind === "last" && <Ionicons name="time-outline" size={14} color={active ? colors.onBrand : colors.inkSoft} />}
+                {group.kind === "group" && <Ionicons name="people-outline" size={14} color={active ? colors.onBrand : colors.inkSoft} />}
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>{groupLabel(group)}</Text>
               </Pressable>
             );
@@ -151,6 +160,7 @@ export function RecipientPicker({ picker }: { picker: RecipientPickerState }) {
           </View>
         </>
       )}
+      {mode === "select" && <SaveGroup picker={picker} />}
 
       <Card padded={false}>
         {visible.map((member, index) => {
@@ -220,9 +230,57 @@ export function RecipientSummary({ picker }: { picker: RecipientPickerState }) {
   );
 }
 
-function BulkButton({ label, onPress }: { label: string; onPress: () => void }) {
+/** 지금 선택을 작업조로 저장 (같은 이름이 있으면 확인 후 그 작업조를 지금 선택으로 바꾼다) + 작업조 관리 화면 */
+function SaveGroup({ picker }: { picker: RecipientPickerState }) {
+  const { t } = useT();
+  const errorMessage = useErrorMessage();
+  const save = useSaveTargetGroup(picker.siteId);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const userIds = picker.targets.map((m) => m.userId);
+  const trimmed = name.trim();
+  const existing = picker.savedGroups.find((g) => g.name === trimmed);
+
+  const submit = () =>
+    save.mutate(existing ? { id: existing.id, userIds } : { name: trimmed, userIds }, {
+      onSuccess: () => {
+        toast(t(existing ? "groups.updated" : "groups.saved", { name: trimmed }), "success");
+        setOpen(false);
+        setName("");
+      },
+      onError: (error) => toast(errorMessage(error), "error"),
+    });
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.bulk, pressed && { backgroundColor: colors.surfaceAlt }]}>
+    <View style={{ gap: spacing.sm }}>
+      <View style={styles.bulkRow}>
+        {!open && userIds.length > 0 && <BulkButton label={t("groups.saveCurrent")} onPress={() => setOpen(true)} />}
+        <BulkButton label={t("groups.manage")} onPress={() => router.push("/site/target-groups")} />
+      </View>
+      {open && (
+        <View style={styles.saveBox}>
+          <TextField value={name} onChangeText={setName} placeholder={t("groups.namePlaceholder")} maxLength={30} autoCorrect={false} />
+          {existing && <Text style={styles.warn}>{t("groups.overwrite", { name: trimmed, n: userIds.length })}</Text>}
+          <View style={styles.bulkRow}>
+            <BulkButton label={t(existing ? "groups.overwriteConfirm" : "groups.saveConfirm", { n: userIds.length })} onPress={submit} disabled={!trimmed || save.isPending} />
+            <BulkButton label={t("common.cancel")} onPress={() => setOpen(false)} />
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function BulkButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [styles.bulk, pressed && { backgroundColor: colors.surfaceAlt }, disabled && { opacity: 0.4 }]}
+    >
       <Text style={styles.bulkText}>{label}</Text>
     </Pressable>
   );
@@ -248,6 +306,8 @@ const styles = StyleSheet.create({
   bulkRow: { flexDirection: "row", gap: spacing.sm },
   bulk: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
   bulkText: { ...font.caption, fontWeight: "700", color: colors.ink },
+  saveBox: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
+  warn: { ...font.caption, color: colors.warning, fontWeight: "700" },
   pick: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg, minHeight: 68 },
   sub: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   lang: { ...font.caption, color: colors.muted },

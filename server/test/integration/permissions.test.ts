@@ -132,6 +132,19 @@ const CASES: Case[] = [
     call: (as) => as("get", `/instructions/${world.instructionId}`),
     expect: { none: 401, outsider: 404, pending: 404, removed: 404, member: 404, manager: 200 },
   },
+  // B2 작업조: 관리자만 (구성원 403). 관리자 대조군은 잘못된 입력 400 / 없는 작업조 404 (데이터를 바꾸지 않게)
+  { name: "GET /sites/:id/target-groups", call: (as) => as("get", `/sites/${site()}/target-groups`), expect: { ...BLOCKED, member: 403, manager: 200 } },
+  { name: "POST /sites/:id/target-groups", call: (as) => as("post", `/sites/${site()}/target-groups`).send({ name: "" }), expect: { ...BLOCKED, member: 403, manager: 400 } },
+  {
+    name: "PATCH /sites/:id/target-groups/:gid",
+    call: (as) => as("patch", `/sites/${site()}/target-groups/${randomUUID()}`).send({ name: "철근조" }),
+    expect: { ...BLOCKED, member: 403, manager: 404 },
+  },
+  {
+    name: "DELETE /sites/:id/target-groups/:gid",
+    call: (as) => as("delete", `/sites/${site()}/target-groups/${randomUUID()}`),
+    expect: { ...BLOCKED, member: 403, manager: 404 },
+  },
   { name: "GET /sites/:id/inbox", call: (as) => as("get", `/sites/${site()}/inbox`), expect: { ...BLOCKED, member: 200, manager: 200 } },
   // 받은 사람만 응답할 수 있다: 제외자는 지시를 받았지만 제외 후에는 404
   {

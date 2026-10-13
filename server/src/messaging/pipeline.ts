@@ -117,15 +117,17 @@ export class MessagePipeline {
    * (docs/database-design.md 4절) 다시 처리할 메시지 수를 돌려준다.
    * 서버 시작 직후에는 이 프로세스에서 처리 중인 것이 없으므로 staleMs=0 으로 부른다.
    */
-  async recover(options: { staleMs?: number } = {}): Promise<number> {
+  async recover(options: { staleMs?: number; siteIds?: string[] } = {}): Promise<number> {
     const { prisma } = this.ctx;
     const staleBefore = new Date(Date.now() - (options.staleMs ?? this.options.staleMs));
+    // siteIds 는 테스트용 범위 제한 (서버 시작 때는 전체)
+    const site = options.siteIds ? { siteId: { in: options.siteIds } } : {};
     await prisma.messageTranslation.updateMany({
-      where: { status: "processing", updatedAt: { lt: staleBefore } },
+      where: { status: "processing", updatedAt: { lt: staleBefore }, ...(options.siteIds ? { message: site } : {}) },
       data: { status: "pending" },
     });
     const stuck = await prisma.message.findMany({
-      where: { status: { in: ["queued", "processing"] }, updatedAt: { lt: staleBefore } },
+      where: { status: { in: ["queued", "processing"] }, updatedAt: { lt: staleBefore }, ...site },
       select: { id: true },
       orderBy: { seq: "asc" },
     });

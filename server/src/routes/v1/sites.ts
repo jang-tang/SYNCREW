@@ -162,6 +162,8 @@ export function sitesRouter(context: AppContext): Router {
         where: { userId: targetId, leftAt: null, conversation: { siteId } },
         data: { leftAt: now },
       });
+      // 이 현장의 작업조에서도 뺀다 (B2)
+      await tx.targetGroupMember.deleteMany({ where: { userId: targetId, group: { siteId } } });
       return { role: target.role as SiteRole, status: "removed" } as const;
     });
 

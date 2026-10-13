@@ -14,6 +14,7 @@ export const qk = {
   sites: ["sites"] as const,
   members: (siteId: string) => ["members", siteId] as const,
   codes: (siteId: string) => ["codes", siteId] as const,
+  targetGroups: (siteId: string) => ["targetGroups", siteId] as const,
   conversations: (siteId: string) => ["conversations", siteId] as const,
   messages: (conversationId: string) => ["messages", conversationId] as const,
   instructions: (siteId: string) => ["instructions", siteId] as const,
@@ -92,6 +93,31 @@ export function useCreateJoinCode(siteId: string) {
   return useMutation({
     mutationFn: () => api.createJoinCode(siteId, { expiresInHours: 24 * 7 }),
     onSuccess: () => client.invalidateQueries({ queryKey: qk.codes(siteId) }),
+  });
+}
+
+// ─── 작업조 (B2) ───
+
+export const useTargetGroups = (siteId: string, enabled = true) =>
+  useQuery({ queryKey: qk.targetGroups(siteId), queryFn: () => api.listTargetGroups(siteId), enabled: !!siteId && enabled });
+
+/** 저장: id 가 있으면 수정(이름·구성원), 없으면 새로 만들기 */
+export function useSaveTargetGroup(siteId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id?: string; name?: string; userIds?: string[] }) =>
+      input.id
+        ? api.updateTargetGroup(siteId, input.id, { ...(input.name !== undefined ? { name: input.name } : {}), ...(input.userIds ? { userIds: input.userIds } : {}) })
+        : api.createTargetGroup(siteId, { name: input.name ?? "", userIds: input.userIds ?? [] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.targetGroups(siteId) }),
+  });
+}
+
+export function useDeleteTargetGroup(siteId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string) => api.deleteTargetGroup(siteId, groupId),
+    onSuccess: () => client.invalidateQueries({ queryKey: qk.targetGroups(siteId) }),
   });
 }
 

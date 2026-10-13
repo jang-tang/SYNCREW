@@ -69,13 +69,14 @@ cd frontend && CI=1 npx expo start --dev-client --port 8081   # 앱 JS 제공 (�
 
 | 명령 | 확인하는 것 | 비용 |
 |---|---|---|
-| `cd server && npm run typecheck && npm test` | 서버 테스트 182개 (실제 Postgres + Socket.IO, 가짜 엔진. 스트리밍 25 포함) | 0 |
+| `cd server && npm run typecheck && npm test` | 서버 테스트 192개 (실제 Postgres + Socket.IO, 가짜 엔진. 스트리밍 25·작업조 8·시작 시 정리 1 포함) | 0 |
 | `cd server && npx tsx scripts/openai-check.ts [--targets vi,zh,uz,ru] [--reuse]` | **실제 OpenAI** 5개 언어 왕복: 한국어 음성(macOS say) → STT → 4개 언어 번역(음성) → 그 음성 STT → 한국어 번역. 단계별 지연·비용 출력. `--reuse`는 지난번 번역 음성을 다시 써서 번역 호출을 건너뜀. 실행 전 `npm run db:start` | 1회 약 $0.05–0.06 (한도 안에서만 실행) |
-| `cd frontend && npm run typecheck && npm run doctor && npm run test:unit` | 앱 타입·Expo 설정·단위 테스트 17개 (발화 감지 VAD 11 + 일괄 지시 대상 선택 6) | 0 |
-| `cd frontend && npm run bundle:web && npm run e2e` | 데모 모드 사용 흐름 75개 (헤드리스 Chrome, 일괄 지시 대상 선택 포함) | 0 |
+| `cd frontend && npm run typecheck && npm run doctor && npm run test:unit` | 앱 타입·Expo 설정·단위 테스트 18개 (발화 감지 VAD 11 + 일괄 지시 대상 선택·작업조 7) | 0 |
+| `cd frontend && npm run bundle:web && npm run e2e` | 데모 모드 사용 흐름 96개 (헤드리스 Chrome, 일괄 지시 대상 선택·작업조 포함) | 0 |
 | `cd frontend && npm run bundle:web && npm run e2e:mic` | 실제 말소리(가짜 마이크 + 음성 파일)로 핸즈프리 자동 전송 + 무음 대조군 | 0 |
-| `cd frontend && npm run bundle:web:live && npm run e2e:live` | **live 모드** 앱 ↔ 실제 서버 ↔ 실제 Supabase 계정: 로그인 → 현장 생성 → 코드 참여 → 승인 → 1:1 대화 → 통화(실제 녹음) → 실시간 지시 → 문자 지시. 준비: 테스트 계정(2026-10-12 생성됨, `server/.e2e-accounts.json`. 없으면 `cd server && npx tsx scripts/e2e-accounts.ts` — 사용자 허락 필요), `ENGINE=fake npm run dev`. **35개** (1:1 통화는 스트리밍: 방식 표시·번역 도착·자막·중복 재생 0, 대조군 포함). 옵션: `E2E_STREAMING=off`(서버를 `STREAMING=off` 로 띄웠을 때 폴백 확인, 33개), `E2E_ONLY_CALL=1`(통화만, 실제 OpenAI 확인용, 21개) | 0 (가짜 엔진). 실제 OpenAI 서버면 통화만 약 $0.02–0.05 (승인 후) |
+| `cd frontend && npm run bundle:web:live && npm run e2e:live` | **live 모드** 앱 ↔ 실제 서버 ↔ 실제 Supabase 계정: 로그인 → 현장 생성 → 코드 참여 → 승인 → 1:1 대화 → 통화(실제 녹음) → 실시간 지시 → 문자 지시. 준비: 테스트 계정(2026-10-12 생성됨, `server/.e2e-accounts.json`. 없으면 `cd server && npx tsx scripts/e2e-accounts.ts` — 사용자 허락 필요), `ENGINE=fake npm run dev`. **37개** (1:1 통화는 스트리밍: 방식 표시·번역 도착·자막·중복 재생 0, 대조군 포함). 옵션: `E2E_STREAMING=off`(서버를 `STREAMING=off` 로 띄웠을 때 폴백 확인, 33개), `E2E_ONLY_CALL=1`(통화만), `E2E_REAL=1`(서버가 실제 OpenAI 일 때: 양쪽 1턴씩 받으면 바로 끊음, 서버는 `OPENAI_BUDGET_USD=<누적+여유>` 로 상한) | 0 (가짜 엔진). 실제 OpenAI 서버면 통화만 약 $0.02–0.05 (승인 후) |
 | `cd server && npx tsx scripts/stream-measure.ts [--dry-run] [--max-usd 0.2] [--only S1,S2]` | Phase 7 S0 ①: **실제 OpenAI Realtime 스트리밍** 측정 — 미리 만든 음성을 실시간 속도로 흘려 말 끝 → 첫 번역 음성 조각 시간, server_vad vs semantic_vad, 입력 토큰/초, 컨텍스트 증가, 질문 함정 문장. `--dry-run`은 음성 준비·계획·예상 비용만. 실행 전 `npm run db:start` | 전체 16턴 실측 약 $0.16 (턴당 약 $0.01, 상한 `--max-usd`, 기본 $0.2) — 승인 후. 결과 `server/stream-measure-output/`(git 제외), 보고 `docs/s0-report.md`. `--only S2b`는 semantic_vad 재측정용 |
+| `cd server && npx tsx scripts/translate-compare.ts [--dry-run] [--max-usd 0.06]` | 번역 전용 모델 `gpt-realtime-translate` 측정 (S0 와 같은 문장, 지연·번역문·받아쓰기). 결과 `server/translate-compare-output/`(git 제외), 보고 `docs/s0-report.md` 4절 | 1회 약 $0.04–0.05 (승인 후) |
 | `cd frontend && npm run e2e:latency [횟수]` | 서버 경로 지연: 관리자 음성 메시지 → 서버 → 구성원 실시간 수신 (live e2e로 두 계정이 같은 현장에 있어야 함) | `ENGINE=openai`면 1회 약 $0.006 (승인 후), fake면 0 |
 
 - 웹 빌드 두 개(`dist-check` 데모, `dist-live` live)는 Metro 캐시가 설정을 섞으므로 `--clear`로 만든다 (package.json에 반영됨).

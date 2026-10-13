@@ -61,6 +61,7 @@ model Site {
   conversations Conversation[]
   messages      Message[]
   liveSessions  LiveSession[]
+  targetGroups  TargetGroup[]
 
   @@map("sites")
 }
@@ -279,4 +280,32 @@ model LiveSessionParticipant {
   @@id([sessionId, userId])
   @@index([userId])
   @@map("live_session_participants")
+}
+
+/// 일괄 지시 작업조 (B2, docs/streaming-plan.md 8-1절): 자주 쓰는 지시 대상 묶음. 현장 단위로 관리자끼리 공유
+model TargetGroup {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  siteId    String   @map("site_id") @db.Uuid
+  name      String
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  site    Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  members TargetGroupMember[]
+
+  @@unique([siteId, name])
+  @@map("target_groups")
+}
+
+/// 작업조 구성원. 현장에서 제외되면 지운다 (멤버 관리 API)
+model TargetGroupMember {
+  groupId String @map("group_id") @db.Uuid
+  userId  String @map("user_id") @db.Uuid
+
+  group TargetGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+  @@map("target_group_members")
 }

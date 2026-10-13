@@ -226,6 +226,22 @@
 - 실제 OpenAI 확인 2회($0.0253): 스트리밍 통화 동작, **앱이 조각을 버리던 버그(volatile emit) 발견·수정** → 빠진 조각 0, 문장 전체 통역. 누적 $0.2602
 - **다음: S3 네이티브 오디오** (iOS·Android, 1순위 react-native-audio-api 1.0 nightly — 실기기 필요)
 
+### B2 작업조 저장 — 완료 (2026-10-14, DB 변경: 사용자 "모두 마무리" 지시로 승인)
+
+- DB: `target_groups`(현장·이름 유일)·`target_group_members` (마이그레이션 `20261013160349_b2_target_groups`, 기존 표 변경 없음)
+- API (관리자만): `GET/POST /sites/:siteId/target-groups`, `PATCH/DELETE /sites/:siteId/target-groups/:groupId` — [api-specification.md](api-specification.md) 12절. 다른 현장 사용자·가입 대기자 넣기 400, 같은 이름 409, 다른 현장 작업조 id 404, 현장당 50개. 구성원이 현장에서 제외되면 작업조에서도 빠진다
+- 앱: 대상 선택에 작업조 칩(지난번 다음, 이름순), "작업조로 저장"(같은 이름이면 확인 문구 후 그 작업조를 지금 선택으로 덮어쓰기 = 구성원 수정), 작업조 관리 화면(`site/target-groups`: 이름 바꾸기·삭제, 두 단계 확인). 데모 모드에 예시 작업조 1개. 5개 언어 문구
+- 검증: 서버 작업조 테스트 4 + 권한 매트릭스 4줄(서버 192), 단위 +1(18), 데모 e2e +21(96), live e2e +2(37, 실제 서버로 저장·칩)
+
+### 안정화 (2026-10-14)
+
+- 서버 시작 시 정리를 `src/startup.ts` 로 분리하고 자동 테스트 추가 (열린 세션 connection_lost·끝난 세션 유지·범위 밖 대조군·멈춘 메시지 재처리·두 번 불러도 안전)
+- 업로드 음성 형식 허용 목록 (`http/upload.ts`: audio/mp4·m4a·aac·webm(코덱 표기 허용)·ogg·wav·mpeg·3gpp, 그 밖 400) + 테스트
+- **알림(토스트) 사라짐 버그 수정**: 앞 알림이 사라지는 동안 새 알림이 오면 새 알림까지 지워지던 문제 (작업조 e2e 에서 발견, `stores/toast.ts`·`ToastHost.tsx`)
+- iOS 시작 화면 로고 "Sync" 어둡게 보임: **재현 안 됨** (2026-10-14 iPhone 17 Pro 시뮬레이터, 기존 개발 빌드 + 현재 JS — 흰색 정상). 원인은 확정하지 못함
+- Expo 패치 업데이트 4개 (expo 57.0.28, expo-crypto 57.0.4, expo-router 57.0.26, expo-splash-screen 57.0.10): `expo install --fix` 후 `expo-modules-core` 가 하위 폴더로 들어가 타입이 깨져 의존성을 새로 설치(잠금 파일 재생성). doctor 21/21, Android 번들·전체 e2e 통과. **iOS·Android 네이티브 개발 빌드는 다시 하지 않음**(다음 실기기 빌드 때 새 버전으로)
+- 실제 청구액 대조: 서버 기록(UTC 날짜별) 10-12 $0.0697, 10-13 $0.1905, 누적 $0.2602 (+ S0 미기록 약 $0.005). OpenAI 대시보드 값은 사용자 확인 필요
+
 ## 2. 다른 개발자 연결 지점
 
 | 담당 | 연결 지점 | 계약 |

@@ -126,3 +126,17 @@
 - 참여자가 아니거나 현장 활성 멤버가 아니면 세션 경로는 모두 404 (존재 비노출).
 - 종료 사유(`endReason`): `hangup` `declined` `missed`(울림 30초) `cancelled` `connection_lost`(연결 끊김 20초) `removed`(현장에서 제외).
 - 메시지 전송·발화·지시 작성은 사용자당 1분 30회 한도를 함께 쓴다.
+
+## 12. 일괄 지시 작업조 (B2, 2026-10-14)
+
+자주 쓰는 지시 대상 묶음. 현장 단위로 관리자끼리 공유한다. 지시는 지금처럼 `{target: {userIds}}` 로 보낸다(작업조 id 로 보내지 않음).
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| GET | `/sites/:siteId/target-groups` | 관리자 | 이름순 `TargetGroup[]` (`{id, name, userIds, createdBy, updatedAt}`, userIds 는 지금 활성 멤버만) |
+| POST | `/sites/:siteId/target-groups` | 관리자 | `{name(1–30자), userIds(1–200)}` → 201. 같은 이름 409, 현장 활성 멤버가 아닌 사람 400, 현장당 50개 초과 409 |
+| PATCH | `/sites/:siteId/target-groups/:groupId` | 관리자 | `{name?, userIds?}` (하나 이상) → 200. userIds 는 통째로 바꾼다. 다른 현장 작업조 404 |
+| DELETE | `/sites/:siteId/target-groups/:groupId` | 관리자 | 204 |
+
+- 구성원 403, 비멤버·가입 대기·제외된 사람 404 (권한 매트릭스 `server/test/integration/permissions.test.ts`)
+- 구성원이 현장에서 제외되면 그 현장 작업조에서 빠진다

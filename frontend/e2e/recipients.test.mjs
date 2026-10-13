@@ -65,3 +65,16 @@ test("저장된 지난 선택 읽기: 형식이 깨졌으면 무시", () => {
   assert.equal(parseLastTargets("{"), null);
   assert.equal(parseLastTargets('[1,2]'), null);
 });
+
+test("작업조(B2): 지난번 다음에 이름순, 후보에 없는 사람은 빠지고 비면 칩을 만들지 않는다", () => {
+  const saved = [
+    { id: "g2", name: "철근조", userIds: ["kim", "gone"] },
+    { id: "g1", name: "2층 작업조", userIds: ["nguyen", "li"] },
+    { id: "g3", name: "빈 조", userIds: ["gone"] },
+  ];
+  const groups = quickGroups(people, ["ivan"], saved);
+  assert.deepEqual(groups.slice(0, 3).map((g) => g.key), ["last", "group:g1", "group:g2"]);
+  assert.deepEqual(groups.find((g) => g.key === "group:g2").userIds, ["kim"]);
+  assert.equal(groups.some((g) => g.key === "group:g3"), false);
+  assert.equal(groups.find((g) => g.key === "group:g1").name, "2층 작업조");
+});

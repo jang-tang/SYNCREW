@@ -22,6 +22,8 @@ import type {
   SendUtteranceInput,
   SessionMode,
   SiteInput,
+  TargetGroup,
+  TargetGroupInput,
 } from "@shared/api";
 import type { ServerEventName, ServerToClientEvents, StreamFormat, StreamOpenResult } from "@shared/realtime";
 import type { AuthUser, ConnectionState } from "@/stores/session";
@@ -92,6 +94,12 @@ export interface ApiService {
   /** 말이 끝날 때마다 문장 단위 음성을 보낸다 */
   sendUtterance(sessionId: string, input: SendUtteranceInput): Promise<SendResult>;
   listSessionMessages(sessionId: string): Promise<MessageView[]>;
+
+  // 일괄 지시 작업조 (B2, 관리자만)
+  listTargetGroups(siteId: string): Promise<TargetGroup[]>;
+  createTargetGroup(siteId: string, input: TargetGroupInput): Promise<TargetGroup>;
+  updateTargetGroup(siteId: string, groupId: string, input: Partial<TargetGroupInput>): Promise<TargetGroup>;
+  deleteTargetGroup(siteId: string, groupId: string): Promise<void>;
 }
 
 export interface RealtimeService {

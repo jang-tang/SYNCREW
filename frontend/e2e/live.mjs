@@ -313,6 +313,12 @@ try {
   await manager.check("관리자: 접속 중 칩(실제 접속 상태)", "접속 중 · 1");
   await manager.tap("접속 중 · 1");
   await manager.check("관리자: 보내기 전 요약", "1명 · 1개 언어 · 연결 1명");
+  // 작업조(B2): 실제 서버 API 로 저장 → 칩으로 다시 고르기
+  await manager.tap("작업조로 저장");
+  await manager.type(1, "E2E 작업조");
+  await manager.tap("1명 저장");
+  await manager.check("관리자: 작업조 저장(실제 서버)", "'E2E 작업조' 작업조를 저장했어요", 10000);
+  await manager.check("관리자: 작업조 칩", "E2E 작업조 · 1", 10000);
   await manager.tap("1명에게 보내기");
   await manager.check("관리자: 전송", "지시를 보냈어요", 10000);
   await member.go("/site/instructions");

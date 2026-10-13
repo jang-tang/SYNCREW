@@ -200,6 +200,60 @@ await expectCount("선택 안 한 사람은 받는 사람에 없음(李伟)", aw
 await expectCount("선택 안 한 사람은 받는 사람에 없음(Aziz)", await visibleCount("Aziz Karimov"), 0);
 await page.screenshot({ path: path.join(outDir, "flow-3-1-targets.png") });
 
+console.log("3-2) 관리자: 작업조 저장(B2) — 칩 선택·저장·덮어쓰기·작업조로 지시·이름 바꾸기·삭제");
+await page.goto(base + "/site/instruction/new", { waitUntil: "networkidle0" });
+await check("저장된 작업조 칩(데모)", "1층 작업조 · 2");
+await tap("1층 작업조 · 2");
+await check("작업조 칩 → 그 사람들 선택", "2명에게 보내기");
+await tap("Иван Петров");
+await check("한 명 더 고름", "3명에게 보내기");
+await tap("작업조로 저장");
+await typeInto(1, "철근조");
+await tap("3명 저장");
+await check("작업조 저장 알림", "'철근조' 작업조를 저장했어요");
+await check("새 작업조 칩", "철근조 · 3");
+await tap("선택 해제");
+await check("선택 해제", "0명에게 보내기");
+await tap("철근조 · 3");
+await check("새 작업조 칩으로 선택", "3명에게 보내기");
+// 같은 이름으로 저장 = 구성원 바꾸기 (확인 문구 후 덮어쓰기)
+await tap("Иван Петров");
+await tap("작업조로 저장");
+await typeInto(1, "철근조");
+await check("같은 이름 경고", "같은 이름의 작업조가 있어요");
+await tap("2명으로 바꾸기");
+await check("덮어쓰기 알림", "'철근조' 작업조를 바꿨어요");
+await check("작업조 인원 갱신", "철근조 · 2");
+await tap("선택 해제");
+await tap("철근조 · 2");
+await typeInto(1, "철근 반입을 시작하세요.");
+await tap("2명에게 보내기");
+await check("작업조로 지시 전송", "0/2명 확인");
+await tap("철근 반입을 시작하세요.");
+await check("받는 사람: 작업조 구성원(Nguyễn)", "Nguyễn Văn An");
+await check("받는 사람: 작업조 구성원(李伟)", "李伟");
+await expectCount("작업조에서 뺀 사람은 받지 않음(Иван)", await visibleCount("Иван Петров"), 0);
+await page.goBack();
+await wait(800);
+// 관리 화면 (새로 고치면 데모 데이터가 초기화되므로 앱 안에서 이동)
+await tap("문자로 지시하기");
+await tap("직접 선택");
+await tap("작업조 관리");
+await check("작업조 관리 화면", "현장 관리자끼리 함께 써요");
+await check("목록: 데모 작업조", "1층 작업조");
+await check("목록: 저장한 작업조", "철근조");
+await tap("이름 바꾸기"); // 이름순 마지막 = 철근조
+await typeInto(0, "철근 1조");
+await tap("저장");
+await check("이름 바꾸기", "철근 1조");
+await tap("삭제");
+await check("삭제 확인", "'철근 1조' 작업조를 삭제할까요?");
+await tap("삭제");
+await wait(800);
+await expectCount("삭제됨", await visibleCount("철근 1조"), 0);
+await expectCount("다른 작업조는 남음(대조군)", await visibleCount("1층 작업조"), 1);
+await page.screenshot({ path: path.join(outDir, "flow-3-2-groups.png") });
+
 console.log("4) 관리자: 가입 승인 → 멤버 반영");
 await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
 await tap("승인");

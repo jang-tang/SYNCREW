@@ -356,10 +356,11 @@ export class LiveSessionService {
   }
 
   /** 서버 시작 시: 이전 실행에서 열린 채 남은 세션을 연결 끊김으로 닫는다 (실시간 연결이 모두 끊겼으므로) */
-  async closeStale(): Promise<number> {
+  async closeStale(scope: { siteIds?: string[] } = {}): Promise<number> {
     const now = new Date();
     const { count } = await this.ctx.prisma.liveSession.updateMany({
-      where: { status: { in: OPEN } },
+      // scope 는 테스트용 (같은 DB 를 쓰는 다른 테스트 파일의 세션을 건드리지 않게). 서버 시작 때는 전체
+      where: { status: { in: OPEN }, ...(scope.siteIds ? { siteId: { in: scope.siteIds } } : {}) },
       data: { status: "ended", endReason: "connection_lost", endedAt: now },
     });
     return count;

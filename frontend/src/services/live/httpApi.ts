@@ -12,6 +12,7 @@ import type {
   MySite,
   Profile,
   SendResult,
+  TargetGroup,
 } from "@shared/api";
 import { Platform } from "react-native";
 import type { ApiService, AuthService } from "../types";
@@ -70,6 +71,12 @@ export function createHttpApi(auth: AuthService): ApiService {
     listJoinCodes: (siteId) => call<JoinCode[]>(`/sites/${siteId}/join-codes`),
     createJoinCode: (siteId, input = {}) => call<JoinCode>(`/sites/${siteId}/join-codes`, { method: "POST", json: input }),
     revokeJoinCode: (siteId, codeId) => call<void>(`/sites/${siteId}/join-codes/${codeId}`, { method: "DELETE" }),
+
+    listTargetGroups: (siteId) => call<TargetGroup[]>(`/sites/${siteId}/target-groups`),
+    createTargetGroup: (siteId, input) => call<TargetGroup>(`/sites/${siteId}/target-groups`, { method: "POST", json: input }),
+    updateTargetGroup: (siteId, groupId, input) =>
+      call<TargetGroup>(`/sites/${siteId}/target-groups/${groupId}`, { method: "PATCH", json: input }),
+    deleteTargetGroup: (siteId, groupId) => call<void>(`/sites/${siteId}/target-groups/${groupId}`, { method: "DELETE" }),
 
     listMembers: (siteId) => call<Member[]>(`/sites/${siteId}/members`),
     updateMember: (siteId, userId, action) =>

@@ -7,6 +7,7 @@ import { createLogger } from "./lib/logger";
 import { checkDatabase } from "./lib/prisma";
 import { createRetentionPolicy, startRetentionScheduler } from "./plugins/retentionPolicy";
 import { attachRealtime } from "./realtime/gateway";
+import { recoverOnStartup } from "./startup";
 
 async function main() {
   const env = loadEnv();
@@ -35,17 +36,10 @@ async function main() {
   context.events = realtime.events;
   server.listen(env.PORT, env.HOST, () => {
     logger.info(`SYNCREW 서버 시작: http://${env.HOST}:${env.PORT} (실시간: /rt)`);
-    // 이전 실행에서 열린 채 남은 통역 세션은 실시간 연결이 모두 끊겼으므로 닫는다.
-    void context.sessions
-      .closeStale()
-      .then((count) => count > 0 && logger.info({ count }, "남은 통역 세션 종료"))
-      .catch((err) => logger.error({ err }, "세션 정리 실패"));
-    // 지난 실행에서 처리 도중 멈춘 메시지를 다시 처리한다. 시작 시점에는 연결된 앱이 없으므로 sync:required 는 보내지 않고,
-    // 앱이 다시 연결될 때 화면 데이터를 새로 불러온다 (frontend/src/providers/RealtimeBridge.tsx).
-    void context.pipeline
-      .recover({ staleMs: 0 })
-      .then((count) => count > 0 && logger.info({ count }, "멈춘 메시지 다시 처리"))
-      .catch((err) => logger.error({ err }, "메시지 복구 실패"));
+    // 이전 실행에서 남은 통역 세션 닫기 + 멈춘 메시지 다시 처리 (src/startup.ts, 자동 테스트 test/integration/startup.test.ts)
+    void recoverOnStartup(context)
+      .then((result) => (result.closedSessions > 0 || result.requeuedMessages > 0) && logger.info(result, "시작 시 정리"))
+      .catch((err) => logger.error({ err }, "시작 시 정리 실패"));
   });
 
   const shutdown = (signal: string) => {

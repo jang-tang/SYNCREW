@@ -18,7 +18,8 @@ export function ToastHost() {
     if (!toast) return;
     Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
     const timer = setTimeout(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => hide());
+      // 이 알림만 닫는다: 사라지는 동안 새 알림이 오면 새 알림은 남겨 둔다 (2026-10-14 e2e 에서 발견)
+      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => hide(toast.id));
     }, 2600);
     return () => clearTimeout(timer);
   }, [toast, hide, opacity]);

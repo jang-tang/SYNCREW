@@ -654,6 +654,41 @@ export const STRINGS = {
   "instr.liveTag": { ko: "실시간", zh: "实时", vi: "Trực tiếp", uz: "Jonli", ru: "Эфир" },
   "chat.callTag": { ko: "통화", zh: "通话", vi: "Cuộc gọi", uz: "Qoʻngʻiroq", ru: "Звонок" },
 
+  // ─── 작업조 (B2) ───
+  "groups.title": { ko: "작업조", zh: "作业小组", vi: "Tổ công việc", uz: "Ish guruhlari", ru: "Бригады" },
+  "groups.hint": {
+    ko: "자주 지시하는 사람 묶음이에요. 현장 관리자끼리 함께 써요. 구성원을 바꾸려면 지시 화면에서 사람을 고른 뒤 같은 이름으로 저장하세요.",
+    zh: "常用的指令对象分组，现场管理员共享。要更改成员，请在指令界面选人后用同一名称保存。",
+    vi: "Nhóm người thường nhận chỉ thị, dùng chung giữa các quản lý. Để đổi thành viên, chọn người ở màn hình chỉ thị rồi lưu cùng tên.",
+    uz: "Tez-tez topshiriq beriladigan guruhlar, menejerlar birga foydalanadi. Aʼzolarni oʻzgartirish uchun topshiriq ekranida tanlab, shu nom bilan saqlang.",
+    ru: "Часто используемые группы получателей, общие для менеджеров. Чтобы изменить состав, выберите людей на экране задания и сохраните под тем же именем.",
+  },
+  "groups.empty": {
+    ko: "저장한 작업조가 없어요. 지시 화면에서 사람을 고른 뒤 '작업조로 저장'을 누르세요.",
+    zh: "还没有保存的小组。在指令界面选人后点击“保存为小组”。",
+    vi: "Chưa có tổ nào. Chọn người ở màn hình chỉ thị rồi nhấn “Lưu thành tổ”.",
+    uz: "Saqlangan guruh yoʻq. Topshiriq ekranida odamlarni tanlab, “Guruh sifatida saqlash”ni bosing.",
+    ru: "Сохранённых бригад нет. Выберите людей на экране задания и нажмите «Сохранить как бригаду».",
+  },
+  "groups.manage": { ko: "작업조 관리", zh: "管理小组", vi: "Quản lý tổ", uz: "Guruhlarni boshqarish", ru: "Управление бригадами" },
+  "groups.saveCurrent": { ko: "작업조로 저장", zh: "保存为小组", vi: "Lưu thành tổ", uz: "Guruh sifatida saqlash", ru: "Сохранить как бригаду" },
+  "groups.namePlaceholder": { ko: "작업조 이름 (예: 철근조)", zh: "小组名称（例：钢筋组）", vi: "Tên tổ (vd: Tổ cốt thép)", uz: "Guruh nomi (masalan: Armatura guruhi)", ru: "Название (напр.: Арматурщики)" },
+  "groups.saveConfirm": { ko: "{n}명 저장", zh: "保存{n}人", vi: "Lưu {n} người", uz: "{n} kishini saqlash", ru: "Сохранить ({n})" },
+  "groups.overwrite": {
+    ko: "같은 이름의 작업조가 있어요. '{name}'을(를) 지금 선택한 {n}명으로 바꿉니다.",
+    zh: "已有同名小组。将把“{name}”改为当前选择的{n}人。",
+    vi: "Đã có tổ cùng tên. “{name}” sẽ được đổi thành {n} người đang chọn.",
+    uz: "Shu nomli guruh bor. “{name}” hozir tanlangan {n} kishiga almashtiriladi.",
+    ru: "Бригада с таким именем уже есть. «{name}» будет заменена выбранными ({n}).",
+  },
+  "groups.overwriteConfirm": { ko: "{n}명으로 바꾸기", zh: "改为{n}人", vi: "Đổi thành {n} người", uz: "{n} kishiga almashtirish", ru: "Заменить ({n})" },
+  "groups.saved": { ko: "'{name}' 작업조를 저장했어요", zh: "已保存小组“{name}”", vi: "Đã lưu tổ “{name}”", uz: "“{name}” guruhi saqlandi", ru: "Бригада «{name}» сохранена" },
+  "groups.updated": { ko: "'{name}' 작업조를 바꿨어요", zh: "已更新小组“{name}”", vi: "Đã cập nhật tổ “{name}”", uz: "“{name}” guruhi yangilandi", ru: "Бригада «{name}» обновлена" },
+  "groups.rename": { ko: "이름 바꾸기", zh: "重命名", vi: "Đổi tên", uz: "Nomini oʻzgartirish", ru: "Переименовать" },
+  "groups.delete": { ko: "삭제", zh: "删除", vi: "Xóa", uz: "Oʻchirish", ru: "Удалить" },
+  "groups.deleteConfirm": { ko: "'{name}' 작업조를 삭제할까요?", zh: "删除小组“{name}”？", vi: "Xóa tổ “{name}”?", uz: "“{name}” guruhini oʻchirasizmi?", ru: "Удалить бригаду «{name}»?" },
+  "groups.noMembers": { ko: "남은 구성원이 없어요", zh: "没有剩余成员", vi: "Không còn thành viên", uz: "Aʼzo qolmadi", ru: "Участников не осталось" },
+
   // ─── 스트리밍 통역 (통화) ───
   "stream.connecting": { ko: "실시간 통역 연결 중", zh: "正在连接实时翻译", vi: "Đang kết nối dịch trực tiếp", uz: "Jonli tarjima ulanmoqda", ru: "Подключение синхронного перевода" },
   "stream.mode.stream": {

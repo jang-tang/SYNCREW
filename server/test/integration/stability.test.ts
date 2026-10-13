@@ -94,6 +94,28 @@ describe("입력 제한", () => {
     await t.context.pipeline.idle();
   });
 
+  it("음성 형식 허용 목록: 오디오가 아닌 형식은 업로드 단계에서 VALIDATION_ERROR, 웹의 'audio/webm;codecs=opus' 는 받는다", async () => {
+    const { manager, siteId, workers } = await setupSite(t, ["vi"]);
+    const conversationId = await openDirect(manager, siteId, workers[0]!);
+    const upload = (contentType: string, filename = "speech.m4a") =>
+      manager
+        .as("post", `/conversations/${conversationId}/messages`)
+        .field("clientMessageId", randomUUID())
+        .attach("audio", m4a, { filename, contentType });
+    for (const type of ["image/png", "application/octet-stream", "text/plain", "video/mp4"]) {
+      const res = await upload(type, "file.bin");
+      expect(res.status, type).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    }
+    expect(await t.context.prisma.message.count({ where: { conversationId } })).toBe(0); // 거절된 업로드는 메시지를 만들지 않는다
+    // 대조군: 앱이 실제로 보내는 형식
+    expect((await upload("audio/mp4")).status).toBe(202);
+    expect((await upload("audio/webm;codecs=opus", "speech.webm")).status).toBe(202);
+    await t.context.pipeline.idle();
+    const saved = await t.context.prisma.message.findMany({ where: { conversationId }, select: { inputAudioPath: true } });
+    expect(saved.map((m) => m.inputAudioPath?.split(".").pop()).sort()).toEqual(["m4a", "webm"]);
+  });
+
   it("전송 속도 제한: 사용자당 1분 N회를 넘으면 429, 다른 사용자는 영향 없음 (메시지·지시가 한도를 함께 쓴다)", async () => {
     const limited = await createRealtimeTestApp({ stt: new FakeStt(), translator: new FakeTranslator(), limits: { messagesPerMinute: 2 } });
     try {

@@ -1,4 +1,4 @@
-import type { Profile } from "@shared/api";
+import type { Profile, TargetGroup } from "@shared/api";
 import { secureStorage } from "@/lib/storage";
 import { ApiError } from "../live/http";
 import type { ApiService } from "../types";
@@ -25,6 +25,22 @@ async function restoreProfile() {
 export function createMockApi(): ApiService {
   // 앱을 다시 열면 저장된 프로필(이름·언어)을 먼저 적용해야 번역·이름이 맞게 나온다.
   const restored = restoreProfile();
+  // 데모 작업조 (현장 A): 현장 관리자끼리 공유되는 대상 묶음 (B2)
+  const groups = new Map<string, TargetGroup & { siteId: string }>([
+    ["g_1f", { id: "g_1f", siteId: "s_a", name: "1층 작업조", userIds: ["u_nguyen", "u_li"], createdBy: ME, updatedAt: new Date().toISOString() }],
+  ]);
+  const activeIds = (siteId: string) => new Set(mockDb.memberships.filter((m) => m.siteId === siteId && m.status === "active").map((m) => m.userId));
+  const groupView = (g: TargetGroup & { siteId: string }): TargetGroup => {
+    const active = activeIds(g.siteId);
+    return { id: g.id, name: g.name, userIds: g.userIds.filter((id) => active.has(id)), createdBy: g.createdBy, updatedAt: g.updatedAt };
+  };
+  const checkGroup = (siteId: string, name: string | undefined, userIds: string[] | undefined, selfId?: string) => {
+    if (name !== undefined && !name.trim()) throw new ApiError("VALIDATION_ERROR", "VALIDATION_ERROR");
+    if (name !== undefined && [...groups.values()].some((g) => g.siteId === siteId && g.name === name.trim() && g.id !== selfId)) {
+      throw new ApiError("CONFLICT", "CONFLICT");
+    }
+    if (userIds && (userIds.length === 0 || userIds.some((id) => !activeIds(siteId).has(id)))) throw new ApiError("VALIDATION_ERROR", "VALIDATION_ERROR");
+  };
   const api: ApiService = {
     async getHealth() {
       return null;
@@ -141,6 +157,30 @@ export function createMockApi(): ApiService {
       return wait({ messageId: outcome.message!.id, status: outcome.message!.status }, 400);
     },
     listSessionMessages: async (sessionId) => wait(mockDb.sessionMessages(sessionId).map((m) => mockDb.view(m, ME))),
+
+    listTargetGroups: async (siteId) =>
+      wait([...groups.values()].filter((g) => g.siteId === siteId).map(groupView).sort((a, b) => a.name.localeCompare(b.name))),
+    async createTargetGroup(siteId, input) {
+      checkGroup(siteId, input.name, input.userIds);
+      const group = { id: `g_${Date.now()}`, siteId, name: input.name.trim(), userIds: [...new Set(input.userIds)], createdBy: ME, updatedAt: new Date().toISOString() };
+      groups.set(group.id, group);
+      return wait(groupView(group));
+    },
+    async updateTargetGroup(siteId, groupId, input) {
+      const group = groups.get(groupId);
+      if (!group || group.siteId !== siteId) throw new ApiError("NOT_FOUND", "NOT_FOUND");
+      checkGroup(siteId, input.name, input.userIds, groupId);
+      if (input.name !== undefined) group.name = input.name.trim();
+      if (input.userIds) group.userIds = [...new Set(input.userIds)];
+      group.updatedAt = new Date().toISOString();
+      return wait(groupView(group));
+    },
+    async deleteTargetGroup(siteId, groupId) {
+      const group = groups.get(groupId);
+      if (!group || group.siteId !== siteId) throw new ApiError("NOT_FOUND", "NOT_FOUND");
+      groups.delete(groupId);
+      await wait(undefined);
+    },
   };
 
   return Object.fromEntries(

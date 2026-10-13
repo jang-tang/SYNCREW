@@ -3,23 +3,12 @@ import type { AppContext } from "../context";
 import { Prisma } from "../generated/prisma/client";
 import { AppError } from "../lib/errors";
 import type { MessageKind, MessageStatus, SendResult } from "../shared/api";
+import { AUDIO_EXTENSIONS, baseMime } from "../http/upload";
 import { siteLangs } from "./conversations";
 
 // 메시지 1건 생성 (1:1·그룹 대화, 통화 발화, 일괄 지시 공통)
 // 중복 확인 → 엔진·비용 한도 확인 → 원본 음성 저장 → 메시지·언어별 번역·수신자를 한 트랜잭션으로 → 파이프라인 등록
 
-const AUDIO_EXTENSIONS: Record<string, string> = {
-  "audio/mp4": "m4a",
-  "audio/m4a": "m4a",
-  "audio/x-m4a": "m4a",
-  "audio/aac": "aac",
-  "audio/webm": "webm",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-  "audio/x-wav": "wav",
-  "audio/mpeg": "mp3",
-  "audio/3gpp": "3gp",
-};
 
 export type NewMessage = {
   siteId: string;
@@ -73,7 +62,7 @@ export async function createMessage(context: AppContext, input: NewMessage): Pro
 
   const messageId = randomUUID();
   const audioPath = input.audio
-    ? await context.storage.saveUpload(messageId, input.audio.buffer, AUDIO_EXTENSIONS[input.audio.mimetype.split(";")[0]!] ?? "bin")
+    ? await context.storage.saveUpload(messageId, input.audio.buffer, AUDIO_EXTENSIONS[baseMime(input.audio.mimetype)] ?? "bin")
     : null;
 
   let created;

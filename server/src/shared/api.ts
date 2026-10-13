@@ -169,6 +169,18 @@ export type RecipientCounts = Record<RecipientStatus, number>;
 
 export type InstructionTarget = "all" | { userIds: string[] };
 
+/** 일괄 지시 작업조 (B2): 자주 쓰는 대상 묶음. 현장 관리자끼리 공유. userIds 는 지금 활성 멤버만 */
+export type TargetGroup = {
+  id: string;
+  name: string;
+  userIds: string[];
+  createdBy: string;
+  updatedAt: string;
+};
+
+/** 만들기: name·userIds 필수 / 수정: 바꿀 것만 */
+export type TargetGroupInput = { name: string; userIds: string[] };
+
 export type InstructionSummary = {
   id: string;
   /** 실시간 일괄 지시 중 발화면 세션 id, 직접 작성한 지시는 null */
