@@ -23,7 +23,7 @@ import type {
   SessionMode,
   SiteInput,
 } from "@shared/api";
-import type { ServerEventName, ServerToClientEvents } from "@shared/realtime";
+import type { ServerEventName, ServerToClientEvents, StreamFormat, StreamOpenResult } from "@shared/realtime";
 import type { AuthUser, ConnectionState } from "@/stores/session";
 
 export type AuthSession = { user: AuthUser; accessToken: string };
@@ -103,6 +103,14 @@ export interface RealtimeService {
   sendReceipts(messageIds: string[]): Promise<void>;
   /** 내 오디오 장치 상태(헤드셋·마이크 권한)를 알린다 */
   reportDevice(device: DeviceStatus): Promise<void>;
+
+  // 스트리밍 통역 (1:1 통화, docs/realtime-protocol.md 10절). ok 가 아니면 앱은 발화 단위 방식을 쓴다.
+  openStream(sessionId: string, format: StreamFormat): Promise<StreamOpenResult>;
+  /** 음성 조각 (PCM16 mono, 약 100ms). 연결이 끊겨 있으면 버린다 */
+  sendStreamAudio(streamId: string, seq: number, pcm: ArrayBuffer): void;
+  /** 단말이 말 끝을 판단했을 때 */
+  pauseStream(streamId: string): void;
+  closeStream(streamId: string): void;
 }
 
 export type Services = { mode: "mock" | "live"; auth: AuthService; api: ApiService; realtime: RealtimeService };

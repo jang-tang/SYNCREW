@@ -30,5 +30,12 @@ export function createMockRealtime(): RealtimeService {
       const me = mockDb.users.get("me");
       if (me) me.device = device;
     },
+    // 데모 모드는 스트리밍을 흉내 내지 않는다 → 통화 화면은 발화 단위 방식(데모 발화 버튼)으로 동작
+    async openStream() {
+      return { ok: false, code: "UNSUPPORTED" };
+    },
+    sendStreamAudio() {},
+    pauseStream() {},
+    closeStream() {},
   };
 }

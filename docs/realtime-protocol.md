@@ -118,7 +118,7 @@ POST 메시지 → 202
 - `stream:open` 오류 코드: `NOT_FOUND`(세션 없음·비참여자), `CONFLICT`(진행 중 아님), `UNSUPPORTED`(일괄 지시·`STREAMING=off`), `BUSY`(OpenAI 엔진 연결 상한 `STREAM_MAX_SESSIONS`, 직접 전달은 세지 않음), `BUDGET_EXCEEDED`, `ENGINE_UNAVAILABLE`(키 없음·엔진 열기 실패 — 통역 통화만), `VALIDATION_ERROR`. **앱은 ok 가 아니면 발화 단위 방식으로 통화한다.**
 - 권한은 발화 단위와 같은 규칙(`LiveSessionService.utteranceTarget`). 다른 사람의 streamId 로 보낸 음성, 이미 받은 seq 는 무시하고, 빠진 seq 수는 기록 `timings.inputGaps` 에 남긴다.
 - 스트림 수명: 통화가 끝나면(`finish`) 서버가 닫는다. 실시간 연결이 끊기면 그 연결이 연 스트림을 닫으므로 앱은 다시 연결한 뒤 `stream:open` 을 다시 보낸다. 같은 사람이 같은 통화에서 다시 열면 이전 스트림은 닫힌다.
-- 기록: 턴이 끝나면 발화 단위 방식과 같은 형식으로 저장하고 `message:new`(듣는 사람)·`message:status`(말한 사람)를 보낸다. `stream:out:end`(messageId) 를 `message:new` 보다 먼저 보낸다. **앱은 이미 스트림으로 재생한 messageId 의 `message:new` 를 다시 재생하지 않아야 한다** (9절의 "세션 발화는 항상 재생" 규칙의 예외, S2에서 구현).
+- 기록: 턴이 끝나면 발화 단위 방식과 같은 형식으로 저장하고 `message:new`(듣는 사람)·`message:status`(말한 사람)를 보낸다. `stream:out:end`(messageId) 를 `message:new` 보다 **먼저** 보낸다 (서버 테스트로 순서 확인). **앱은 이미 스트림으로 재생한 messageId 의 `message:new` 를 다시 재생하지 않는다** (9절의 "세션 발화는 항상 재생" 규칙의 예외, `frontend/src/audio/streamed.ts`, S2 구현·live e2e 확인).
 - 실패한 턴(엔진 끊김·번역 실패)은 기록하지 않고 `stream:out:end`(failed) 만 보낸다 (사용자 결정 2026-10-13).
 - **같은 언어 통화(relay, 사용자 결정 2026-10-13)**: OpenAI 를 거치지 않고 받은 조각을 그대로 상대에게 `stream:out:audio` 로 보낸다(표본률 변환도 없음). 조각이 오기 시작하면 `stream:out:start`, `stream:pause` 또는 1초 동안 조각이 없으면 `stream:out:end`(done, messageId null). 자막(`stream:out:text`)·기록·비용 없음.
 - 음성 조각 이벤트는 빈도가 높아 봉투(eventId·at)를 붙이지 않는다. `stream:fallback` 만 봉투가 있다.

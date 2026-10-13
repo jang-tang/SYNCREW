@@ -296,9 +296,9 @@ export class StreamHub {
       this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "failed", messageId: null });
       return;
     }
-    let messageId: string | null = null;
+    let saved: Awaited<ReturnType<typeof persistTurn>> | null = null;
     try {
-      messageId = await persistTurn(this.ctx, {
+      saved = await persistTurn(this.ctx, {
         turnId,
         siteId: stream.siteId,
         sessionId: stream.sessionId,
@@ -322,8 +322,9 @@ export class StreamHub {
     } catch (error) {
       this.ctx.logger.error({ err: error, sessionId: stream.sessionId, turnId }, "스트리밍 턴 기록 실패");
     }
-    // 듣는 사람이 이미 재생한 턴임을 알 수 있도록 end(messageId) 를 기록 알림과 함께 보낸다
-    this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "done", messageId });
+    // 순서 중요: end(messageId) 를 먼저 보내고 기록 알림(message:new)을 보낸다 → 앱은 이미 들은 문장을 다시 재생하지 않는다
+    this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "done", messageId: saved?.messageId ?? null });
+    await saved?.notify().catch((error: unknown) => this.ctx.logger.warn({ err: error, turnId }, "스트리밍 턴 기록 알림 실패"));
     const original = (result.original ?? turn.original)?.trim();
     if (original) {
       stream.history = [...stream.history, { original, translation: result.translation }].slice(-2);

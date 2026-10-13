@@ -172,6 +172,24 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(engine.connections.slice(-2).map((c) => `${c.sourceLang}→${c.targetLang}`)).toEqual(["ko→vi", "vi→ko"]);
   });
 
+  it("듣는 사람은 stream:out:end(messageId) 를 같은 문장의 message:new 보다 먼저 받는다 (앱의 중복 재생 방지 전제)", async () => {
+    const env = await setupSite(t, ["vi"]);
+    const session = await connectCall(env);
+    const streamId = streamIdOf(await open(env.managerSocket, session.id));
+    const order: string[] = [];
+    const socket = env.workerSockets[0]!;
+    const onEnd = (p: Payload<"stream:out:end">) => order.push(`end:${p.messageId}`);
+    const onNew = (p: Payload<"message:new">) => order.push(`new:${p.message.id}`);
+    socket.on("stream:out:end", onEnd);
+    socket.on("message:new", onNew);
+    const received = waitFor(socket, "message:new", ({ message }) => message.sessionId === session.id);
+    speak(env.managerSocket, streamId, 0.4);
+    const { message } = await received;
+    socket.off("stream:out:end", onEnd);
+    socket.off("message:new", onNew);
+    expect(order).toEqual([`end:${message.id}`, `new:${message.id}`]);
+  });
+
   it("직전 1–2턴을 텍스트 문맥으로 엔진에 넘긴다 (P3)", async () => {
     const env = await setupSite(t, ["zh"]);
     const session = await connectCall(env);

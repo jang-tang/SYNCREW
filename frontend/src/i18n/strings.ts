@@ -654,6 +654,39 @@ export const STRINGS = {
   "instr.liveTag": { ko: "실시간", zh: "实时", vi: "Trực tiếp", uz: "Jonli", ru: "Эфир" },
   "chat.callTag": { ko: "통화", zh: "通话", vi: "Cuộc gọi", uz: "Qoʻngʻiroq", ru: "Звонок" },
 
+  // ─── 스트리밍 통역 (통화) ───
+  "stream.connecting": { ko: "실시간 통역 연결 중", zh: "正在连接实时翻译", vi: "Đang kết nối dịch trực tiếp", uz: "Jonli tarjima ulanmoqda", ru: "Подключение синхронного перевода" },
+  "stream.mode.stream": {
+    ko: "실시간 통역 · 말하는 동안 전송",
+    zh: "实时翻译 · 边说边传",
+    vi: "Dịch trực tiếp · gửi trong khi nói",
+    uz: "Jonli tarjima · gapirayotganda yuboriladi",
+    ru: "Синхронный перевод · передача во время речи",
+  },
+  "stream.mode.relay": {
+    ko: "같은 언어 · 음성 그대로 전달",
+    zh: "同一语言 · 直接传送语音",
+    vi: "Cùng ngôn ngữ · truyền giọng nói trực tiếp",
+    uz: "Bir xil til · ovoz toʻgʻridan-toʻgʻri uzatiladi",
+    ru: "Один язык · голос передаётся напрямую",
+  },
+  "stream.mode.utterance": { ko: "문장 단위 통역", zh: "按句翻译", vi: "Dịch theo từng câu", uz: "Gap boʻyicha tarjima", ru: "Перевод по фразам" },
+  "stream.fallback": {
+    ko: "실시간 통역이 끊겨 문장 단위 통역으로 바꿨어요",
+    zh: "实时翻译中断，已切换为按句翻译",
+    vi: "Dịch trực tiếp bị gián đoạn, đã chuyển sang dịch theo câu",
+    uz: "Jonli tarjima uzildi, gap boʻyicha tarjimaga oʻtildi",
+    ru: "Синхронный перевод прервался — включён перевод по фразам",
+  },
+  "stream.fallbackBudget": {
+    ko: "통역 비용 한도에 닿아 실시간 통역을 멈췄어요",
+    zh: "已达到翻译费用上限，实时翻译已停止",
+    vi: "Đã đạt giới hạn chi phí dịch, dừng dịch trực tiếp",
+    uz: "Tarjima xarajati chegarasiga yetildi, jonli tarjima toʻxtatildi",
+    ru: "Достигнут лимит расходов на перевод — синхронный перевод остановлен",
+  },
+  "stream.failed": { ko: "통역 실패", zh: "翻译失败", vi: "Dịch thất bại", uz: "Tarjima amalga oshmadi", ru: "Ошибка перевода" },
+
   // ─── 일괄 지시 대상 선택 ───
   "recip.quick": { ko: "빠른 선택", zh: "快速选择", vi: "Chọn nhanh", uz: "Tezkor tanlash", ru: "Быстрый выбор" },
   "recip.last": { ko: "지난번 대상 · {n}", zh: "上次对象 · {n}", vi: "Lần trước · {n}", uz: "Oldingi safar · {n}", ru: "Как в прошлый раз · {n}" },

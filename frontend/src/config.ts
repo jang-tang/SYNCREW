@@ -7,6 +7,9 @@ export const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://10.
  */
 export const API_MODE: "mock" | "live" = process.env.EXPO_PUBLIC_API_MODE === "live" ? "live" : "mock";
 
+/** 1:1 통화 스트리밍 통역 (기본 켜짐). off 면 항상 발화 단위 방식 — 서버 STREAMING=off 와 같은 효과 */
+export const STREAMING_ENABLED = process.env.EXPO_PUBLIC_STREAMING !== "off";
+
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 export const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 

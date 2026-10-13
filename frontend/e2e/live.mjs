@@ -7,7 +7,8 @@
 // 웹 빌드는 REST·Socket.IO를 같은 출처(8767)로 부르고, 이 스크립트가 서버(4000)로 중계한다.
 // (서버에 CORS가 없다. 실제 대상인 Android·iOS 앱에는 CORS가 적용되지 않는다.)
 // 마이크: Chrome 가짜 장치에 macOS say 로 만든 음성(관리자 한국어, 구성원 베트남어)을 넣어
-//         실제 녹음 → 발화 감지 → 업로드 → 서버 디코딩 경로를 확인한다. ENGINE=fake 의 STT 결과는 "[음성 ko] 4.7s" 형식.
+//         1:1 통화는 스트리밍(마이크 조각 → 서버 → 가짜 스트리밍 엔진 → 상대 재생·자막, 중복 재생 없음),
+//         일괄 지시는 발화 단위(녹음 → 발화 감지 → 업로드 → 서버 디코딩)로 확인한다. ENGINE=fake 의 원문은 "[음성 ko] 4.7s" 형식.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
@@ -161,6 +162,10 @@ async function signIn(u, account, { name, langLabel, signInLabel, startLabel }) 
   }
 }
 
+// E2E_STREAMING=off: 서버를 STREAMING=off 로 띄웠을 때 — 앱이 문장 단위 방식으로 바꿔 통화하는지(폴백) 확인
+const STREAMING = process.env.E2E_STREAMING !== "off";
+// E2E_ONLY_CALL=1: 1:1 통화만 확인 (실제 OpenAI 로 돌릴 때 다른 구간의 통역 비용을 쓰지 않기 위해 — 대화·일괄 지시·문자 지시 건너뜀)
+const ONLY_CALL = process.env.E2E_ONLY_CALL === "1";
 const runId = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, "");
 const SITE = `E2E 현장 ${runId}`;
 const MANAGER_NAME = "E2E 관리자";
@@ -203,6 +208,7 @@ try {
   await member.tap(SITE);
   await member.check("구성원: 현장 입장", "Nhóm công trường", 10000);
 
+  if (!ONLY_CALL) {
   console.log("4) 1:1 대화: 구성원 텍스트 → 관리자에게 한국어 통역(가짜 엔진)");
   await member.go("/site/members");
   await member.tap(MANAGER_NAME);
@@ -215,8 +221,9 @@ try {
   await manager.tap(MEMBER_NAME);
   await manager.check("관리자: 한국어 통역문 수신", "[ko] Xin chào quản lý", 10000);
   await manager.shot("live-2-chat");
+  }
 
-  console.log("5) 1:1 통역 통화: 관리자 → 구성원, 양쪽 실제 녹음 → 자동 전송");
+  console.log(STREAMING ? "5) 1:1 통역 통화 (스트리밍): 관리자 ↔ 구성원, 양쪽 실제 마이크 → 말하는 동안 전송" : "5) 1:1 통역 통화 (서버 스트리밍 꺼짐 → 문장 단위 방식으로 폴백)");
   await member.go("/site");
   await manager.go("/site/members");
   await manager.tap(MEMBER_NAME);
@@ -225,15 +232,41 @@ try {
   await member.check("구성원: 수신 화면(실시간)", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
   await member.tap("Nghe");
   await manager.check("관리자: 통화 중", "통화 중", 10000);
+  if (STREAMING) {
+    await manager.check("관리자: 스트리밍 방식으로 연결", "실시간 통역 · 말하는 동안 전송", 15000);
+    await member.check("구성원: 스트리밍 방식으로 연결", "Dịch trực tiếp · gửi trong khi nói", 15000);
+  } else {
+    await manager.check("관리자: 문장 단위 방식으로 폴백", "문장 단위 통역", 15000);
+    await member.check("구성원: 문장 단위 방식으로 폴백", "Dịch theo từng câu", 15000);
+  }
   await manager.check("관리자: 마이크 듣는 중", "듣고 있어요", 10000);
-  await member.check("구성원: 관리자 발화가 베트남어로 도착 (녹음→감지→업로드→서버 디코딩)", "[vi] [음성 ko]", 30000);
-  await manager.check("관리자: 구성원 발화가 한국어로 도착", "[ko] [음성 vi]", 30000);
+  await member.check("구성원: 관리자 말이 베트남어로 도착", "[vi] [음성 ko]", 30000);
+  await manager.check("관리자: 구성원 말이 한국어로 도착", "[ko] [음성 vi]", 30000);
+  await wait(4000); // 기록 알림(message:new)까지 받을 시간
+  if (!STREAMING) {
+    // 폴백: 스트림 재생 없이 기록 알림으로 재생 대기열에 들어간다
+    const stats = await member.page.evaluate(() => window.__syncrewPlayback);
+    if (stats.streamChunks === 0 && stats.enqueued.length > 0) { pass++; console.log(`  ✓ [구성원] 폴백: 스트림 조각 0, 기록 알림 재생 ${stats.enqueued.length}건`); }
+    else { fail++; console.log("  ✗ [구성원] 폴백 재생", stats); }
+  } else {
+    // 스트림으로 받은 음성 조각을 재생했고, 같은 문장의 기록 알림은 다시 재생하지 않았는지 (사용자 필수 요구)
+    const stats = await member.page.evaluate(() => window.__syncrewPlayback);
+    const replayed = stats.streamed.filter((id) => stats.enqueued.includes(id));
+    const ok = stats.streamTurns > 0 && stats.streamChunks > 0 && stats.streamed.length > 0 && stats.skipped.length > 0 && replayed.length === 0;
+    if (ok) { pass++; console.log(`  ✓ [구성원] 스트림 재생 ${stats.streamTurns}턴·조각 ${stats.streamChunks}개, 기록 알림 재생 건너뜀 ${stats.skipped.length}건, 중복 재생 0`); }
+    else { fail++; console.log("  ✗ [구성원] 스트림 재생·중복 재생 방지", stats); }
+    const mStats = await manager.page.evaluate(() => window.__syncrewPlayback);
+    if (mStats.streamChunks > 0 && mStats.streamed.every((id) => !mStats.enqueued.includes(id))) { pass++; console.log("  ✓ [관리자] 스트림 재생, 중복 재생 0"); }
+    else { fail++; console.log("  ✗ [관리자] 스트림 재생·중복 재생 방지", mStats); }
+    await member.check("구성원: 실시간 자막(원문)", "[음성 ko]");
+  }
   await manager.shot("live-3-call-manager");
   await member.shot("live-3-call-member");
   await manager.tap("끊기");
   await manager.check("관리자: 통화 종료", "통화가 끝났어요");
   await member.check("구성원: 통화 종료 알림", "Cuộc gọi đã kết thúc", 10000);
 
+  if (!ONLY_CALL) {
   console.log("6) 관리자 실시간 일괄 지시 → 구성원 자동 수신");
   await member.go("/site");
   await manager.go("/site/instructions");
@@ -243,6 +276,14 @@ try {
   await manager.check("지시 중 화면", "구성원 연결 상태", 10000);
   await member.check("구성원: 수신 화면 자동 열림", `Chỉ thị trực tiếp từ ${MANAGER_NAME}`, 10000);
   await member.check("구성원: 관리자 말이 베트남어로 도착", "[vi] [음성 ko]", 30000);
+  {
+    // 대조군: 일괄 지시(발화 단위 방식)의 발화는 기록 알림으로 재생 대기열에 들어간다
+    await wait(1500);
+    const stats = await member.page.evaluate(() => window.__syncrewPlayback);
+    const fresh = stats.enqueued.filter((id) => !stats.streamed.includes(id));
+    if (fresh.length > 0) { pass++; console.log(`  ✓ [구성원] 대조군: 일괄 지시 발화는 재생 대기열에 들어감 (${fresh.length}건)`); }
+    else { fail++; console.log("  ✗ [구성원] 대조군: 일괄 지시 발화 재생", stats); }
+  }
   await manager.shot("live-4-broadcast-manager");
   await member.shot("live-4-broadcast-member");
   await manager.tap("지시 끝내기");
@@ -264,6 +305,7 @@ try {
   await manager.go("/site/instructions");
   await manager.check("관리자: 확인 반영", "1/1명 확인", 10000);
   await manager.shot("live-5-instructions");
+  }
 } catch (error) {
   fail++;
   console.log("  ✗ 진행 중 오류:", error.message);

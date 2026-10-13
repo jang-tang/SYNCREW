@@ -5,6 +5,7 @@ import { useMemo, useState, type ComponentProps } from "react";
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { SessionEndReason } from "@shared/api";
 import { useHandsFree } from "@/audio/useHandsFree";
+import { useStreamingCall, type Caption, type StreamMode } from "@/audio/useStreamingCall";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { DeviceChip, HeadsetNotice, InfoNotice, MicStatus } from "@/components/live/LiveParts";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,6 +23,7 @@ import { colors, font, spacing } from "@/theme";
 
 // 1:1 실시간 통역 통화 (docs/live-interpretation.md 3절)
 // 울림(건 사람: 부르는 중 / 받는 사람: 받기·거절) → 통화 중(핸즈프리: 말하면 자동 통역, 받은 통역 자동 재생) → 종료
+// 통화 중에는 먼저 스트리밍 통역(말하는 동안 전송, docs/streaming-plan.md)을 시도하고, 안 되면 발화 단위 방식으로 한다.
 
 const END_TEXT: Record<SessionEndReason, StringKey> = {
   hangup: "call.ended.hangup",
@@ -58,13 +60,26 @@ export default function CallScreen() {
   const active = data?.status === "active";
   const online = connection === "connected";
 
-  const handsFree = useHandsFree({
-    // 연결이 끊긴 동안은 보내지 못하므로 듣기를 멈춘다
+  const reportDevice = (device: Parameters<typeof services.realtime.reportDevice>[0]) =>
+    void services.realtime.reportDevice(device).catch(() => undefined);
+
+  const streaming = useStreamingCall({
+    sessionId: id,
     active: active && online,
     muted,
-    onUtterance: (recording) => send.mutate(recording, { onError: (error) => toast(errorMessage(error), "error") }),
-    onDevice: (device) => void services.realtime.reportDevice(device).catch(() => undefined),
+    onDevice: reportDevice,
+    onFallback: (reason) => toast(t(reason === "BUDGET_EXCEEDED" ? "stream.fallbackBudget" : "stream.fallback"), "error"),
   });
+  const streamingOn = streaming.mode === "stream" || streaming.mode === "relay";
+
+  const handsFree = useHandsFree({
+    // 연결이 끊긴 동안은 보내지 못하므로 듣기를 멈춘다. 스트리밍 중에는 쓰지 않는다
+    active: active && online && streaming.mode === "utterance",
+    muted,
+    onUtterance: (recording) => send.mutate(recording, { onError: (error) => toast(errorMessage(error), "error") }),
+    onDevice: reportDevice,
+  });
+  const mic = streamingOn ? streaming : handsFree;
 
   const list = useMemo(() => [...(messages.data ?? [])].sort((a, b) => b.seq - a.seq), [messages.data]);
   const onError = (error: unknown) => toast(errorMessage(error), "error");
@@ -151,8 +166,10 @@ export default function CallScreen() {
       <View style={styles.status}>
         {!online && <InfoNotice text={t("call.reconnecting")} />}
         {online && !peer.online && <InfoNotice text={t("call.peerOffline")} />}
-        <MicStatus state={handsFree.state} error={handsFree.error} level={handsFree.level} />
-        <HeadsetNotice device={handsFree.device} />
+        <ModeChip mode={streaming.mode} />
+        <MicStatus state={mic.state} error={mic.error} level={mic.level} />
+        {!streamingOn && <HeadsetNotice device={handsFree.device} />}
+        {streaming.mode === "stream" && <LiveCaptions captions={streaming.captions} peerName={peer.displayName} />}
       </View>
       <FlatList
         inverted
@@ -185,11 +202,48 @@ export default function CallScreen() {
           />
           <RoundButton icon="call" label={t("call.hangup")} color={colors.danger} rotate onPress={() => act("end")} />
         </View>
-        {handsFree.error && (
+        {!streamingOn && handsFree.error && (
           <Button title={t("common.retry")} variant="secondary" onPress={handsFree.retry} />
         )}
       </View>
     </Screen>
+  );
+}
+
+const MODE_TEXT: Partial<Record<StreamMode, StringKey>> = {
+  connecting: "stream.connecting",
+  stream: "stream.mode.stream",
+  relay: "stream.mode.relay",
+  utterance: "stream.mode.utterance",
+};
+
+/** 지금 통역 방식 (실시간 스트리밍 / 같은 언어 직접 전달 / 문장 단위) */
+function ModeChip({ mode }: { mode: StreamMode }) {
+  const { t } = useT();
+  const key = MODE_TEXT[mode];
+  if (!key) return null;
+  const tone = mode === "stream" || mode === "relay" ? colors.success : colors.muted;
+  return (
+    <View style={[styles.row, styles.modeChip]}>
+      <Ionicons name={mode === "utterance" ? "chatbox-ellipses-outline" : "pulse"} size={14} color={tone} />
+      <Text style={[font.caption, { color: tone, fontWeight: "700" }]}>{t(key)}</Text>
+    </View>
+  );
+}
+
+/** 상대 말의 실시간 자막: 번역(크게) + 원문(작게). 가장 최근 턴만 */
+function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: string }) {
+  const { t } = useT();
+  const last = captions.at(-1);
+  if (!last) return null;
+  return (
+    <View style={styles.caption} accessibilityLiveRegion="polite">
+      <Text style={[font.caption, { color: colors.muted }]}>{peerName}</Text>
+      <Text style={[font.bodyStrong, last.status === "failed" && { color: colors.danger }]}>
+        {last.status === "failed" ? t("stream.failed") : last.translation || "…"}
+      </Text>
+      {last.original && <Text style={[font.caption, { color: colors.inkSoft }]}>{last.original}</Text>}
+    </View>
   );
 }
 
@@ -241,5 +295,7 @@ const styles = StyleSheet.create({
   ringHint: { ...font.caption, color: "rgba(255,255,255,0.6)", textAlign: "center", lineHeight: 18 },
   ringButtons: { flexDirection: "row", justifyContent: "space-evenly", paddingBottom: spacing.xxxl },
   ended: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
+  modeChip: { alignSelf: "flex-start" },
+  caption: { padding: spacing.md, borderRadius: 12, backgroundColor: colors.surfaceAlt, gap: 2 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
 });

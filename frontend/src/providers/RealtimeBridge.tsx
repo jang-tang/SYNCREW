@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import type { LiveSession, MessageView, Profile } from "@shared/api";
 import { enqueue } from "@/audio/playback";
+import { debug as playbackDebug, wasStreamed } from "@/audio/streamed";
 import { qk } from "@/hooks/queries";
 import { translate } from "@/i18n";
 import { services } from "@/services";
@@ -15,6 +16,7 @@ import { toast } from "@/stores/toast";
  * - 새 메시지: 목록에 추가, 수신 확인 전송, 자동 재생
  * - 재연결: 현장 재구독 후 전체 다시 불러오기 (누락 동기화)
  * - 실시간 통역 세션: 통화가 오거나 일괄 지시가 시작되면 해당 화면을 연다. 세션 발화는 설정과 무관하게 자동 재생한다.
+ *   (스트리밍 통화에서 이미 들은 문장은 제외 — audio/streamed.ts)
  */
 export function RealtimeBridge() {
   const client = useQueryClient();
@@ -66,7 +68,11 @@ export function RealtimeBridge() {
         const profile = me();
         // 통화·실시간 지시 발화는 이어폰으로 바로 들려야 하므로 자동 재생 설정과 무관하게 재생한다.
         const live = message.sessionId !== null;
-        if (profile && (profile.autoPlay || live) && message.senderId !== profile.id && message.siteId === siteRef.current) {
+        // 단, 스트리밍 통화에서 이미 들은 문장(stream:out:end 로 받은 messageId)은 다시 재생하지 않는다 (기록에는 표시)
+        if (wasStreamed(message.id)) {
+          playbackDebug.skipped.push(message.id);
+        } else if (profile && (profile.autoPlay || live) && message.senderId !== profile.id && message.siteId === siteRef.current) {
+          playbackDebug.enqueued.push(message.id);
           enqueue({ id: message.id, text: message.text, lang: profile.preferredLang, audioUrl: message.audioUrl, rate: profile.speechRate });
         }
       }),

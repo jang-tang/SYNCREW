@@ -1,0 +1,217 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { DeviceStatus } from "@shared/api";
+import type { StreamFallbackReason, StreamOpenError } from "@shared/realtime";
+import { STREAMING_ENABLED } from "@/config";
+import { services } from "@/services";
+import { createDuplexAudio } from "./duplex";
+import { debug, markStreamed } from "./streamed";
+import type { HandsFreeError, HandsFreeState } from "./useHandsFree";
+import { createVad } from "./vad";
+
+// 스트리밍 통역 통화 (docs/streaming-plan.md 5절, 서버 계약 docs/realtime-protocol.md 10절)
+// - 말하는 동안 100ms PCM 조각을 보낸다. 단말 VAD 로 말소리 구간만 보내고(앞 0.4초 사전 버퍼, 말 멎은 뒤 0.6초까지), 끝나면 stream:pause
+// - 상대 통역은 조각이 오는 대로 재생하고(이중 오디오), 원문·번역 자막을 실시간으로 보여 준다
+// - 스트림을 열 수 없거나(stream:open 실패, 이 기기에 이중 오디오 없음) 서버가 폴백을 알리면 mode = "utterance"
+//   → 통화 화면은 기존 핸즈프리(발화 단위) 방식을 쓴다
+// - 스트림으로 들은 문장은 기록 알림(message:new)이 와도 다시 재생하지 않는다 (audio/streamed.ts)
+
+const SAMPLE_RATE = 16_000;
+/** 말 시작 판단 전 소리도 보내기 위한 사전 버퍼 (100ms × 4) */
+const PREROLL_FRAMES = 4;
+/** 캡션으로 남겨 두는 최근 턴 수 */
+const MAX_CAPTIONS = 3;
+
+export type StreamMode = "off" | "connecting" | "stream" | "relay" | "utterance";
+
+export type Caption = {
+  turnId: string;
+  original: string | null;
+  translation: string;
+  status: "live" | "done" | "failed";
+};
+
+export type StreamFallback = StreamOpenError | StreamFallbackReason | "NO_DUPLEX" | "DISABLED" | "MIC";
+
+export function useStreamingCall(options: {
+  sessionId: string;
+  /** 통화 중이고 실시간 연결이 살아 있는 동안 true */
+  active: boolean;
+  muted: boolean;
+  onDevice?: (device: DeviceStatus) => void;
+  /** 스트리밍 중에 폴백했을 때 (안내용) */
+  onFallback?: (reason: StreamFallback) => void;
+}) {
+  const duplex = useMemo(() => createDuplexAudio(), []);
+  const [mode, setMode] = useState<StreamMode>("off");
+  const [fallback, setFallback] = useState<StreamFallback | null>(null);
+  const [state, setState] = useState<HandsFreeState>("off");
+  const [error, setError] = useState<HandsFreeError | null>(null);
+  const [level, setLevel] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [captions, setCaptions] = useState<Caption[]>([]);
+
+  const callbacks = useRef(options);
+  callbacks.current = options;
+  const live = useRef({ streamId: null as string | null, seq: 0, sending: false, preroll: [] as ArrayBuffer[] });
+  const turns = useRef(new Map<string, number>()); // turnId → sampleRate
+  const fellBack = useRef(false);
+  const vad = useRef(createVad({ endSilenceMs: 600 }));
+
+  const goUtterance = (reason: StreamFallback, notify: boolean) => {
+    fellBack.current = true;
+    setFallback(reason);
+    setMode("utterance");
+    setState("off");
+    if (notify) callbacks.current.onFallback?.(reason);
+  };
+
+  // ─── 스트림 열기·닫기 ──────────────────────────────
+
+  useEffect(() => {
+    if (!options.active || fellBack.current) {
+      if (!fellBack.current) setMode((m) => (m === "off" ? m : "connecting"));
+      return;
+    }
+    if (!STREAMING_ENABLED) return goUtterance("DISABLED", false);
+    if (!duplex) return goUtterance("NO_DUPLEX", false);
+
+    let cancelled = false;
+    const l = live.current;
+    setMode("connecting");
+    setState("starting");
+    (async () => {
+      const result = await services.realtime.openStream(options.sessionId, { encoding: "pcm16", sampleRate: SAMPLE_RATE, channels: 1 });
+      if (cancelled) {
+        if (result.ok) services.realtime.closeStream(result.streamId);
+        return;
+      }
+      if (!result.ok) return goUtterance(result.code, false);
+      try {
+        await duplex.start({ sampleRate: SAMPLE_RATE, frameMs: 100, echoCancellation: true });
+      } catch {
+        // 마이크를 못 쓰면 스트림을 닫고 기존 방식으로 (권한 안내는 핸즈프리 화면이 한다)
+        services.realtime.closeStream(result.streamId);
+        if (!cancelled) goUtterance("MIC", false);
+        return;
+      }
+      if (cancelled) {
+        services.realtime.closeStream(result.streamId);
+        return;
+      }
+      l.streamId = result.streamId;
+      l.seq = 0;
+      l.sending = false;
+      l.preroll = [];
+      vad.current.reset(Date.now());
+      setError(null);
+      setMode(result.mode === "relay" ? "relay" : "stream");
+      setState(callbacks.current.muted ? "muted" : "listening");
+      callbacks.current.onDevice?.({ audioRoute: "unknown", inputName: null, micPermission: "granted" });
+    })();
+
+    return () => {
+      cancelled = true;
+      if (l.streamId) services.realtime.closeStream(l.streamId);
+      l.streamId = null;
+      l.sending = false;
+      void duplex.stop();
+      setLevel(0);
+      setPlaying(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.active, options.sessionId]);
+
+  // ─── 마이크 조각 → 단말 VAD 게이트 → 서버 ─────────────
+
+  useEffect(() => {
+    if (!duplex) return;
+    return duplex.onFrame((frame) => {
+      const l = live.current;
+      if (!l.streamId) return;
+      const send = (pcm: ArrayBuffer) => services.realtime.sendStreamAudio(l.streamId!, l.seq++, pcm);
+      if (callbacks.current.muted) {
+        if (l.sending) services.realtime.pauseStream(l.streamId);
+        l.sending = false;
+        l.preroll = [];
+        setLevel(0);
+        return;
+      }
+      setLevel(Math.max(0, Math.min(1, (frame.levelDb + 60) / 60)));
+      const event = vad.current.push(frame.levelDb, frame.timestamp);
+      if (event?.type === "speechStart") {
+        l.sending = true;
+        l.preroll.forEach(send);
+        l.preroll = [];
+        send(frame.pcm);
+        setState("speaking");
+        return;
+      }
+      if (l.sending) send(frame.pcm);
+      else {
+        l.preroll.push(frame.pcm);
+        if (l.preroll.length > PREROLL_FRAMES) l.preroll.shift();
+      }
+      if (event) {
+        // 말 끝(뒤 0.6초까지 보냄)·너무 짧음·최대 길이: 서버에 말 끝을 알린다
+        if (l.sending) services.realtime.pauseStream(l.streamId);
+        l.sending = false;
+        setState("listening");
+      }
+    });
+  }, [duplex]);
+
+  useEffect(() => {
+    if (mode === "stream" || mode === "relay") setState(options.muted ? "muted" : "listening");
+  }, [options.muted, mode]);
+
+  // ─── 상대 통역 받기 ────────────────────────────────
+
+  useEffect(() => {
+    if (!duplex) return;
+    const { realtime } = services;
+    const mineTurn = (turnId: string) => turns.current.has(turnId);
+    const update = (turnId: string, change: (c: Caption) => Caption) =>
+      setCaptions((list) => list.map((c) => (c.turnId === turnId ? change(c) : c)));
+
+    const offs = [
+      realtime.on("stream:out:start", (p) => {
+        if (p.sessionId !== callbacks.current.sessionId) return;
+        turns.current.set(p.turnId, p.sampleRate);
+        debug.streamTurns += 1;
+        setCaptions((list) => [...list, { turnId: p.turnId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS));
+      }),
+      realtime.on("stream:out:audio", (p) => {
+        const rate = turns.current.get(p.turnId);
+        if (!rate) return;
+        debug.streamChunks += 1;
+        duplex.enqueue(p.turnId, p.pcm, rate);
+      }),
+      realtime.on("stream:out:text", (p) => {
+        if (!mineTurn(p.turnId)) return;
+        update(p.turnId, (c) => (p.kind === "original" ? { ...c, original: p.text } : { ...c, translation: c.translation + p.text }));
+      }),
+      realtime.on("stream:out:end", (p) => {
+        if (!mineTurn(p.turnId)) return;
+        turns.current.delete(p.turnId);
+        duplex.endStream(p.turnId);
+        // 다음에 올 같은 문장의 기록 알림(message:new)은 재생하지 않는다
+        if (p.messageId) markStreamed(p.messageId);
+        update(p.turnId, (c) => ({ ...c, status: p.status === "done" ? "done" : "failed" }));
+      }),
+      realtime.on("stream:fallback", (p) => {
+        if (p.streamId !== live.current.streamId) return;
+        live.current.streamId = null;
+        void duplex.stop();
+        goUtterance(p.reason, true);
+      }),
+    ];
+    const offPlayback = duplex.onPlayback(({ playing: now }) => setPlaying(now));
+    return () => {
+      offs.forEach((off) => off());
+      offPlayback();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplex]);
+
+  return { mode, fallback, state, error, level, playing, captions };
+}

@@ -217,7 +217,14 @@
 - `server/src/streaming/` (엔진 계약·OpenAI 어댑터·가짜 엔진·표본률 변환·기록 저장·허브), 실시간 이벤트 `stream:*` ([realtime-protocol.md](realtime-protocol.md) 10절), 환경 변수 `STREAMING`·`STREAM_MAX_SESSIONS`·`STREAM_VAD_SILENCE_MS`
 - 서버 테스트 **181개** 통과 (스트리밍 24 추가, 12회 반복 안정). DB 구조 변경 없음
 - 사용자 결정 반영(2026-10-13): **같은 언어 통화는 OpenAI 없이 음성 직접 전달(relay)**, 실패한 턴은 기록 안 함, 용어집 미리 넣기 보류, **S2에서 스트림으로 들은 문장의 `message:new` 재생 금지(필수)**
-- **다음: S2 웹 검증 클라이언트** (앱 `DuplexAudio` 웹 구현 + `useStreamingCall` + 헤드리스 Chrome 2인 e2e, 실제 OpenAI 1–2회 약 $0.05–0.1)
+
+### S2 웹 검증 클라이언트 — 완료 (2026-10-14, 미커밋, 상세: [streaming-plan.md](streaming-plan.md) 5-1절)
+
+- 앱: `audio/duplex/`(이중 오디오 인터페이스 + 웹 구현), `audio/useStreamingCall.ts`, `audio/streamed.ts`(**중복 재생 방지**), 통화 화면(방식 표시·실시간 자막·폴백 안내), 서비스 `openStream` 등, 5개 언어 문구. 데모 모드는 발화 단위 그대로
+- 서버: 기록 알림이 턴 끝 알림보다 먼저 나가던 버그 수정 + 순서 테스트 (서버 182개)
+- 검증(비용 0): live e2e 35(2회), 폴백 e2e 33, 데모 75, 마이크 2, 단위 17, Android 번들
+- 남은 것: 실제 OpenAI 로 통화 1회 (`E2E_ONLY_CALL=1`, 예상 약 $0.02–0.05, **승인 대기**)
+- **다음: S3 네이티브 오디오** (iOS·Android, 1순위 react-native-audio-api 1.0 nightly — 실기기 필요)
 
 ## 2. 다른 개발자 연결 지점
 

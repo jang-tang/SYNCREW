@@ -23,7 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: **B1·S0 ①·S1(서버 스트리밍 경로 + 같은 언어 직접 전달) 완료** (2026-10-13). **다음: S2** | `b1eb6d6` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1 완료 (`b1eb6d6`), **S2 웹 검증 클라이언트 완료 (2026-10-14, 미커밋)** — 실제 OpenAI 확인 1회만 비용 승인 대기. 다음: S3 | `b1eb6d6` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -43,7 +43,9 @@
 
 **다음 작업: Phase 7 = 진짜 스트리밍 통역 (1:1 통화만) — 사용자 승인 완료 (2026-10-12). 계획·결정: `docs/streaming-plan.md` (0-1절 결정, 7절 단계).**
 
-1. **다음 작업 = S2 웹 검증 클라이언트** (설계: `docs/streaming-plan.md` 5절 + 0-2절 결정표, 서버 계약: `docs/realtime-protocol.md` 10절·`server/src/shared/realtime.ts`)
+1. **S2 완료 (2026-10-14, `docs/streaming-plan.md` 5-1절)** — 남은 것: **실제 OpenAI 로 스트리밍 통화 1회** (예상 약 $0.02–0.05, 사용자 승인 대기. 방법은 5-1절 마지막 줄). 그다음 **S3 네이티브 오디오** (iOS·Android 실기기 필요 — 최소 iPhone 1 + Android 1 + HFP 헤드셋 1, 2인 통화(S4)는 2대. 사용자: 실기기 준비는 아직 어려움). 앱의 `frontend/src/audio/duplex/index.ts` 가 iOS·Android 에서 null 이라 지금 휴대폰 앱은 발화 단위 방식으로 통화한다.
+   - (아래는 S2 작업 지시 원문, 완료됨)
+   - 설계: `docs/streaming-plan.md` 5절 + 0-2절 결정표, 서버 계약: `docs/realtime-protocol.md` 10절·`server/src/shared/realtime.ts`
    - 앱 `frontend/src/audio/duplex/`: `DuplexAudio` 인터페이스(계획 2절 D2) + 웹 구현(AudioWorklet 16kHz 캡처 + Web Audio 24kHz 조각 재생). `useStreamingCall` 훅(단말 VAD 게이트 `audio/vad.ts` 재사용, 앞 0.3–0.5초 사전 버퍼·말 멎은 뒤 0.6초 더 보내고 `stream:pause`), 통화 화면 실시간 자막(원문·번역), `stream:open` 이 ok 가 아니거나 `stream:fallback` 이면 기존 `useHandsFree`(발화 단위)로 전환
    - **필수**: 스트림으로 이미 들은 문장은 `stream:out:end` 의 messageId 를 기억해 두고, 같은 id 의 `message:new` 가 와도 **다시 재생하지 않는다** (기록에는 표시)
    - 같은 언어 통화는 `mode: "relay"` — 받은 음성을 그대로 재생(자막·기록 없음)
@@ -66,7 +68,7 @@
 
 1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), **`docs/streaming-plan.md`(Phase 7 계획·결정)**, **`docs/s0-report.md`(S0 결과·다음 절차)**, `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (B1·S0 ①·S1 은 `b1eb6d6` 로 커밋·푸시됨. 이후 변경은 사용자가 요청할 때 커밋)
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**181개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**17개**).
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**182개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**17개**).
 4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. live e2e는 `ENGINE=fake` 서버로 비용 없이 다시 돌릴 수 있다 (`docs/operations.md` 6절).
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $0.5 누적 중 $0.2348 사용). 확인 스크립트: `cd server && npx tsx scripts/openai-check.ts` (1회 약 $0.05), 스트리밍 측정 `npx tsx scripts/stream-measure.ts --dry-run`으로 예상 비용 먼저 (턴당 약 $0.01).
 6. 작업을 끝내면: `docs/phase6-report.md`(또는 새 보고 문서)·`docs/implementation-plan.md`와 이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -129,7 +131,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 181개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍 24 포함)
+cd server && npm run typecheck && npm test       # 테스트 182개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍 25 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)
@@ -141,7 +143,7 @@ cd frontend && npm run test:unit                 # 단위 테스트 17개 (VAD 1
 cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 75개 자동 검증 (통화·일괄 지시·대상 선택 포함)
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
-cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 29개 (ENGINE=fake 서버 실행 중이어야 함)
+cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 35개 (통화는 스트리밍. E2E_STREAMING=off 폴백 33개, E2E_ONLY_CALL=1 통화만 21개) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
 ```
 

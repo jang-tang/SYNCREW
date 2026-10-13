@@ -67,5 +67,24 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
       if (!socket.connected) return;
       await socket.timeout(ACK_TIMEOUT_MS).emitWithAck("device:status", device);
     },
+    async openStream(sessionId, format) {
+      if (!socket.connected) return { ok: false, code: "ENGINE_UNAVAILABLE" };
+      try {
+        // 엔진(OpenAI 세션) 여는 시간을 고려해 넉넉히
+        return await socket.timeout(15_000).emitWithAck("stream:open", { sessionId, format });
+      } catch {
+        return { ok: false, code: "ENGINE_UNAVAILABLE" };
+      }
+    },
+    sendStreamAudio(streamId, seq, pcm) {
+      // 끊긴 동안 쌓아 두면 다시 연결될 때 한꺼번에 몰려가므로 버린다 (서버 스트림도 연결이 끊기면 닫힌다)
+      if (socket.connected) socket.volatile.emit("stream:audio", { streamId, seq, pcm });
+    },
+    pauseStream(streamId) {
+      if (socket.connected) socket.emit("stream:pause", { streamId });
+    },
+    closeStream(streamId) {
+      if (socket.connected) socket.emit("stream:close", { streamId }, () => undefined);
+    },
   };
 }

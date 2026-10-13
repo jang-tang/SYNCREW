@@ -29,11 +29,15 @@ export type StreamedTurn = {
   timings: Record<string, number>;
 };
 
-export async function persistTurn(context: AppContext, turn: StreamedTurn): Promise<string> {
+/**
+ * 저장만 하고, 알림(message:new·message:status)은 돌려준 notify() 로 보낸다.
+ * 허브가 stream:out:end(messageId) 를 먼저 보낸 뒤 notify() 해야 앱이 "이미 들은 문장"을 다시 재생하지 않는다 (S2 e2e 로 확인).
+ */
+export async function persistTurn(context: AppContext, turn: StreamedTurn): Promise<{ messageId: string; notify: () => Promise<void> }> {
   const { prisma, storage, domain } = context;
   const clientMessageId = `stream-${turn.turnId}`.slice(0, 64);
   const existing = await prisma.message.findUnique({ where: { senderId_clientMessageId: { senderId: turn.senderId, clientMessageId } } });
-  if (existing) return existing.id;
+  if (existing) return { messageId: existing.id, notify: async () => undefined };
 
   const messageId = randomUUID();
   const rawText = turn.original?.trim() ?? "";
@@ -91,17 +95,19 @@ export async function persistTurn(context: AppContext, turn: StreamedTurn): Prom
   });
 
   // 발화 단위 방식과 같은 알림: 받는 사람 message:new, 말한 사람 message:status
-  const sender = await prisma.profile.findUnique({ where: { id: turn.senderId }, select: { displayName: true } });
-  context.events.messageNew({
-    userId: turn.recipientId,
-    message: toMessageView(message, turn.recipientId, sender?.displayName ?? "", context.audioUrls),
-  });
-  context.events.messageStatus({
-    userId: turn.senderId,
-    messageId,
-    status: "done",
-    translations: [{ lang: turn.targetLang, status: "done", text: turn.translation }],
-    recipients: recipientCounts(message.recipients),
-  });
-  return messageId;
+  const notify = async () => {
+    const sender = await prisma.profile.findUnique({ where: { id: turn.senderId }, select: { displayName: true } });
+    context.events.messageNew({
+      userId: turn.recipientId,
+      message: toMessageView(message, turn.recipientId, sender?.displayName ?? "", context.audioUrls),
+    });
+    context.events.messageStatus({
+      userId: turn.senderId,
+      messageId,
+      status: "done",
+      translations: [{ lang: turn.targetLang, status: "done", text: turn.translation }],
+      recipients: recipientCounts(message.recipients),
+    });
+  };
+  return { messageId, notify };
 }
