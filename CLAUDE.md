@@ -12,7 +12,7 @@
 - 실행하지 않은 테스트를 통과했다고 보고하지 않는다. 결정이 바뀌면 `docs/`도 함께 고친다.
 - 응답은 한국어.
 
-## 현재 상태 (2026-10-13, Phase 7 B1·S0 ①·S1 세션 이후)
+## 현재 상태 (2026-10-14, Phase 7 실기기 없이 할 일 완료 후 — 인수인계: `docs/HANDOFF.md`)
 
 | 단계 | 상태 | 커밋 |
 |---|---|---|
@@ -23,7 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1 완료 (`b1eb6d6`), S2 웹 검증 클라이언트 완료(실제 OpenAI 확인 포함), **B2 작업조·안정화·Expo 패치 완료 (2026-10-14)**. 다음: S3 (실기기 필요) | `713c5e3`·`14a55da`·`d47b83d` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 **모두 완료** (2026-10-14). **다음: 실기기 준비 → 실기기 기준선(T2) → S3 네이티브 오디오** — `docs/HANDOFF.md` | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -62,12 +62,13 @@
 
 ## 새 세션 시작 순서
 
-1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), **`docs/streaming-plan.md`(Phase 7 계획·결정)**, **`docs/s0-report.md`(S0 결과·다음 절차)**, `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
-2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (B1·S0 ①·S1 은 `b1eb6d6` 로 커밋·푸시됨. 이후 변경은 사용자가 요청할 때 커밋)
+0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
+1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
+2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
 3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**200개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**18개**).
-4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. live e2e는 `ENGINE=fake` 서버로 비용 없이 다시 돌릴 수 있다 (`docs/operations.md` 6절).
-5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 $0.3149 사용). 확인 스크립트: `cd server && npx tsx scripts/openai-check.ts` (1회 약 $0.05), 스트리밍 측정 `npx tsx scripts/stream-measure.ts --dry-run`으로 예상 비용 먼저 (턴당 약 $0.01).
-6. 작업을 끝내면: `docs/phase6-report.md`(또는 새 보고 문서)·`docs/implementation-plan.md`와 이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
+4. **실기기 준비 여부를 먼저 확인**한다 (`docs/HANDOFF.md` 5·7절). 준비 전이면 준비 절차를 안내한다.
+5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 약 $0.34 사용). 실행 상한을 건다.
+6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
 
 ## 이 PC 환경 (작업 전 알아 둘 것)
 
