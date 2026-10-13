@@ -136,7 +136,9 @@ await tap("직접 선택");
 await tap("Nguyễn Văn An");
 await tap("Иван Петров");
 await check("선택 인원 반영", "2명에게 보내기");
-await typeInto(0, "비계 위에서는 안전고리를 꼭 거세요.");
+await check("보내기 전 요약", "2명 · 2개 언어 · 연결 2명");
+// 직접 선택 모드에서는 이름 검색칸이 첫 입력창이다
+await typeInto(1, "비계 위에서는 안전고리를 꼭 거세요.");
 await tap("2명에게 보내기");
 await check("전송 알림", "지시를 보냈어요");
 await check("목록에 새 지시", "0/2명 확인");
@@ -145,6 +147,58 @@ await tap("비계 위에서는 안전고리를 꼭 거세요.");
 await check("지시 상세: 러시아어 번역", "На лесах обязательно пристёгивайте страховку.");
 await check("지시 상세: 베트남어 번역", "Trên giàn giáo nhất định phải móc dây an toàn.");
 await page.screenshot({ path: path.join(outDir, "flow-3-detail.png") });
+
+console.log("3-1) 관리자: 일괄 지시 대상 빠른 선택 (칩·전체 선택·검색·지난번 대상)");
+// 화면에 실제로 보이는 정확히 일치하는 글자 요소 수 (검색으로 가려졌는지 확인용)
+const visibleCount = (text) =>
+  page.evaluate((t) => [...document.querySelectorAll("div,span")].filter((n) => n.innerText?.trim() === t && n.checkVisibility() && n.children.length === 0).length, text);
+const expectCount = async (name, actual, expected) => {
+  if (actual === expected) { pass++; console.log("  ✓", name); }
+  else { fail++; console.log("  ✗", name, { actual, expected }); }
+};
+await page.goto(base + "/site/instruction/new", { waitUntil: "networkidle0" });
+await check("지난번 대상 칩(앞에서 보낸 2명)", "지난번 대상 · 2");
+await check("접속 중 칩", "접속 중 · 4");
+await check("이어폰 연결됨 칩", "이어폰 연결됨 · 3");
+await check("현장 전체 요약", "5명 · 5개 언어 · 연결 4명");
+await check("연결 끊긴 대상 안내(문자 지시)", "다시 접속하면");
+await tap("지난번 대상 · 2");
+await check("지난번 대상 복원 → 직접 선택", "2명에게 보내기");
+await tap("선택 해제");
+await check("선택 해제", "0명에게 보내기");
+await tap("접속 중 · 4");
+await check("접속 중 칩 → 4명", "4명에게 보내기");
+await tap("이어폰 연결됨 · 3");
+await check("켜진 칩 다시 누르면 그 묶음만 해제(휴대폰 스피커 1명 남음)", "1명에게 보내기");
+await tap("Oʻzbekcha · 1");
+await check("언어 칩 조합", "2명에게 보내기");
+await check("조합 요약(연결 끊긴 사람 포함)", "2명 · 2개 언어 · 연결 1명");
+await page.screenshot({ path: path.join(outDir, "flow-3-1-picker.png") });
+await typeInto(0, "иван");
+await wait(300);
+await expectCount("검색: 일치하는 사람만 보임", await visibleCount("Иван Петров"), 1);
+await expectCount("검색: 일치하지 않는 사람은 숨김(대조군)", await visibleCount("Nguyễn Văn An"), 0);
+await tap("전체 선택");
+await check("검색 결과만 전체 선택(선택 유지 + 1명)", "3명에게 보내기");
+await tap("선택 반전");
+await check("검색 결과만 반전", "2명에게 보내기");
+await typeInto(0, "zzz");
+await check("검색 결과 없음 안내", "일치하는 구성원이 없어요.");
+await typeInto(0, "");
+await wait(300);
+await expectCount("검색 지우면 전체 목록", await visibleCount("Nguyễn Văn An"), 1);
+await tap("선택 반전");
+await check("전체 반전(2명 → 나머지 3명)", "3명에게 보내기");
+await typeInto(1, "자재는 B문으로 들이세요.");
+await tap("3명에게 보내기");
+await check("선택한 3명에게 전송", "0/3명 확인");
+await tap("자재는 B문으로 들이세요.");
+await check("받는 사람: Nguyễn", "Nguyễn Văn An");
+await check("받는 사람: Иван", "Иван Петров");
+await check("받는 사람: 김민준", "김민준");
+await expectCount("선택 안 한 사람은 받는 사람에 없음(李伟)", await visibleCount("李伟"), 0);
+await expectCount("선택 안 한 사람은 받는 사람에 없음(Aziz)", await visibleCount("Aziz Karimov"), 0);
+await page.screenshot({ path: path.join(outDir, "flow-3-1-targets.png") });
 
 console.log("4) 관리자: 가입 승인 → 멤버 반영");
 await page.goto(base + "/site/members", { waitUntil: "networkidle0" });

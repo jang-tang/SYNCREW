@@ -107,15 +107,17 @@ import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { io as connect, type Socket as ClientSocket } from "socket.io-client";
 import { attachRealtime } from "../../src/realtime/gateway";
+import type { StreamHubOptions } from "../../src/streaming/streamHub";
 import { REALTIME_NAMESPACE, type ClientToServerEvents, type ServerToClientEvents } from "../../src/shared/realtime";
 
 export type RtClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
 /** REST + Socket.IO 를 실제 포트(임의)로 띄운다 */
-export async function createRealtimeTestApp(options: TestAppOptions = {}) {
-  const base = await createTestApp(options);
+export async function createRealtimeTestApp(options: TestAppOptions & { stream?: Partial<StreamHubOptions> } = {}) {
+  const { stream, ...appOptions } = options;
+  const base = await createTestApp(appOptions);
   const server: HttpServer = createServer(base.app);
-  const gateway = attachRealtime(server, base.context);
+  const gateway = attachRealtime(server, base.context, { stream });
   base.context.events = gateway.events;
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}${REALTIME_NAMESPACE}`;

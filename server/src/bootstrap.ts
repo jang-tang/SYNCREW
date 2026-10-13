@@ -20,8 +20,11 @@ import type { Translator } from "./engine/translation/translator";
 import { AudioUrlSigner } from "./messaging/audioUrls";
 import { MessagePipeline, type PipelineOptions } from "./messaging/pipeline";
 import { FileStorage } from "./messaging/storage";
+import type { StreamEngine } from "./streaming/engine";
+import { FakeStreamEngine } from "./streaming/fakeStream";
+import { RealtimeStreamEngine } from "./streaming/realtimeStream";
 
-export type ContextOverrides = Partial<Pick<AppContext, "verifier" | "events" | "limits" | "stt" | "translator">> & {
+export type ContextOverrides = Partial<Pick<AppContext, "verifier" | "events" | "limits" | "stt" | "translator" | "streamEngine">> & {
   pipeline?: Partial<PipelineOptions>;
   sessions?: Partial<SessionTimings>;
 };
@@ -57,10 +60,23 @@ export async function createContext(
   // 통역 엔진: ENGINE=fake 면 가짜 엔진, 아니면 OpenAI 키가 있을 때만 실제 엔진
   let stt: SttProvider | null = null;
   let translator: Translator | null = null;
+  let streamEngine: StreamEngine | null = null;
   if (env.ENGINE === "fake") {
     stt = new FakeStt({ delayMs: 300 });
     translator = new FakeTranslator({ delayMs: 600 });
+    // 실제 말소리 기준: 무음 판단은 OpenAI 설정과 같게, 첫 조각 0.8초·조각 100ms 간격 (S0 실측과 비슷한 체감)
+    streamEngine = new FakeStreamEngine({ silenceMs: env.STREAM_VAD_SILENCE_MS, firstChunkDelayMs: 800, chunkIntervalMs: 100 });
   } else if (env.OPENAI_API_KEY) {
+    streamEngine = new RealtimeStreamEngine({
+      apiKey: env.OPENAI_API_KEY,
+      model: env.TRANSLATION_MODEL,
+      transcribeModel: env.STT_MODEL,
+      voice: env.TRANSLATION_VOICE,
+      reasoning: env.TRANSLATION_REASONING,
+      silenceMs: env.STREAM_VAD_SILENCE_MS,
+      budget,
+      log: (message, detail) => logger.warn(detail ?? {}, message),
+    });
     stt = new OpenAiStt(env.OPENAI_API_KEY, env.STT_MODEL, budget);
     translator = new RealtimeTranslator({
       apiKey: env.OPENAI_API_KEY,
@@ -87,6 +103,8 @@ export async function createContext(
     translator: overrides.translator !== undefined ? overrides.translator : translator,
     storage: new FileStorage(env.STORAGE_DIR),
     audioUrls: new AudioUrlSigner(env.AUDIO_URL_SECRET),
+    streamEngine: overrides.streamEngine !== undefined ? overrides.streamEngine : streamEngine,
+    streams: null,
   } as Omit<AppContext, "pipeline" | "sessions"> as AppContext;
   context.sessions = new LiveSessionService(context, overrides.sessions);
   context.pipeline = new MessagePipeline(context, {

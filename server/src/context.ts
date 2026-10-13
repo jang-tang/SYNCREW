@@ -13,6 +13,8 @@ import type { MessagePipeline } from "./messaging/pipeline";
 import type { FileStorage } from "./messaging/storage";
 import type { DeviceRegistry, PresenceRegistry } from "./realtime/presence";
 import type { LiveSessionService } from "./sessions/liveSessions";
+import type { StreamEngine } from "./streaming/engine";
+import type { StreamHub } from "./streaming/streamHub";
 
 export type Limits = {
   /** 가입 코드 입력: 사용자당 1분 횟수 */
@@ -47,4 +49,8 @@ export type AppContext = {
   pipeline: MessagePipeline;
   storage: FileStorage;
   audioUrls: AudioUrlSigner;
+  /** 스트리밍 통역 엔진 (1:1 통화). OpenAI 키가 없으면 null, ENGINE=fake 면 가짜 */
+  streamEngine: StreamEngine | null;
+  /** 스트리밍 통역 허브. 서버가 Socket.IO 를 붙일 때 만든다 (그 전에는 null) */
+  streams: StreamHub | null;
 };

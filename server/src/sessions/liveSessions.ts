@@ -271,6 +271,8 @@ export class LiveSessionService {
       data: { status: "ended", endReason: reason, endedBy, endedAt: now },
     });
     this.clearRing(sessionId);
+    // 스트리밍 통역 연결도 닫는다 (OpenAI 세션 비용이 계속 나가지 않게)
+    this.ctx.streams?.closeSession(sessionId);
     for (const [key, timer] of this.graceTimers) {
       if (key.startsWith(`${sessionId}:`)) {
         clearTimeout(timer);

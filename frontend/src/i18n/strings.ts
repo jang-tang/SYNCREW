@@ -653,6 +653,24 @@ export const STRINGS = {
   "instr.written": { ko: "문자로 지시하기", zh: "发送文字指令", vi: "Gửi chỉ thị bằng chữ", uz: "Matnli topshiriq", ru: "Письменное задание" },
   "instr.liveTag": { ko: "실시간", zh: "实时", vi: "Trực tiếp", uz: "Jonli", ru: "Эфир" },
   "chat.callTag": { ko: "통화", zh: "通话", vi: "Cuộc gọi", uz: "Qoʻngʻiroq", ru: "Звонок" },
+
+  // ─── 일괄 지시 대상 선택 ───
+  "recip.quick": { ko: "빠른 선택", zh: "快速选择", vi: "Chọn nhanh", uz: "Tezkor tanlash", ru: "Быстрый выбор" },
+  "recip.last": { ko: "지난번 대상 · {n}", zh: "上次对象 · {n}", vi: "Lần trước · {n}", uz: "Oldingi safar · {n}", ru: "Как в прошлый раз · {n}" },
+  "recip.online": { ko: "접속 중 · {n}", zh: "在线 · {n}", vi: "Đang trực tuyến · {n}", uz: "Onlayn · {n}", ru: "В сети · {n}" },
+  "recip.headset": { ko: "이어폰 연결됨 · {n}", zh: "已连耳机 · {n}", vi: "Có tai nghe · {n}", uz: "Quloqchin ulangan · {n}", ru: "С гарнитурой · {n}" },
+  "recip.selectAll": { ko: "전체 선택", zh: "全选", vi: "Chọn tất cả", uz: "Hammasini tanlash", ru: "Выбрать всех" },
+  "recip.selectNone": { ko: "선택 해제", zh: "取消选择", vi: "Bỏ chọn", uz: "Tanlovni bekor qilish", ru: "Снять выбор" },
+  "recip.invert": { ko: "선택 반전", zh: "反选", vi: "Đảo lựa chọn", uz: "Teskari tanlash", ru: "Инвертировать" },
+  "recip.search": { ko: "이름으로 찾기", zh: "按姓名搜索", vi: "Tìm theo tên", uz: "Ism boʻyicha qidirish", ru: "Поиск по имени" },
+  "recip.noMatch": { ko: "일치하는 구성원이 없어요.", zh: "没有匹配的成员。", vi: "Không tìm thấy thành viên.", uz: "Mos aʼzo topilmadi.", ru: "Никого не найдено." },
+  "recip.summary": {
+    ko: "{n}명 · {l}개 언어 · 연결 {o}명",
+    zh: "{n}人 · {l}种语言 · 在线{o}人",
+    vi: "{n} người · {l} ngôn ngữ · {o} trực tuyến",
+    uz: "{n} kishi · {l} til · {o} ulangan",
+    ru: "{n} чел. · языков: {l} · в сети: {o}",
+  },
 } satisfies Record<string, Entry>;
 
 export type StringKey = keyof typeof STRINGS;

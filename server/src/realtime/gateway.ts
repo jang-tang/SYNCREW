@@ -6,6 +6,7 @@ import { UUID } from "../access/membership";
 import type { AuthIdentity } from "../auth/verifier";
 import type { AppContext } from "../context";
 import type { DomainEvents } from "../events/domainEvents";
+import { StreamHub, type StreamEmitter, type StreamHubOptions } from "../streaming/streamHub";
 import {
   REALTIME_NAMESPACE,
   type AckResult,
@@ -36,6 +37,21 @@ const deviceInput = z.object({
   inputName: z.string().trim().max(80).nullable(),
   micPermission: z.enum(["granted", "denied", "undetermined"]),
 });
+const streamOpenInput = z.object({
+  sessionId: z.string().regex(UUID),
+  format: z.object({ encoding: z.literal("pcm16"), sampleRate: z.union([z.literal(16000), z.literal(24000)]), channels: z.literal(1) }),
+});
+const streamIdInput = z.object({ streamId: z.string().regex(UUID) });
+/** 100ms 조각 기준 여유 있게 (24kHz 0.5초) */
+const MAX_FRAME_BYTES = 24_000;
+
+/** Socket.IO 바이너리는 Node 에서 Buffer, 브라우저·RN 에서는 ArrayBuffer·TypedArray 로 온다 */
+function toBuffer(value: unknown): Buffer | null {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  return null;
+}
 
 /** 모든 서버 발행 이벤트에 붙는 중복 제거용 id 와 시각 */
 const envelope = () => ({ eventId: randomUUID(), at: new Date().toISOString() });
@@ -43,12 +59,17 @@ const envelope = () => ({ eventId: randomUUID(), at: new Date().toISOString() })
 export type RealtimeGateway = {
   io: Server;
   events: DomainEvents;
+  streams: StreamHub;
   /** 클라이언트에게 REST로 다시 맞추라고 알린다 (서버 상태 불일치·복구 후) */
   requireSync(target: { userId: string } | "all", siteId?: string): void;
   close(): Promise<void>;
 };
 
-export function attachRealtime(server: HttpServer, context: AppContext): RealtimeGateway {
+export function attachRealtime(
+  server: HttpServer,
+  context: AppContext,
+  options: { stream?: Partial<StreamHubOptions> } = {},
+): RealtimeGateway {
   const { prisma, logger, presence, devices } = context;
   // 네이티브 앱은 CORS 와 무관하지만, 웹(e2e·개발) 접속을 위해 허용한다. 로컬 호스팅 전제.
   const io = new Server(server, { serveClient: false, cors: { origin: true } });
@@ -64,6 +85,22 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
   const reply = (ack: unknown, result: AckResult) => {
     if (typeof ack === "function") ack(result);
   };
+
+  // 스트리밍 통역: 음성 조각은 듣는 사람 개인 방으로만 보낸다 (봉투 없이, 빈도가 높으므로)
+  const streamEmitter: StreamEmitter = {
+    toUser(userId: string, event: string, payload: object) {
+      (nsp.to(rooms.user(userId)).emit as (event: string, payload: object) => boolean)(event, payload);
+    },
+    fallback(userId, payload) {
+      emit(rooms.user(userId), "stream:fallback", payload);
+    },
+  };
+  const streams = new StreamHub(context, context.streamEngine, streamEmitter, {
+    enabled: context.env.STREAMING === "on",
+    maxStreams: context.env.STREAM_MAX_SESSIONS,
+    ...options.stream,
+  });
+  context.streams = streams;
 
   const activeSiteIds = async (userId: string) =>
     (await prisma.siteMembership.findMany({ where: { userId, status: "active" }, select: { siteId: true } })).map((m) => m.siteId);
@@ -174,8 +211,41 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
       }
     });
 
+    // ─── 스트리밍 통역 (1:1 통화) ───
+    socket.on("stream:open", async (payload, ack) => {
+      const parsed = streamOpenInput.safeParse(payload);
+      const respond = (result: Parameters<typeof ack>[0]) => typeof ack === "function" && ack(result);
+      if (!parsed.success) return respond({ ok: false, code: "VALIDATION_ERROR" });
+      try {
+        respond(await streams.open(userId, socket.id, parsed.data.sessionId, parsed.data.format));
+      } catch (err) {
+        logger.warn({ err }, "스트림 열기 실패");
+        respond({ ok: false, code: "ENGINE_UNAVAILABLE" });
+      }
+    });
+
+    socket.on("stream:audio", (payload) => {
+      const streamId = (payload as { streamId?: unknown })?.streamId;
+      const seq = (payload as { seq?: unknown })?.seq;
+      const pcm = toBuffer((payload as { pcm?: unknown })?.pcm);
+      if (typeof streamId !== "string" || !Number.isInteger(seq) || !pcm || pcm.length === 0 || pcm.length > MAX_FRAME_BYTES) return;
+      streams.audio(userId, streamId, seq as number, pcm.length % 2 === 0 ? pcm : pcm.subarray(0, pcm.length - 1));
+    });
+
+    socket.on("stream:pause", (payload) => {
+      const parsed = streamIdInput.safeParse(payload);
+      if (parsed.success) streams.pause(userId, parsed.data.streamId);
+    });
+
+    socket.on("stream:close", (payload, ack) => {
+      const parsed = streamIdInput.safeParse(payload);
+      if (!parsed.success) return reply(ack, { ok: false, code: "VALIDATION_ERROR" });
+      reply(ack, streams.close(userId, parsed.data.streamId) ? { ok: true } : { ok: false, code: "NOT_FOUND" });
+    });
+
     socket.on("disconnect", () => {
       clearTimeout(expiryTimer);
+      streams.closeSocket(socket.id);
       if (presence.disconnect(userId)) {
         devices.delete(userId);
         void broadcastPresence(userId, false).catch((err) => logger.warn({ err }, "presence 알림 실패"));
@@ -222,6 +292,7 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
   return {
     io,
     events,
+    streams,
     requireSync(target, siteId) {
       const payload = siteId ? { siteId } : {};
       // 주의: nsp.to([]) 는 전체 전송이 되므로 전체 대상은 nsp.emit 으로만 보낸다.
@@ -230,6 +301,7 @@ export function attachRealtime(server: HttpServer, context: AppContext): Realtim
     },
     close: () =>
       new Promise<void>((resolve) => {
+        streams.dispose();
         void io.close(() => resolve());
       }),
   };

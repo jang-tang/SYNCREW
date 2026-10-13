@@ -26,6 +26,12 @@ const envSchema = z.object({
   TRANSLATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
   TRANSLATION_REASONING: z.enum(["minimal", "low", "medium", "high"]).default("low"),
   TRANSLATION_VOICE: z.string().default("marin"),
+  /** 1:1 통화 스트리밍 통역 (docs/streaming-plan.md). off 면 앱은 발화 단위 방식만 쓴다 */
+  STREAMING: z.enum(["on", "off"]).default("on"),
+  /** 동시에 여는 스트리밍 엔진 연결 수 (화자 × 대상 언어). 넘으면 발화 단위 방식 */
+  STREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(64).default(4),
+  /** OpenAI server_vad 말 끝 무음 (ms). S0 실측 기준 500, S6에서 300–400 실험 */
+  STREAM_VAD_SILENCE_MS: z.coerce.number().int().min(200).max(2000).default(500),
   /** 업로드 음성·번역 음성 저장 위치 */
   STORAGE_DIR: z.string().default("./storage"),
   /** 음성 URL 서명 키. 비우면 서버 시작마다 새로 만든다 (재시작 후 이전 URL 무효 → 앱이 목록을 다시 받음) */

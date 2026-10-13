@@ -252,6 +252,10 @@ try {
   console.log("7) 문자 지시 → 구성원 확인 → 관리자 진행 상태 갱신");
   await manager.go("/site/instruction/new");
   await manager.type(0, "오후 2시까지 3층 정리하세요");
+  // 대상 빠른 선택: 실제 서버의 접속 상태로 만든 칩 → 직접 선택 + 보내기 전 요약
+  await manager.check("관리자: 접속 중 칩(실제 접속 상태)", "접속 중 · 1");
+  await manager.tap("접속 중 · 1");
+  await manager.check("관리자: 보내기 전 요약", "1명 · 1개 언어 · 연결 1명");
   await manager.tap("1명에게 보내기");
   await manager.check("관리자: 전송", "지시를 보냈어요", 10000);
   await member.go("/site/instructions");
