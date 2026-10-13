@@ -156,6 +156,25 @@ export default function Members() {
             {manager && (
               <>
                 <Button title={`${t("members.changeLang")} · ${nativeNameOf(selected.lang)}`} icon="language" variant="secondary" onPress={() => setLangSheet(true)} />
+                <Button
+                  title={t(selected.role === "manager" ? "members.unsetManager" : "members.setManager")}
+                  icon={selected.role === "manager" ? "shield-outline" : "shield-checkmark"}
+                  variant="secondary"
+                  onPress={() =>
+                    confirm(
+                      t(selected.role === "manager" ? "members.unsetManagerConfirm" : "members.setManagerConfirm", { name: selected.displayName }),
+                      () => {
+                        update.mutate(
+                          { userId: selected.userId, action: { role: selected.role === "manager" ? "member" : "manager" } },
+                          { onError },
+                        );
+                        setSelected(null);
+                      },
+                      t(selected.role === "manager" ? "members.unsetManager" : "members.setManager"),
+                      t("common.cancel"),
+                    )
+                  }
+                />
                 {selected.role !== "manager" && (
                   <Button
                     title={t("members.remove")}

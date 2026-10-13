@@ -17,7 +17,8 @@ const envSchema = z.object({
   OPENAI_BUDGET_USD: z.coerce.number().positive().default(5),
   OPENAI_BUDGET_PERIOD: z.enum(["month", "total"]).default("month"),
   OPENAI_PRICING_JSON: optionalString,
-  STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
+  /** 받아쓰기 모델. 2026-10-14 비교 측정으로 gpt-4o-transcribe 로 바꿈 (현장 용어·숫자 정확도, docs/streaming-plan.md 5-2절) */
+  STT_MODEL: z.string().default("gpt-4o-transcribe"),
   TRANSLATION_MODEL: z.string().default("gpt-realtime-2.1"),
   /** openai: 실제 호출 / fake: 키 없이 개발·앱 연동 확인용 가짜 엔진 (비용 없음) */
   ENGINE: z.enum(["openai", "fake"]).default("openai"),
@@ -43,6 +44,8 @@ const envSchema = z.object({
   SUPABASE_SECRET_KEY: optionalString,
 
   AUDIO_PREPROCESSOR: z.string().default("passthrough"),
+  /** 스트리밍 통화용 노이즈 필터 (조각 단위, src/plugins/streamAudioFilter.ts) */
+  STREAM_AUDIO_FILTER: z.string().default("passthrough"),
   DATASET_ADAPTER: z.string().default("legacy-workplace"),
   DATASET_PATH: z.string().default("./data/legacy-workplace"),
   RETENTION_POLICY: z.string().default("noop"),

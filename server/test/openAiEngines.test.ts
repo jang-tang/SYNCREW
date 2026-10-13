@@ -185,7 +185,8 @@ describe("OpenAiStt (gpt-4o-mini-transcribe)", () => {
     expect(file.name).toBe("speech.wav");
     expect(Buffer.from(await file.arrayBuffer()).subarray(0, 4).toString()).toBe("RIFF");
     expect(store.records[0]).toMatchObject({ kind: "stt", model: "gpt-4o-mini-transcribe" });
-    expect(store.records[0]!.costUsd).toBeCloseTo((50 * 1.25 + 10 * 1.25 + 8 * 5) / 1e6, 9);
+    // 음성 50토큰 × $3 + 텍스트 10토큰 × $1.25 + 출력 8토큰 × $5 (2026-10-14 단가 수정: 음성 입력 $1.25 → $3)
+    expect(store.records[0]!.costUsd).toBeCloseTo((50 * 3 + 10 * 1.25 + 8 * 5) / 1e6, 9);
   });
 
   it("우즈베크어는 language 코드를 받지 않으므로 빼고 프롬프트로 언어를 알려 준다", async () => {

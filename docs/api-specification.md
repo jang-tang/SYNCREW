@@ -42,7 +42,7 @@
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
 | GET | `/sites/:siteId/members?status=pending\|active` | 관리자: 전체 / 멤버: active만 | `[{userId, displayName, role, status, lang, online}]` |
-| PATCH | `/sites/:siteId/members/:userId` | 관리자 | `{action:'approve'\|'reject'\|'remove'}` 또는 `{langOverride: Lang\|null}` → 204. 승인 시 기본 그룹 참여, 제외 시 모든 대화에서 나감. 잘못된 상태 전이 409 |
+| PATCH | `/sites/:siteId/members/:userId` | 관리자 | `{action:'approve'\|'reject'\|'remove'}` 또는 `{langOverride: Lang\|null}` 또는 **`{role:'manager'\|'member'}`(관리자 지정·해제, 2026-10-14)** → 204. 승인 시 기본 그룹 참여, 제외 시 모든 대화·작업조에서 나감. 잘못된 상태 전이 409. 역할 변경: 활성 멤버만(아니면 409), 같은 역할이면 그대로, **현장의 마지막 관리자는 해제 불가(409, 자기 자신 포함)**, 바뀌면 `membership:changed`(새 role) 가 가고 그 사람의 실시간 연결이 관리자 알림 방에 들어가거나 빠진다 |
 
 관리자는 자기 자신을 제외할 수 없다. 현장의 마지막 관리자는 제외 불가.
 

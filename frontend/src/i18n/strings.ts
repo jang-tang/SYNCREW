@@ -347,6 +347,22 @@ export const STRINGS = {
   "members.active": { ko: "멤버", zh: "成员", vi: "Thành viên", uz: "Aʼzolar", ru: "Участники" },
   "members.approve": { ko: "승인", zh: "批准", vi: "Duyệt", uz: "Tasdiqlash", ru: "Принять" },
   "members.reject": { ko: "거절", zh: "拒绝", vi: "Từ chối", uz: "Rad etish", ru: "Отклонить" },
+  "members.setManager": { ko: "관리자로 지정", zh: "设为管理员", vi: "Đặt làm quản lý", uz: "Rahbar qilib tayinlash", ru: "Назначить руководителем" },
+  "members.unsetManager": { ko: "관리자 해제", zh: "取消管理员", vi: "Bỏ quyền quản lý", uz: "Rahbarlikdan olish", ru: "Снять с руководителя" },
+  "members.setManagerConfirm": {
+    ko: "{name} 님을 관리자로 지정할까요? 가입 승인, 일괄 지시, 멤버 관리를 할 수 있게 돼요.",
+    zh: "要将{name}设为管理员吗？对方将可以审批加入、群发指令和管理成员。",
+    vi: "Đặt {name} làm quản lý? Người này sẽ duyệt thành viên, gửi chỉ thị và quản lý công trường.",
+    uz: "{name} rahbar qilib tayinlansinmi? U aʼzolarni tasdiqlash, topshiriq berish va boshqarish huquqiga ega boʻladi.",
+    ru: "Назначить {name} руководителем? Он сможет одобрять участников, отправлять задания и управлять составом.",
+  },
+  "members.unsetManagerConfirm": {
+    ko: "{name} 님의 관리자 권한을 해제할까요? 일반 구성원이 돼요.",
+    zh: "要取消{name}的管理员权限吗？对方将成为普通成员。",
+    vi: "Bỏ quyền quản lý của {name}? Người này sẽ trở thành thành viên thường.",
+    uz: "{name}ning rahbarlik huquqi olinsinmi? U oddiy aʼzo boʻladi.",
+    ru: "Снять с {name} права руководителя? Участник станет обычным членом.",
+  },
   "members.remove": { ko: "현장에서 제외", zh: "移出现场", vi: "Xóa khỏi công trường", uz: "Maydondan chiqarish", ru: "Исключить" },
   "members.removeConfirm": {
     ko: "{name} 님을 현장에서 제외할까요? 즉시 대화와 지시를 받을 수 없게 돼요.",

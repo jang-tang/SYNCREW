@@ -30,7 +30,7 @@
 - 통역: `server/src/messaging/pipeline.ts`(작업 큐), 엔진은 `context.stt`·`context.translator`(키 없으면 null, `ENGINE=fake`면 가짜). 메시지 생성은 `messaging/createMessage.ts` 하나로 (대화·통화 발화·지시 공통).
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`), **OpenAI API 키(2026-10-12 입력)**.
-- **OpenAI 비용 (가장 중요)**: 2026-10-12 잔액 $1.44에서 시작해 "아껴 쓰고 실제 호출 전 비용을 먼저 말할 것"이 사용자 규칙. 2026-10-13 사용자가 충전하고 서버 한도를 `OPENAI_BUDGET_USD=3`(`OPENAI_BUDGET_PERIOD=total` 누적)으로 올리는 것을 승인. **2026-10-14 누적 $0.3149.** 한도를 더 올릴 때는 금액을 먼저 알리고 승인받는다. 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 흐름 확인은 `ENGINE=fake`(비용 0), 실제 확인은 실행 상한을 걸어(`OPENAI_BUDGET_USD=<누적+여유>`로 서버 실행) 최소로.
+- **OpenAI 비용**: 2026-10-14 사용자: 충전 잔액 **$80** — 걱정하지 않아도 되지만 **막 쓰지는 말 것**. 서버 한도 `OPENAI_BUDGET_USD=3`(`OPENAI_BUDGET_PERIOD=total` 누적), **2026-10-14 누적 $0.3149**. 실제 호출 전에는 예상 비용을 말하고 실행 상한(`--max-usd` 또는 `OPENAI_BUDGET_USD=<누적+여유>`로 서버 실행)을 건다. 한도를 더 올릴 때는 금액을 먼저 알린다. 실제 청구액 대조는 하지 않기로 함(사용자 결정). 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 흐름 확인은 `ENGINE=fake`(비용 0).
 - **Phase 7 S0 보고: `docs/s0-report.md`** (① OpenAI 스트리밍 실측: 말 끝 → 첫 번역 음성 P50 1.83초, 비용·토큰·함정 문장·세션 끊김 1회, ② 실기기 절차·후보 조사, 3절 계획 변경 제안 P1–P7). B1 결과는 `docs/implementation-plan.md` Phase 7.
 - Phase 6 정리 문서: `docs/phase6-report.md` (실제 OpenAI 결과·비용·지연, 기기 확인, 시나리오 1–17·A–G 결과표, 알려진 문제, 결정 필요 사항). 운영 문서: `docs/operations.md` (설치·실행·비용·플러그인 연결·확인 도구).
 - Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
@@ -41,15 +41,16 @@
 
 ## 남은 일 (우선순위 순, 2026-10-14 갱신)
 
-완료 (2026-10-13–14): B1 대상 선택 UX, S0 ① OpenAI 측정, S1 서버 스트리밍, S2 웹 검증 클라이언트(실제 OpenAI 확인 포함), **B2 작업조 저장**, 안정화(시작 시 정리 테스트·업로드 형식 허용 목록·알림 사라짐 버그·iOS 로고 재현 안 됨), Expo 패치 업데이트. 상세는 `docs/implementation-plan.md` Phase 7, `docs/streaming-plan.md` 4-1·5-1절.
+**전체 인수인계·다음 작업 안내는 `docs/HANDOFF.md` 가 기준이다.** 아래는 요약.
 
-1. **S3 네이티브 오디오 (iOS·Android)** — **실기기 필요 (사용자: 아직 준비 어려움)**. 최소 iPhone 1 + Android 1 + 통화용(HFP) 블루투스 헤드셋 1. 1순위 `react-native-audio-api` 1.0 nightly 로 `frontend/src/audio/duplex/` 에 네이티브 구현을 붙인다(지금은 iOS·Android 에서 null → 휴대폰은 발화 단위 방식으로 통화). 후보·위험·절차: `docs/s0-report.md` 2절. 사용자 방식: 먼저 구현하고 실기기 시험하며 고친다, **iOS·Android 모두 확인**. iOS 빌드는 영문 경로 복사본 필요
-2. **S4 1:1 통화 통합(휴대폰 2대)** → **S6 실기기 튜닝** (말 끝 기준 지연 P50 ≤ 2.0초·P90 ≤ 3.0초 목표, 무음 300–400ms·추론 minimal 실험, 헤드셋, 비용 약 $3–6 → 서버 한도 상향 전 금액 안내·승인)
-3. 원문 기록 품질: 스트리밍 원문 전사가 현장 용어를 틀린다("비계→기계", "안전모→단물") — 번역은 맞음. 전사 힌트·용어 보정 데이터 보강 검토 (`docs/streaming-plan.md` 5-1절)
-4. 미검증으로 남은 것: 같은 언어 직접 전달(relay)의 앱 쪽 e2e(서버 테스트만), 사람이 귀로 듣는 소리 품질·체감 지연, 작업조 화면의 네이티브(iOS·Android) 표시
-5. 결정·준비 필요 (사용자): 실기기 구성·Apple 계정(iOS 실기기 설치), 충전 잔액 확인(한도 $3는 잔액의 절반 이하 원칙, 키 교체했다면 `server/.env`), **실제 청구액과 `openai_usage` 대조(대시보드 확인 필요 — 기록 누적 $0.3149 + 미기록 약 $0.005)**, 프로젝트 영문 경로 이동(S3 전 권장), Supabase 재설정 메일 딥링크, 노이즈 필터 실행 위치, UI 문구 원어민 검수(5개 언어, 스트리밍·작업조 문구 포함)
-6. 우즈베크어 통역 품질 — **사용자 결정: 보류**. 용어집 지시문 미리 넣기 — **보류**(비용)
-7. 추후 개선: 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림, 역할 변경 API(지금은 관리자 추가 방법 없음)
+완료 (2026-10-13–14): B1 대상 선택 UX, S0 ① OpenAI 측정, S1 서버 스트리밍, S2 웹 검증 클라이언트(실제 OpenAI 확인 포함), B2 작업조 저장, 안정화, Expo 패치, 번역 전용 모델 비교(유지 결정), Supabase 비밀번호 재설정 설정, 관리자 지정·해제, 같은 언어 통화 앱 e2e, 서버 노이즈 필터 조각 단위 연결 지점, 받아쓰기 모델 gpt-4o-transcribe 교체. 상세는 `docs/implementation-plan.md` Phase 7, `docs/streaming-plan.md` 4-1·5-1·5-2절.
+
+1. **실기기 준비 (사용자, 미완료)** — iPhone 1 + Android 1 + 통화용(HFP) 블루투스 헤드셋 1 이상, Apple 계정. 절차는 `docs/HANDOFF.md` 5절
+2. **S3 네이티브 오디오 (iOS·Android)** — 실기기 필요. 빌드 전 옛 경로가 남은 Android 빌드 캐시 삭제(`rm -rf frontend/android/app/.cxx frontend/android/app/build`), Expo 패치(10-14) 후 개발 빌드 새로. 1순위 `react-native-audio-api` 1.0 nightly 로 `frontend/src/audio/duplex/` 에 네이티브 구현(지금은 iOS·Android 에서 null → 휴대폰은 발화 단위 방식). 후보·위험: `docs/s0-report.md` 2절. **iOS·Android 모두 확인**, 먼저 구현하고 실기기에서 고친다
+3. **S4 1:1 통화(휴대폰 2대) → S6 실기기 튜닝** (지연 P50 ≤ 2.0초·P90 ≤ 3.0초, 무음 300–400ms·추론 minimal 실험, 헤드셋, 비용 약 $3–6 → 서버 한도 상향 전 금액 안내)
+4. 실기기에서만 확인 가능: 비밀번호 재설정 메일 링크 → 앱 열림, 사람 목소리로 받아쓰기("비계→기계" 재확인), 작업조·관리자 지정 화면의 네이티브 표시, 소리 품질·체감 지연
+5. 다른 팀원 몫: 실제 노이즈 필터 구현(서버 `STREAM_AUDIO_FILTER`·`AUDIO_PREPROCESSOR` 에 등록), 현장 용어 데이터 보강(거푸집·안전모·안전고리 등, 중국어·러시아어·우즈베크어 번역)
+6. 나중에: UI 문구 원어민 검수, 업무용 메일 서비스(지금 개인 Gmail SMTP), 우즈베크어 통역 품질(보류), 용어집 지시문(보류), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ### 지켜야 할 사용자 결정 (요약, 상세는 `docs/streaming-plan.md` 0-1·0-2절)
 - Phase·단계마다 멈추고 승인. 커밋·푸시는 요청할 때만
@@ -63,7 +64,7 @@
 
 1. 이 파일(특히 "남은 일"·OpenAI 비용 규칙), **`docs/streaming-plan.md`(Phase 7 계획·결정)**, **`docs/s0-report.md`(S0 결과·다음 절차)**, `docs/phase6-report.md`, 필요하면 `docs/operations.md`를 읽는다.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. (B1·S0 ①·S1 은 `b1eb6d6` 로 커밋·푸시됨. 이후 변경은 사용자가 요청할 때 커밋)
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**192개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**18개**).
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**200개** 통과해야 함), `cd frontend && npm run typecheck && npm run test:unit` (**18개**).
 4. 사용자가 "남은 일" 중 무엇을 진행할지 확인한다. live e2e는 `ENGINE=fake` 서버로 비용 없이 다시 돌릴 수 있다 (`docs/operations.md` 6절).
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 $0.3149 사용). 확인 스크립트: `cd server && npx tsx scripts/openai-check.ts` (1회 약 $0.05), 스트리밍 측정 `npx tsx scripts/stream-measure.ts --dry-run`으로 예상 비용 먼저 (턴당 약 $0.01).
 6. 작업을 끝내면: `docs/phase6-report.md`(또는 새 보고 문서)·`docs/implementation-plan.md`와 이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -73,9 +74,9 @@
 - Docker·Postgres 미설치 → 로컬 DB는 `embedded-postgres`(`npm run db:start`, 포트 5433, 데이터 `server/.pgdata/`). 테스트는 매번 임시 Postgres(포트 54331)를 따로 띄운다.
 - Android 에뮬레이터(`Pixel_9_Pro_XL`, SDK `~/Library/Android/sdk`)와 Xcode iOS 시뮬레이터 설치됨 (2026-10-12). 개발 빌드(`expo run:*`)로 실행한다. 명령은 `docs/phase4-report.md` 7절.
   - **Android 빌드는 JDK 21** (`/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home`). 기본 JDK 26·Android Studio JDK 25는 CMake 단계에서 실패.
-  - **iOS는 한글 경로에서 `pod install` 실패** (hermes-engine.podspec 인코딩 오류) → 영문 경로 복사본에서 네이티브만 빌드하고 JS는 원래 폴더 Metro로 제공.
+  - **프로젝트는 2026-10-14부터 영문 경로** `/Users/taewoongjang/PlayGround/SYNCREW` (예전 한글 경로에서는 iOS `pod install` 이 실패해 복사본으로 빌드했다 — 이제 원래 폴더에서 바로 `expo run:ios` 가능, 아직 실제로 빌드해 보지는 않음).
   - 시뮬레이터 조작 도구가 없어 iOS는 화면 캡처만 가능. Android는 `adb shell input`으로 조작.
-  - **디스크 여유 공간이 적다** (2026-10-13 기준 약 22GB). Android 빌드(Gradle)·iOS 빌드(Pods, 영문 경로 복사본 ~5GB)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인하고, 작업 후 복사본을 지운다.
+  - **디스크 여유 공간이 적다** (2026-10-13 기준 약 22GB). Android 빌드(Gradle)·iOS 빌드(Pods)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인한다.
   - 에뮬레이터 마이크로는 실제 말소리가 들어오지 않았다 → 말소리 자동 감지는 웹 가짜 마이크(`npm run e2e:mic`)로 확인했고, 최종은 실기기.
   - 에뮬레이터 조작: uiautomator 화면 구조(`adb shell uiautomator dump`)에서 글자로 좌표를 찾아 `adb shell input tap`. 개발 빌드는 에뮬레이터에 설치돼 있으므로 Metro만 띄우면 된다 (`docs/phase4-report.md` 7절).
   - `expo start`가 `frontend/tsconfig.json`을 자동으로 고쳐 쓴다 → 작업 후 `git checkout -- frontend/tsconfig.json`.
@@ -98,10 +99,10 @@
 | 데이터 저장 | 로컬 Postgres(`embedded-postgres`) + Prisma 7. Supabase에는 데이터 저장 안 함. 음성 파일은 서버 로컬 디스크 |
 | 호스팅 | 로컬 PC. 휴대폰은 같은 Wi-Fi로 접속 |
 | 언어 | ko, zh, vi, uz, ru |
-| 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 `gpt-4o-mini-transcribe` 기본. **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
-| 비용 | BudgetGuard가 모든 호출을 감쌈. 기본 $5/월이었으나 **2026-10-12부터 $0.5 누적** (잔액 $1.44 기준, 그 이상 사용 금지. 10-13 누적 $0.2348) |
+| 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 **`gpt-4o-transcribe`** (2026-10-14 mini 에서 교체 — 현장 용어·숫자가 더 정확, 용어 힌트는 오히려 나빠 쓰지 않음). **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
+| 비용 | BudgetGuard가 모든 호출을 감쌈. 서버 한도 **$3 누적** (10-12 $0.5 → 10-13 $3). 잔액 $80(10-14), 막 쓰지 않기 |
 | 현장 특화 처리 | 로직만 구현, 데이터셋은 어댑터로 교체 (기존 저장소 데이터는 샘플). 제조업 데이터여도 무방 |
-| 노이즈 필터 / 보존 정책 | 다른 개발자가 구현 → 플러그인 인터페이스만 제공 (`server/src/plugins/`) |
+| 노이즈 필터 / 보존 정책 | 다른 개발자가 구현 → 플러그인 인터페이스만 제공 (`server/src/plugins/`). **노이즈 필터는 서버에서 실행** (2026-10-14 결정) |
 | 블루투스 | 일반 헤드셋으로 취급 |
 | 제외 | 위험도 감지, 긴급 문장 원탭 전송, 구독·결제, 푸시 알림(추후) |
 | UI | 기존 PoC UI 사용 안 함, 새로 제작 |
@@ -126,7 +127,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 192개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍 25·작업조 8 포함)
+cd server && npm run typecheck && npm test       # 테스트 200개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍 29·작업조 8·역할 4 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)
@@ -135,10 +136,10 @@ cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측
 cd frontend && npm run typecheck && npm run doctor
 cd frontend && npm run bundle:android            # Android 번들 빌드 확인
 cd frontend && npm run test:unit                 # 단위 테스트 18개 (VAD 11 + 일괄 지시 대상 선택·작업조 7)
-cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 96개 자동 검증 (통화·일괄 지시·대상 선택·작업조 포함)
+cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 99개 자동 검증 (통화·일괄 지시·대상 선택·작업조·관리자 지정 포함)
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
-cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 37개 (통화는 스트리밍, 작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
+cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 43개 (통화는 스트리밍, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
 ```
 

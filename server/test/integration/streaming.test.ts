@@ -4,6 +4,7 @@ import type { LiveSession, MessageView } from "../../src/shared/api";
 import type { ServerToClientEvents, StreamOpenResult } from "../../src/shared/realtime";
 import { FakeStreamEngine, type FakeStreamOptions } from "../../src/streaming/fakeStream";
 import type { StreamHubOptions } from "../../src/streaming/streamHub";
+import type { StreamAudioFilter, StreamFilterContext } from "../../src/engine/audio/streamAudioFilter";
 import { createRealtimeTestApp, nextEvent, noEvent, type RtClient } from "../helpers/testApp";
 
 // Phase 7 S1: 1:1 통화 스트리밍 통역 — 서버 경로 (가짜 스트리밍 엔진, 실제 Postgres·Socket.IO, 비용 0)
@@ -70,9 +71,16 @@ function speak(socket: RtClient, streamId: string, seconds: number, startSeq = 0
   return seq;
 }
 
-async function createApp(engineOptions: FakeStreamOptions = {}, stream: Partial<StreamHubOptions> = {}) {
+async function createApp(engineOptions: FakeStreamOptions = {}, stream: Partial<StreamHubOptions> = {}, streamAudioFilter?: StreamAudioFilter) {
   const engine = new FakeStreamEngine({ firstChunkDelayMs: 20, ...engineOptions });
-  const app = await createRealtimeTestApp({ stt: new FakeStt(), translator: new FakeTranslator(), streamEngine: engine, stream, sessions: { ringTimeoutMs: 5000, disconnectGraceMs: 500 } });
+  const app = await createRealtimeTestApp({
+    stt: new FakeStt(),
+    translator: new FakeTranslator(),
+    streamEngine: engine,
+    stream,
+    sessions: { ringTimeoutMs: 5000, disconnectGraceMs: 500 },
+    ...(streamAudioFilter ? { streamAudioFilter } : {}),
+  });
   return { app, engine };
 }
 
@@ -426,3 +434,98 @@ describe("스트리밍 통역 — 엔진 장애·비용 한도·상한 (P6)", ()
     }
   });
 });
+
+describe("스트리밍 통역 — 서버 노이즈 필터 (조각 단위, 2026-10-14)", () => {
+  /** 시험용 필터: 받은 조각 수·정보를 기록하고 mode 에 따라 동작 */
+  function testFilter(mode: "invert" | "mute" | "throw" | "slow") {
+    const record = { calls: 0, contexts: [] as StreamFilterContext[], lengths: [] as number[], closed: 0 };
+    const filter: StreamAudioFilter = {
+      name: `test-${mode}`,
+      open(context) {
+        record.contexts.push(context);
+        return {
+          process(frame) {
+            record.calls += 1;
+            record.lengths.push(frame.length);
+            if (mode === "throw") throw new Error("filter failure");
+            if (mode === "mute") return new Int16Array(frame.length);
+            if (mode === "slow") return new Promise((resolve) => setTimeout(() => resolve(frame), 200));
+            return frame.map((v) => -v);
+          },
+          close: () => void (record.closed += 1),
+        };
+      },
+    };
+    return { filter, record };
+  }
+
+  it("모든 조각이 필터를 거친다 (언어·16kHz 정보 전달, 같은 길이), 통화가 끝나면 필터를 닫는다", async () => {
+    const { filter, record } = testFilter("invert");
+    const { app: t } = await createApp({}, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!);
+      const sent = speak(env.managerSocket, streamId, 0.5);
+      expect((await turn).end.status).toBe("done");
+      expect(record.contexts).toEqual([expect.objectContaining({ lang: "ko", sampleRate: 16_000, siteId: env.siteId, userId: env.manager.id })]);
+      expect(record.calls).toBeGreaterThanOrEqual(sent - 2);
+      expect(new Set(record.lengths)).toEqual(new Set([FRAME / 2]));
+      await env.manager.as("post", `/sessions/${session.id}/end`);
+      expect(record.closed).toBe(1);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("필터 결과가 실제로 쓰인다: 소리를 지우는 필터면 말이 감지되지 않는다 (대조군: 위 반전 필터는 턴 생성)", async () => {
+    const { filter } = testFilter("mute");
+    const { app: t, engine } = await createApp({}, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const quiet = noEvent(env.workerSockets[0]!, "stream:out:start", 1200);
+      speak(env.managerSocket, streamId, 0.5);
+      await quiet;
+      expect(engine.connections.at(-1)!.appendedBytes).toBeGreaterThan(0); // 조각은 엔진까지 갔다 (무음으로)
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("필터가 오류를 내면 원본 조각으로 통역을 계속하고, 연속 5번 실패하면 그 통화에서 필터를 끈다", async () => {
+    const { filter, record } = testFilter("throw");
+    const { app: t } = await createApp({}, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!);
+      speak(env.managerSocket, streamId, 0.5);
+      expect((await turn).end.status).toBe("done");
+      expect(record.calls).toBe(5);
+      expect(record.closed).toBe(1);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("필터가 조각당 시간 제한(50ms)을 넘기면 원본 조각을 쓴다 (통역은 계속)", async () => {
+    const { filter, record } = testFilter("slow");
+    const { app: t } = await createApp({}, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!, 6000);
+      speak(env.managerSocket, streamId, 0.3);
+      expect((await turn).end.status).toBe("done");
+      expect(record.calls).toBe(5); // 5번 연속 시간 초과 → 끔
+    } finally {
+      await t.close();
+    }
+  });
+});
+

@@ -400,10 +400,16 @@ class MockDb {
       });
   }
 
-  updateMember(siteId: string, userId: string, action: { action: "approve" | "reject" | "remove" } | { langOverride: Lang | null }) {
+  updateMember(
+    siteId: string,
+    userId: string,
+    action: { action: "approve" | "reject" | "remove" } | { langOverride: Lang | null } | { role: SiteRole },
+  ) {
     const membership = this.membership(siteId, userId)!;
     const group = this.conversations.get(`${siteId}_group`)!;
-    if ("langOverride" in action) {
+    if ("role" in action) {
+      membership.role = action.role;
+    } else if ("langOverride" in action) {
       membership.langOverride = action.langOverride;
     } else if (action.action === "approve") {
       membership.status = "active";

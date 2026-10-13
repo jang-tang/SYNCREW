@@ -15,7 +15,7 @@ import {
 // OpenAI Realtime 스트리밍 엔진 (gpt-realtime-2.1, GA 인터페이스 — 2026-10-13 S0 측정 스크립트로 실제 확인한 설정).
 //   - 화자 1명 × 대상 언어 1개당 WebSocket 세션 1개를 통화 내내 연다
 //   - server_vad(무음 500ms, 앞 300ms) + create_response, interrupt_response=false (이어 말해도 앞 번역을 끊지 않음)
-//   - 입력 전사(원문 기록) gpt-4o-mini-transcribe, 출력 PCM16 24kHz 음성 + 자막
+//   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done 사용량으로 기록 (BudgetGuard)
 // 이벤트 이름·필드: docs/s0-report.md 1절, server/scripts/stream-measure.ts.

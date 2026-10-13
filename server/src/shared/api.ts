@@ -96,7 +96,9 @@ export type DeviceStatus = {
 
 export type MemberAction =
   | { action: "approve" | "reject" | "remove" }
-  | { langOverride: Lang | null };
+  | { langOverride: Lang | null }
+  /** 관리자 지정·해제 (관리자만, 현장의 마지막 관리자는 해제 불가) */
+  | { role: SiteRole };
 
 export type JoinCode = {
   id: string;

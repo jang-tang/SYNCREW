@@ -282,6 +282,45 @@ try {
   await manager.check("관리자: 통화 종료", "통화가 끝났어요");
   await member.check("구성원: 통화 종료 알림", "Cuộc gọi đã kết thúc", 10000);
 
+  if (STREAMING && !ONLY_CALL) {
+    console.log("5-1) 같은 언어 통화: OpenAI 없이 음성 그대로 전달 (관리자가 구성원의 현장 언어를 한국어로 바꿔서)");
+    const setMemberLang = async (label) => {
+      await manager.go("/site/members");
+      await manager.tap(MEMBER_NAME);
+      await manager.tap(`언어 변경 · ${label === "한국어" ? "Tiếng Việt" : "한국어"}`);
+      await manager.tap(label);
+      await wait(1000);
+    };
+    await setMemberLang("한국어");
+    await member.go("/site"); // 페이지를 새로 열면 재생 기록(window.__syncrewPlayback)도 새로 시작한다
+    const before = await member.page.evaluate(() => ({ ...window.__syncrewPlayback, streamed: [...window.__syncrewPlayback.streamed] }));
+    await manager.go("/site/members");
+    await manager.tap(MEMBER_NAME);
+    await manager.tap("통역 통화");
+    await member.check("구성원: 수신 화면", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
+    await member.tap("Nghe");
+    await manager.check("관리자: 같은 언어 → 직접 전달 방식", "같은 언어 · 음성 그대로 전달", 15000);
+    await member.check("구성원: 같은 언어 → 직접 전달 방식", "Cùng ngôn ngữ · truyền giọng nói trực tiếp", 15000);
+    // 관리자 마이크 음성(가짜 마이크)이 구성원에게 조각으로 도착하는지, 기록(번역 메시지)은 생기지 않는지
+    const got = await member.page
+      .waitForFunction((n) => window.__syncrewPlayback.streamChunks > n + 10, { timeout: 30000 }, before.streamChunks)
+      .then(() => true, () => false);
+    const after = await member.page.evaluate(() => window.__syncrewPlayback);
+    if (got && after.streamed.length === before.streamed.length) {
+      pass++;
+      console.log(`  ✓ [구성원] 직접 전달: 음성 조각 ${after.streamChunks - before.streamChunks}개 받음, 기록 메시지 없음 (streamed 그대로)`);
+    } else {
+      fail++;
+      console.log("  ✗ [구성원] 직접 전달", { got, before: before.streamChunks, after: after.streamChunks, streamedBefore: before.streamed.length, streamedAfter: after.streamed.length });
+    }
+    await manager.shot("live-3b-relay-manager");
+    await member.shot("live-3b-relay-member");
+    await manager.tap("끊기");
+    await manager.check("관리자: 직접 전달 통화 종료", "통화가 끝났어요");
+    await member.check("구성원: 직접 전달 통화 종료", "Cuộc gọi đã kết thúc", 10000);
+    await setMemberLang("Tiếng Việt"); // 원래대로 (뒤 단계는 베트남어 통역을 확인한다)
+  }
+
   if (!ONLY_CALL) {
   console.log("6) 관리자 실시간 일괄 지시 → 구성원 자동 수신");
   await member.go("/site");

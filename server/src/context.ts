@@ -1,6 +1,7 @@
 import type { TokenVerifier } from "./auth/verifier";
 import type { Env } from "./config/env";
 import type { AudioPreprocessor } from "./engine/audio/audioPreprocessor";
+import type { StreamAudioFilter } from "./engine/audio/streamAudioFilter";
 import type { BudgetGuard } from "./engine/budget/budgetGuard";
 import type { DomainProcessor } from "./engine/domain/domainProcessor";
 import type { DomainEvents } from "./events/domainEvents";
@@ -31,6 +32,8 @@ export type AppContext = {
   budget: BudgetGuard;
   domain: DomainProcessor;
   audioPreprocessor: AudioPreprocessor;
+  /** 스트리밍 통화용 서버 노이즈 필터 (조각 단위, src/plugins/streamAudioFilter.ts) */
+  streamAudioFilter: StreamAudioFilter;
   verifier: TokenVerifier;
   /** 실시간 알림. 서버가 Socket.IO를 붙이면 그 구현으로 교체된다 (그 전에는 noop). */
   events: DomainEvents;

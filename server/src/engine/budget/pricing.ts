@@ -24,7 +24,9 @@ export type PricingTable = Record<string, ModelPrice>;
 /**
  * 기본 단가 (2026-10-12 OpenAI 가격 페이지 확인).
  * - gpt-realtime-2.1 (기본 번역 모델) = gpt-realtime-2 와 같은 가격. 둘 다 등록해 TRANSLATION_MODEL 로 고를 수 있다
- * - gpt-4o-mini-transcribe: 음성 입력 $1.25, 출력 $5. 텍스트(프롬프트) 입력 단가는 공개되지 않아 음성 입력과 같게 둔다
+ * - 받아쓰기 (2026-10-14 갱신, 가격 정리 사이트 기준 — OpenAI 가격표로 다시 확인 권장):
+ *   gpt-4o-transcribe(기본, 2026-10-14부터): 텍스트 입력 $2.5, 출력 $10, 음성 입력 $6 (약 $0.006/분)
+ *   gpt-4o-mini-transcribe: 텍스트 입력 $1.25, 출력 $5, 음성 입력 $3 (약 $0.003/분). 이전에는 음성 입력을 $1.25 로 잘못 두어 받아쓰기 비용을 약 2.4배 적게 기록했다
  * 실제 단가가 다르면 OPENAI_PRICING_JSON 으로 덮어쓴다.
  *
  * ── 음성 메시지 1건 비용 (추정) ─────────────────────────────
@@ -48,7 +50,8 @@ export type PricingTable = Record<string, ModelPrice>;
 export const DEFAULT_PRICING: PricingTable = {
   "gpt-realtime-2.1": { inputText: 4, outputText: 24, inputAudio: 32, outputAudio: 64, cachedInput: 0.4 },
   "gpt-realtime-2": { inputText: 4, outputText: 24, inputAudio: 32, outputAudio: 64, cachedInput: 0.4 },
-  "gpt-4o-mini-transcribe": { inputText: 1.25, outputText: 5, inputAudio: 1.25, outputAudio: 0, cachedInput: 1.25 },
+  "gpt-4o-transcribe": { inputText: 2.5, outputText: 10, inputAudio: 6, outputAudio: 0, cachedInput: 2.5 },
+  "gpt-4o-mini-transcribe": { inputText: 1.25, outputText: 5, inputAudio: 3, outputAudio: 0, cachedInput: 1.25 },
 };
 
 export function buildPricingTable(overrideJson: string | undefined): PricingTable {

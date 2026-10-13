@@ -11,6 +11,7 @@ import { DomainProcessor } from "./engine/domain/domainProcessor";
 import type { Logger } from "./lib/logger";
 import { createPrismaClient } from "./lib/prisma";
 import { createAudioPreprocessor } from "./plugins/audioPreprocessor";
+import { createStreamAudioFilter } from "./plugins/streamAudioFilter";
 import { createDatasetAdapter } from "./plugins/datasetAdapter";
 import { FakeStt, FakeTranslator } from "./engine/fake";
 import { OpenAiStt } from "./engine/stt/openAiStt";
@@ -24,7 +25,7 @@ import type { StreamEngine } from "./streaming/engine";
 import { FakeStreamEngine } from "./streaming/fakeStream";
 import { RealtimeStreamEngine } from "./streaming/realtimeStream";
 
-export type ContextOverrides = Partial<Pick<AppContext, "verifier" | "events" | "limits" | "stt" | "translator" | "streamEngine">> & {
+export type ContextOverrides = Partial<Pick<AppContext, "verifier" | "events" | "limits" | "stt" | "translator" | "streamEngine" | "streamAudioFilter">> & {
   pipeline?: Partial<PipelineOptions>;
   sessions?: Partial<SessionTimings>;
 };
@@ -94,6 +95,7 @@ export async function createContext(
     budget,
     domain,
     audioPreprocessor: createAudioPreprocessor(env.AUDIO_PREPROCESSOR),
+    streamAudioFilter: overrides.streamAudioFilter ?? createStreamAudioFilter(env.STREAM_AUDIO_FILTER),
     verifier,
     events: overrides.events ?? noopEvents,
     limits: overrides.limits ?? { joinPerMinute: 5, messagesPerMinute: 30 },

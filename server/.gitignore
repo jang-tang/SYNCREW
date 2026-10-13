@@ -12,3 +12,4 @@ node_modules
 /openai-check-output
 /stream-measure-output
 /translate-compare-output
+/stt-hint-output

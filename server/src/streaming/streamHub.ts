@@ -8,6 +8,7 @@ import type { StreamFallbackReason, StreamFormat, StreamOpenResult, StreamTurnSt
 import type { ContextLine, StreamConnection, StreamEngine, TurnEnd } from "./engine";
 import { persistTurn } from "./persistTurn";
 import { LinearResampler } from "./resample";
+import { DEFAULT_STREAM_FILTER_OPTIONS, SafeStreamFilter, type StreamFilterOptions } from "../engine/audio/streamAudioFilter";
 
 // 스트리밍 통역 허브 (docs/streaming-plan.md 3·4절). 1:1 통화만 (일괄 지시는 발화 단위 방식 유지, 2026-10-12 결정).
 //   stream:open  → 세션·권한 확인(기존 utteranceTarget 규칙) → 엔진 연결(화자 × 상대 언어)
@@ -33,9 +34,11 @@ export type StreamHubOptions = {
   maxTurnSeconds: number;
   /** 같은 언어 직접 전달: 조각이 이 시간 동안 안 오면 턴 끝 */
   relayIdleMs: number;
+  /** 서버 노이즈 필터(조각 단위) 안전 규칙 */
+  filter: StreamFilterOptions;
 };
 
-export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = { enabled: true, maxStreams: 4, failureWindowMs: 60_000, maxTurnSeconds: 35, relayIdleMs: 1_000 };
+export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = { enabled: true, maxStreams: 4, failureWindowMs: 60_000, maxTurnSeconds: 35, relayIdleMs: 1_000, filter: DEFAULT_STREAM_FILTER_OPTIONS };
 
 type TurnState = {
   id: string;
@@ -76,6 +79,8 @@ type Stream = {
   relayTurn: { id: string; seq: number } | null;
   relayTimer: NodeJS.Timeout | null;
   sampleRate: number;
+  /** 서버 노이즈 필터 (2026-10-14 결정, passthrough 면 그대로) */
+  filter: SafeStreamFilter;
 };
 
 export class StreamHub {
@@ -147,6 +152,13 @@ export class StreamHub {
       relayTurn: null,
       relayTimer: null,
       sampleRate: format.sampleRate,
+      filter: new SafeStreamFilter(
+        this.ctx.streamAudioFilter,
+        { siteId: target.siteId, userId, lang: sourceLang, sampleRate: format.sampleRate },
+        this.options.filter,
+        (reason, error) =>
+          this.ctx.logger.warn({ err: error, sessionId, reason, filter: this.ctx.streamAudioFilter.name }, reason === "disabled" ? "스트리밍 노이즈 필터 끔 (연속 실패)" : "스트리밍 노이즈 필터 실패, 원본 조각 사용"),
+      ),
     };
     this.streams.set(stream.id, stream);
     if (relay) {
@@ -206,6 +218,12 @@ export class StreamHub {
     if (!stream || stream.speakerId !== userId || stream.closed || seq <= stream.lastSeq) return;
     if (seq !== stream.lastSeq + 1 && stream.lastSeq >= 0) stream.gaps += seq - stream.lastSeq - 1;
     stream.lastSeq = seq;
+    // 서버 노이즈 필터 → (같은 언어) 그대로 전달 / (통역) 표본률 변환 후 엔진
+    stream.filter.push(pcm, (frame) => this.ingest(stream, frame));
+  }
+
+  private ingest(stream: Stream, pcm: Buffer): void {
+    if (stream.closed) return;
     if (stream.relay) return this.relayAudio(stream, pcm);
     const converted = stream.resampler.push(pcm);
     if (converted.length === 0) return;
@@ -219,8 +237,12 @@ export class StreamHub {
   pause(userId: string, streamId: string): void {
     const stream = this.streams.get(streamId);
     if (!stream || stream.speakerId !== userId || stream.closed) return;
-    if (stream.relay) return this.endRelayTurn(stream);
-    stream.connection?.commit();
+    // 필터 처리 중인 조각이 모두 들어간 뒤에 말 끝을 알린다
+    stream.filter.after(() => {
+      if (stream.closed) return;
+      if (stream.relay) this.endRelayTurn(stream);
+      else stream.connection?.commit();
+    });
   }
 
   // ─── 같은 언어: 직접 전달 ───────────────────────────
@@ -372,6 +394,7 @@ export class StreamHub {
     if (stream.closed) return;
     if (stream.relay) this.endRelayTurn(stream);
     stream.closed = true;
+    stream.filter.close();
     this.streams.delete(stream.id);
     stream.connection?.close();
     stream.connection = null;

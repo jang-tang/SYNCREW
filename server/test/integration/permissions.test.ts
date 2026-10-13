@@ -92,6 +92,12 @@ const CASES: Case[] = [
     call: (as) => as("patch", `/sites/${site()}/members/${world.users.member.id}`).send({ action: "nope" }),
     expect: { ...BLOCKED, member: 403, manager: 400 },
   },
+  {
+    // 관리자 지정·해제: 관리자 대조군은 없는 사용자 → 404 (데이터를 바꾸지 않게)
+    name: "PATCH /sites/:id/members/:userId { role }",
+    call: (as) => as("patch", `/sites/${site()}/members/${randomUUID()}`).send({ role: "manager" }),
+    expect: { ...BLOCKED, member: 403, manager: 404 },
+  },
   { name: "GET /sites/:id/conversations", call: (as) => as("get", `/sites/${site()}/conversations`), expect: { ...BLOCKED, member: 200, manager: 200 } },
   {
     name: "POST /sites/:id/conversations/direct",

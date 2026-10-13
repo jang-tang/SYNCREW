@@ -262,6 +262,10 @@ export function attachRealtime(
       // 제외·거절되면 그 사용자의 모든 연결을 현장 방에서 즉시 뺀다 (이후 현장 알림 차단)
       if (status === "removed" || status === "rejected") {
         nsp.in(rooms.user(userId)).socketsLeave([rooms.site(siteId), rooms.managers(siteId)]);
+      } else if (status === "active") {
+        // 관리자 지정·해제: 관리자 알림 방(가입 요청·지시 수신 상태)에 넣거나 뺀다
+        if (role === "manager") nsp.in(rooms.user(userId)).socketsJoin(rooms.managers(siteId));
+        else nsp.in(rooms.user(userId)).socketsLeave(rooms.managers(siteId));
       }
     },
     joinRequested({ siteId, userId, displayName, lang }) {

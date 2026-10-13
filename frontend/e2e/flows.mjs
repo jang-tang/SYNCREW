@@ -41,7 +41,7 @@ await page.setViewport({ width: 390, height: 844 });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 200)));
-page.on("dialog", (d) => d.accept());
+page.on("dialog", (d) => void d.accept().catch(() => undefined)); // 이미 닫힌 확인 창이면 무시
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let pass = 0, fail = 0;
 const check = async (name, text, timeout = 6000) => {
@@ -258,6 +258,20 @@ console.log("4) 관리자: 가입 승인 → 멤버 반영");
 await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
 await tap("승인");
 await check("승인 후 멤버 7명", "멤버 · 7");
+// 관리자 지정·해제. 헤드리스 Chrome 은 클릭 처리 중에 뜬 확인 창을 수락 전에 닫아 버리는 경우가 있어(2026-10-14 확인)
+// 브라우저 확인 창은 "확인"으로 바꿔 둔다 (앱 동작 검증과 무관)
+await page.evaluate(() => { window.confirm = () => true; });
+const managerBadges = () => visibleCount("관리자");
+const beforeBadges = await managerBadges();
+await tap("Иван Петров");
+await tap("관리자로 지정");
+await wait(800);
+await expectCount("관리자 지정 → 관리자 표시 하나 늘어남", await managerBadges(), beforeBadges + 1);
+await tap("Иван Петров");
+await check("지정된 사람에게는 해제 버튼", "관리자 해제");
+await tap("관리자 해제");
+await wait(800);
+await expectCount("관리자 해제 → 원래대로", await managerBadges(), beforeBadges);
 
 console.log("5) 구성원: 지시 확인 → 작업 완료");
 await page.evaluate(() => {

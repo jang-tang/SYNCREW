@@ -30,6 +30,7 @@ const codeInput = z.object({
 const memberPatch = z.union([
   z.object({ action: z.enum(["approve", "reject", "remove"]) }).strict(),
   z.object({ langOverride: langSchema.nullable() }).strict(),
+  z.object({ role: z.enum(["manager", "member"]) }).strict(),
 ]);
 
 const memberQuery = z.object({ status: z.enum(["pending", "active"]).optional() });
@@ -128,6 +129,17 @@ export function sitesRouter(context: AppContext): Router {
         throw new AppError("NOT_FOUND", "멤버를 찾을 수 없습니다.");
       }
       const group = await tx.conversation.findFirst({ where: { siteId, type: "group" } });
+
+      if ("role" in input) {
+        if (target.status !== "active") throw new AppError("CONFLICT", "활성 멤버만 역할을 바꿀 수 있습니다.");
+        if (target.role === input.role) return null; // 이미 그 역할 (멱등)
+        if (target.role === "manager") {
+          const managers = await tx.siteMembership.count({ where: { siteId, role: "manager", status: "active" } });
+          if (managers <= 1) throw new AppError("CONFLICT", "현장의 마지막 관리자는 해제할 수 없습니다.");
+        }
+        await tx.siteMembership.update({ where: { id: target.id }, data: { role: input.role, decidedBy: req.auth!.userId, decidedAt: now } });
+        return { role: input.role as SiteRole, status: "active" } as const;
+      }
 
       if ("langOverride" in input) {
         if (target.status !== "active") throw new AppError("CONFLICT", "활성 멤버만 언어를 바꿀 수 있습니다.");
