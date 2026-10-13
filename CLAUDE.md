@@ -23,14 +23,14 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1 완료 (`b1eb6d6`), **S2 웹 검증 클라이언트 완료 (2026-10-14, 미커밋)** — 실제 OpenAI 확인 1회만 비용 승인 대기. 다음: S3 | `b1eb6d6` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1 완료 (`b1eb6d6`), **S2 웹 검증 클라이언트 완료 (2026-10-14, 실제 OpenAI 확인 포함)**. 다음: S3 (실기기 필요) | `713c5e3` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
 - 통역: `server/src/messaging/pipeline.ts`(작업 큐), 엔진은 `context.stt`·`context.translator`(키 없으면 null, `ENGINE=fake`면 가짜). 메시지 생성은 `messaging/createMessage.ts` 하나로 (대화·통화 발화·지시 공통).
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`), **OpenAI API 키(2026-10-12 입력)**.
-- **OpenAI 비용 (가장 중요, 사용자 지시 2026-10-12): 계정 잔액 $1.44 — 아껴 쓰고 그 이상 절대 쓰지 말 것.** 서버 한도 `OPENAI_BUDGET_PERIOD=total`(누적), `OPENAI_BUDGET_USD`는 $0.5 → **2026-10-13 $3**. **2026-10-13 현재 누적 $0.2348 (남은 $0.265)**. **2026-10-13 사용자가 OpenAI 충전, 서버 한도를 $3 누적으로 상향(승인)**. 더 올릴 때는 금액을 먼저 알린다. 실제 호출 전 예상 비용 안내 규칙은 그대로. 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 실제 호출이 필요한 작업은 예상 비용을 먼저 말하고 최소로. 흐름 확인은 `ENGINE=fake`. 한도 변경은 사용자 승인 필요.
+- **OpenAI 비용 (가장 중요)**: 2026-10-12 잔액 $1.44에서 시작해 "아껴 쓰고 실제 호출 전 비용을 먼저 말할 것"이 사용자 규칙. 2026-10-13 사용자가 충전하고 서버 한도를 `OPENAI_BUDGET_USD=3`(`OPENAI_BUDGET_PERIOD=total` 누적)으로 올리는 것을 승인. **2026-10-14 누적 $0.2602.** 한도를 더 올릴 때는 금액을 먼저 알리고 승인받는다. 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 흐름 확인은 `ENGINE=fake`(비용 0), 실제 확인은 실행 상한을 걸어(`OPENAI_BUDGET_USD=<누적+여유>`로 서버 실행) 최소로.
 - **Phase 7 S0 보고: `docs/s0-report.md`** (① OpenAI 스트리밍 실측: 말 끝 → 첫 번역 음성 P50 1.83초, 비용·토큰·함정 문장·세션 끊김 1회, ② 실기기 절차·후보 조사, 3절 계획 변경 제안 P1–P7). B1 결과는 `docs/implementation-plan.md` Phase 7.
 - Phase 6 정리 문서: `docs/phase6-report.md` (실제 OpenAI 결과·비용·지연, 기기 확인, 시나리오 1–17·A–G 결과표, 알려진 문제, 결정 필요 사항). 운영 문서: `docs/operations.md` (설치·실행·비용·플러그인 연결·확인 도구).
 - Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
@@ -43,7 +43,7 @@
 
 **다음 작업: Phase 7 = 진짜 스트리밍 통역 (1:1 통화만) — 사용자 승인 완료 (2026-10-12). 계획·결정: `docs/streaming-plan.md` (0-1절 결정, 7절 단계).**
 
-1. **S2 완료 (2026-10-14, `docs/streaming-plan.md` 5-1절)** — 남은 것: **실제 OpenAI 로 스트리밍 통화 1회** (예상 약 $0.02–0.05, 사용자 승인 대기. 방법은 5-1절 마지막 줄). 그다음 **S3 네이티브 오디오** (iOS·Android 실기기 필요 — 최소 iPhone 1 + Android 1 + HFP 헤드셋 1, 2인 통화(S4)는 2대. 사용자: 실기기 준비는 아직 어려움). 앱의 `frontend/src/audio/duplex/index.ts` 가 iOS·Android 에서 null 이라 지금 휴대폰 앱은 발화 단위 방식으로 통화한다.
+1. **S2 완료 (2026-10-14, `docs/streaming-plan.md` 5-1절)** — 실제 OpenAI 확인 2회($0.0253)에서 앱 전송 버그(volatile emit 으로 조각 손실) 발견·수정. 다음은 **S3 네이티브 오디오** (iOS·Android 실기기 필요 — 최소 iPhone 1 + Android 1 + HFP 헤드셋 1, 2인 통화(S4)는 2대. 사용자: 실기기 준비는 아직 어려움). 앱의 `frontend/src/audio/duplex/index.ts` 가 iOS·Android 에서 null 이라 지금 휴대폰 앱은 발화 단위 방식으로 통화한다.
    - (아래는 S2 작업 지시 원문, 완료됨)
    - 설계: `docs/streaming-plan.md` 5절 + 0-2절 결정표, 서버 계약: `docs/realtime-protocol.md` 10절·`server/src/shared/realtime.ts`
    - 앱 `frontend/src/audio/duplex/`: `DuplexAudio` 인터페이스(계획 2절 D2) + 웹 구현(AudioWorklet 16kHz 캡처 + Web Audio 24kHz 조각 재생). `useStreamingCall` 훅(단말 VAD 게이트 `audio/vad.ts` 재사용, 앞 0.3–0.5초 사전 버퍼·말 멎은 뒤 0.6초 더 보내고 `stream:pause`), 통화 화면 실시간 자막(원문·번역), `stream:open` 이 ok 가 아니거나 `stream:fallback` 이면 기존 `useHandsFree`(발화 단위)로 전환

@@ -166,6 +166,8 @@ async function signIn(u, account, { name, langLabel, signInLabel, startLabel }) 
 const STREAMING = process.env.E2E_STREAMING !== "off";
 // E2E_ONLY_CALL=1: 1:1 통화만 확인 (실제 OpenAI 로 돌릴 때 다른 구간의 통역 비용을 쓰지 않기 위해 — 대화·일괄 지시·문자 지시 건너뜀)
 const ONLY_CALL = process.env.E2E_ONLY_CALL === "1";
+// E2E_REAL=1: 서버가 실제 OpenAI(ENGINE=openai)일 때 — 가짜 엔진 문구 대신 "양쪽이 번역 1턴씩 받았는지"로 확인하고 바로 끊는다 (비용 최소)
+const REAL = process.env.E2E_REAL === "1";
 const runId = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, "");
 const SITE = `E2E 현장 ${runId}`;
 const MANAGER_NAME = "E2E 관리자";
@@ -240,8 +242,22 @@ try {
     await member.check("구성원: 문장 단위 방식으로 폴백", "Dịch theo từng câu", 15000);
   }
   await manager.check("관리자: 마이크 듣는 중", "듣고 있어요", 10000);
+  if (REAL) {
+    const gotTurn = async (u, name) => {
+      const ok = await u.page.waitForFunction(() => window.__syncrewPlayback?.streamed.length > 0, { timeout: 40000 }).then(() => true, () => false);
+      if (ok) { pass++; console.log(`  ✓ [${u.label}] ${name}`); } else { fail++; console.log(`  ✗ [${u.label}] ${name}`); }
+    };
+    await gotTurn(member, "구성원: 관리자 말의 실제 통역(스트림) 1턴 받음");
+    await gotTurn(manager, "관리자: 구성원 말의 실제 통역(스트림) 1턴 받음");
+    await wait(1500);
+    for (const u of [member, manager]) console.log(`    [${u.label}] 자막:`, await u.page.evaluate(() => [...document.querySelectorAll("div")].filter((n) => n.children.length === 0 && n.checkVisibility()).map((n) => n.innerText.trim()).filter(Boolean).slice(0, 14).join(" | ")));
+    await manager.shot("live-real-call-manager");
+    await member.shot("live-real-call-member");
+    await manager.tap("끊기"); // 비용을 줄이기 위해 바로 끊는다
+  } else {
   await member.check("구성원: 관리자 말이 베트남어로 도착", "[vi] [음성 ko]", 30000);
   await manager.check("관리자: 구성원 말이 한국어로 도착", "[ko] [음성 vi]", 30000);
+  }
   await wait(4000); // 기록 알림(message:new)까지 받을 시간
   if (!STREAMING) {
     // 폴백: 스트림 재생 없이 기록 알림으로 재생 대기열에 들어간다
@@ -258,11 +274,11 @@ try {
     const mStats = await manager.page.evaluate(() => window.__syncrewPlayback);
     if (mStats.streamChunks > 0 && mStats.streamed.every((id) => !mStats.enqueued.includes(id))) { pass++; console.log("  ✓ [관리자] 스트림 재생, 중복 재생 0"); }
     else { fail++; console.log("  ✗ [관리자] 스트림 재생·중복 재생 방지", mStats); }
-    await member.check("구성원: 실시간 자막(원문)", "[음성 ko]");
+    if (!REAL) await member.check("구성원: 실시간 자막(원문)", "[음성 ko]");
   }
   await manager.shot("live-3-call-manager");
   await member.shot("live-3-call-member");
-  await manager.tap("끊기");
+  if (!REAL) await manager.tap("끊기");
   await manager.check("관리자: 통화 종료", "통화가 끝났어요");
   await member.check("구성원: 통화 종료 알림", "Cuộc gọi đã kết thúc", 10000);
 

@@ -77,8 +77,9 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
       }
     },
     sendStreamAudio(streamId, seq, pcm) {
-      // 끊긴 동안 쌓아 두면 다시 연결될 때 한꺼번에 몰려가므로 버린다 (서버 스트림도 연결이 끊기면 닫힌다)
-      if (socket.connected) socket.volatile.emit("stream:audio", { streamId, seq, pcm });
+      // 끊긴 동안 쌓아 두면 다시 연결될 때 한꺼번에 몰려가므로 버린다 (서버 스트림도 연결이 끊기면 닫힌다).
+      // volatile 은 쓰지 않는다: 소켓이 앞 조각을 보내는 중이면 버려서 말 앞부분이 사라졌다 (2026-10-14 실제 OpenAI 확인에서 발견)
+      if (socket.connected) socket.emit("stream:audio", { streamId, seq, pcm });
     },
     pauseStream(streamId) {
       if (socket.connected) socket.emit("stream:pause", { streamId });
