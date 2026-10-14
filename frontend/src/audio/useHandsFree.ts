@@ -56,7 +56,8 @@ export function useHandsFree(options: {
   /** 세션이 연결된 동안 true */
   active: boolean;
   muted: boolean;
-  onUtterance: (recording: Recording) => void;
+  /** 보낸 발화. Promise 를 돌려주면 iOS 에서는 끝날 때까지 다음 녹음을 시작하지 않는다 (아래 cut 참고) */
+  onUtterance: (recording: Recording) => void | Promise<unknown>;
   onDevice?: (device: DeviceStatus) => void;
 }) {
   const recorder = useAudioRecorder(OPTIONS);
@@ -119,7 +120,10 @@ export function useHandsFree(options: {
       const recording = await stopSegment();
       if (send && recording) {
         const uri = await preprocessRecording(recording.uri);
-        callbacks.current.onUtterance({ ...recording, uri });
+        const sending = callbacks.current.onUtterance({ ...recording, uri });
+        // iOS 녹음기는 다음 녹음을 같은 파일 경로에 다시 쓰므로, 업로드가 파일을 다 읽기 전에 다음 녹음을 시작하면
+        // 빈 파일(28바이트)이 올라간다 (2026-10-14 iPhone 17 Pro 실기기에서 발견). Android 는 매번 새 파일이라 기다리지 않는다.
+        if (Platform.OS === "ios") await Promise.resolve(sending).catch(() => undefined);
       }
       if (shouldRecordRef.current) {
         await startSegment();
@@ -209,6 +213,8 @@ export function useHandsFree(options: {
       const l = loop.current;
       if (!l.recording || l.busy) return;
       const metering = recorder.getStatus().metering ?? -160;
+      // Android(expo-audio)는 음량을 읽을 때마다 값이 초기화돼 중간중간 -160(값 없음)이 끼어든다. 무음이 아니라 "측정 없음"이므로 건너뛴다. (실제 무음도 마이크 잡음 때문에 -50 안팎이다)
+      if (Platform.OS !== "web" && metering <= -160) return;
       setLevel(Math.max(0, Math.min(1, (metering + 60) / 60)));
       const event = vad.current.push(metering, Date.now());
       if (!event) return;

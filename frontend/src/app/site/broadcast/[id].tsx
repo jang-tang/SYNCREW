@@ -70,7 +70,7 @@ function SpeakerConsole({ session, me }: { session: LiveSession; me: Profile }) 
   const handsFree = useHandsFree({
     active: active && online,
     muted,
-    onUtterance: (recording) => send.mutate(recording, { onError }),
+    onUtterance: (recording) => send.mutateAsync(recording).catch(onError),
     onDevice: (device) => void services.realtime.reportDevice(device).catch(() => undefined),
   });
 

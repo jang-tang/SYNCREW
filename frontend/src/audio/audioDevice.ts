@@ -34,7 +34,11 @@ export async function selectHeadsetInput(recorder: AudioRecorder): Promise<Pick<
         // 일부 기기(Android 9 이하 등)는 입력 선택을 지원하지 않는다. 기본 입력으로 진행.
       }
     }
-    const current = (await recorder.getCurrentInput().catch(() => null)) as Input | null;
+    // 타입은 Promise 지만 iOS 구현은 값을 바로 돌려준다 (2026-10-14 iPhone 실기기: `.catch` 에서 오류 → 헤드셋을 "없음"으로 표시하던 원인).
+    // 두 경우 모두 처리하도록 Promise 로 감싼다.
+    const current = (await Promise.resolve()
+      .then(() => recorder.getCurrentInput())
+      .catch(() => null)) as Input | null;
     const used = current ?? preferred ?? inputs[0] ?? null;
     return { audioRoute: routeOf(used), inputName: used?.name ?? null };
   } catch {

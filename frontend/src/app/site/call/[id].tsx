@@ -21,6 +21,12 @@ import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 import { colors, font, spacing } from "@/theme";
 
+/**
+ * 역순(inverted) 목록의 빈 화면 보정. 네이티브는 React Native 가 빈 화면을 이미 바로 세워 주므로 웹에서만 뒤집는다.
+ * (네이티브에서도 뒤집으면 Android 는 좌우 거울 글자, iOS 는 거꾸로 보인다 — 2026-10-14 Galaxy S22 실기기에서 발견)
+ */
+const WEB_EMPTY_FLIP = Platform.OS === "web" ? { transform: [{ scaleY: -1 as const }] } : {};
+
 // 1:1 실시간 통역 통화 (docs/live-interpretation.md 3절)
 // 울림(건 사람: 부르는 중 / 받는 사람: 받기·거절) → 통화 중(핸즈프리: 말하면 자동 통역, 받은 통역 자동 재생) → 종료
 // 통화 중에는 먼저 스트리밍 통역(말하는 동안 전송, docs/streaming-plan.md)을 시도하고, 안 되면 발화 단위 방식으로 한다.
@@ -76,7 +82,7 @@ export default function CallScreen() {
     // 연결이 끊긴 동안은 보내지 못하므로 듣기를 멈춘다. 스트리밍 중에는 쓰지 않는다
     active: active && online && streaming.mode === "utterance",
     muted,
-    onUtterance: (recording) => send.mutate(recording, { onError: (error) => toast(errorMessage(error), "error") }),
+    onUtterance: (recording) => send.mutateAsync(recording).catch((error: unknown) => toast(errorMessage(error), "error")),
     onDevice: reportDevice,
   });
   const mic = streamingOn ? streaming : handsFree;
@@ -177,7 +183,7 @@ export default function CallScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingVertical: spacing.md, flexGrow: 1 }}
         ListEmptyComponent={
-          <View style={{ transform: [{ scaleY: -1 }], padding: spacing.xl, gap: spacing.sm }}>
+          <View style={{ ...WEB_EMPTY_FLIP, padding: spacing.xl, gap: spacing.sm }}>
             <Text style={[font.body, { color: colors.inkSoft, textAlign: "center" }]}>{t("live.empty")}</Text>
             <Text style={[font.caption, { color: colors.muted, textAlign: "center" }]}>{t("live.notice")}</Text>
           </View>

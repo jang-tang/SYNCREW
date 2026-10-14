@@ -165,6 +165,18 @@ describe("시나리오 5: 1:1 양방향 통역", () => {
     expect(audio.status).toBe(200);
     expect(audio.headers["content-type"]).toBe("audio/wav");
     expect(Buffer.from(audio.body).subarray(0, 4).toString()).toBe("RIFF");
+    expect(audio.headers["accept-ranges"]).toBe("bytes");
+
+    // iOS 재생기는 구간 요청(Range)에 206 을 받아야 파일을 연다
+    const size = Number(audio.headers["content-length"]);
+    const head = await request(t.app).get(message.audioUrl!).set("Range", "bytes=0-1");
+    expect(head.status).toBe(206);
+    expect(head.headers["content-range"]).toBe(`bytes 0-1/${size}`);
+    expect(head.headers["content-length"]).toBe("2");
+    const tail = await request(t.app).get(message.audioUrl!).set("Range", "bytes=4-");
+    expect(tail.status).toBe(206);
+    expect(tail.headers["content-range"]).toBe(`bytes 4-${size - 1}/${size}`);
+    expect((await request(t.app).get(message.audioUrl!).set("Range", `bytes=${size}-`)).status).toBe(416);
 
     // 반대 방향: 작업자(vi) → 관리자(ko)
     const toManager = nextEvent(managerSocket, "message:new");

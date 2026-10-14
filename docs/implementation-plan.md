@@ -254,6 +254,34 @@
 - 시험 도구 수정: 헤드리스 Chrome 이 확인 창을 수락 전에 닫는 문제 → 데모 e2e 는 `window.confirm` 을 "확인"으로 바꿔 둠, 확인 창 처리 오류로 e2e 전체가 멈추던 문제 수정
 - 검증: 서버 200, 데모 e2e 99, live e2e 43, 마이크 2, 단위 18, Android 번들, expo-doctor 21/21
 
+### T2 실기기 기준선 (2026-10-14 밤 – 10-15, 상세: [device-test-log.md](device-test-log.md))
+
+기기: Galaxy S22 (SM-S901N) + Galaxy Buds2, iPhone 17 Pro (iOS 26.7.1) + AirPods Pro. 서버 `ENGINE=fake` (OpenAI 비용 0).
+
+| 시나리오 | Android | iPhone |
+|---|---|---|
+| 설치·실행·로그인 (live) | 통과 (USB 터널 `adb reverse`) | 통과 (Galaxy 핫스팟에 Mac·iPhone 무선) |
+| A 상대 문자 실시간 수신 | 통과 | 통과 |
+| B 휴대폰 마이크 통화 (문장 단위) | 수정 후 통과 | 수정 후 통과 |
+| C 헤드셋 마이크 통화 | **실패 — 헤드셋 마이크 무음 (SCO 미시작) → S3** | 수정 후 통과 (입력 AirPods Pro HFP 확인) |
+| D 일괄 지시 / E 비밀번호 메일 링크 | 미실시 | 미실시 |
+| 헤드셋으로 통역 듣기 | 미확인 (가짜 엔진 음성은 0.1초 무음) | 미확인 |
+
+실기기에서만 드러나 고친 문제 (커밋 번호는 `CLAUDE.md` 상태표):
+1. **휴대폰 음성 업로드 전부 실패** — Expo SDK 57 기본 fetch(expo/fetch)가 RN 파일 첨부 `{uri,name,type}` 미지원 ("Unsupported FormDataPart implementation", 화면엔 "네트워크 연결을 확인해 주세요"). 휴대폰 multipart 는 `XMLHttpRequest` 로 (`frontend/src/services/live/http.ts`)
+2. Android 음량 값에 `-160`(값 없음)이 끼어들어 말 감지가 끊김 → 건너뜀 (`useHandsFree.ts`)
+3. 역순 목록 빈 화면 안내문이 거울 글자 — 최신 RN 은 네이티브에서 빈 화면을 이미 바로 세움 → 웹에서만 뒤집기 (통화·대화 화면)
+4. **iOS 에서 서버 번역 음성 재생 불가** — 서버가 `Range` 요청에 206 을 주지 않아 AVPlayer 가 파일을 열지 못함 → 재생 끝 이벤트가 없어 통화 마이크가 "재생 중"으로 멈춤. 서버 Range(206/416) 지원 + 시험 (`server/src/routes/v1/conversations.ts`), 앱 재생 끝 감시 안전장치 (`playback.ts`)
+5. **iOS 빈 음성 파일(28바이트) 업로드** — iOS 녹음기가 다음 녹음을 같은 파일 경로에 다시 씀 → iOS 는 업로드가 끝난 뒤 다음 녹음 시작 (`useHandsFree.ts`, 통화·일괄 지시 화면 `mutateAsync`)
+6. iOS 헤드셋을 "연결 안 됨"으로 표시 — expo-audio `getCurrentInput()` 이 iOS 에서 Promise 가 아님 → Promise 로 감쌈 (`audioDevice.ts`)
+
+환경에서 알게 된 것:
+- 일반 Wi-Fi(공유기)가 기기 간 통신을 막음(클라이언트 격리). **Galaxy 가 핫스팟을 켜면 Galaxy 앱은 그 핫스팟의 손님(Mac)에 닿지 못함** (adb shell 로는 닿음). iPhone 은 Galaxy 핫스팟 손님으로 정상. 두 휴대폰 동시 시험(S4)은 둘 다 손님인 구성 필요 (예: iPhone 핫스팟에 Mac·Galaxy, 또는 격리 없는 공유기)
+- iOS 개발 빌드(expo-dev-client 없음)는 빌드 때 Mac 주소를 앱에 넣음(`ip.txt`) → 네트워크가 바뀌면 다시 빌드
+- iOS 서명: Xcode 계정 팀 `RVB3MMNVS6`, `xcodebuild -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6 CODE_SIGN_STYLE=Automatic` 로 인증서 자동 생성 (처음엔 인증서 0개라 `expo run:ios --device` 실패)
+- USB 터널(adb reverse)이 순간 끊겨 문장 1개 손실 — 실제 Wi-Fi 에서는 해당 없음. 앱은 실패한 문장을 다시 보내지 않음
+- 검증: 서버 200(Range 확인 추가), 단위 18, 데모 e2e 99, live e2e 43, 타입 검사
+
 ## 2. 다른 개발자 연결 지점
 
 | 담당 | 연결 지점 | 계약 |

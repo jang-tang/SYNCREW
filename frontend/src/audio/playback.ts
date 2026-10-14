@@ -21,8 +21,36 @@ export const usePlaybackStore = create<{ playingId: string | null }>(() => ({ pl
 const queue: PlayItem[] = [];
 let player: AudioPlayer | null = null;
 let audioModeReady = false;
+/** 재생 끝 감시 타이머 (아래 watchEnd) */
+let endWatch: ReturnType<typeof setInterval> | null = null;
+
+function clearEndWatch() {
+  if (endWatch) clearInterval(endWatch);
+  endWatch = null;
+}
+
+/**
+ * "재생 끝" 이벤트(didJustFinish)를 놓쳐도 재생 중 상태에 갇히지 않게 재생기 상태를 직접 확인한다.
+ * 갇히면 통화의 마이크가 계속 멈춘다 ("통역 음성 재생 중 — 끝나면 말하세요").
+ * 2026-10-14 iPhone 17 Pro 실기기: 음성 파일을 열지 못하면(당시 서버가 Range 요청 미지원) 끝 이벤트가 오지 않아 마이크가 멈춰 있었다.
+ */
+function watchEnd(target: AudioPlayer) {
+  clearEndWatch();
+  const startedAt = Date.now();
+  let sawPlaying = false;
+  endWatch = setInterval(() => {
+    if (player !== target) return clearEndWatch();
+    if (target.playing) sawPlaying = true;
+    const elapsed = Date.now() - startedAt;
+    const reachedEnd = target.isLoaded && target.duration > 0 && target.currentTime >= target.duration - 0.05;
+    // 끝까지 갔거나, 재생하다 멈췄거나, 불러온 뒤 길이+2초가 지났거나, 20초 안에 불러오지도 못했으면 끝으로 본다
+    const overdue = target.isLoaded ? elapsed > (target.duration + 2) * 1000 : elapsed > 20_000;
+    if ((!target.playing && !target.isBuffering && (reachedEnd || sawPlaying)) || overdue) finish();
+  }, 250);
+}
 
 function finish() {
+  clearEndWatch();
   player?.remove();
   player = null;
   usePlaybackStore.setState({ playingId: null });
@@ -55,6 +83,7 @@ async function start(item: PlayItem) {
       if (status.didJustFinish) finish();
     });
     player.play();
+    watchEnd(player);
   } catch {
     // 음성 파일 재생 실패 시 기기 TTS로 대체
     player?.remove();
@@ -82,6 +111,7 @@ export function enqueue(item: PlayItem) {
 
 /** 녹음을 시작하기 전 등에 모든 재생을 멈춘다. */
 export function stopPlayback() {
+  clearEndWatch();
   queue.length = 0;
   player?.remove();
   player = null;

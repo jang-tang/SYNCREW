@@ -17,6 +17,20 @@
 
 | 날짜 | 기기 | 헤드셋 | 앱 빌드(커밋) | 서버 모드(fake/openai) | 시나리오 | 결과 | 증상·측정값 | 원인 | 해결(커밋) |
 |---|---|---|---|---|---|---|---|---|---|
+| 2026-10-14 | Galaxy S22 (SM-S901N) | 블루투스 헤드셋 (A2DP 연결 확인) | a62d653 + live 모드 | fake | 설치·실행·로그인 (관리자) | 통과 | 현장 목록이 실제 서버에서 표시 | - | - |
+| 2026-10-14 | Galaxy S22 | 블루투스 헤드셋 | a62d653 | fake | A: 상대(구성원 스크립트)가 보낸 그룹 문자 수신 | 통과 | 베트남어 문자가 `[ko] …` 로 실시간 도착, 안 읽은 표시 2 | - | - |
+| 2026-10-14 | Galaxy S22 | - | a62d653 | fake | 앱 → PC 서버 무선 접속 | 실패 | Wi-Fi 에서 휴대폰→PC 핑·포트 모두 "No route to host" (macOS 방화벽은 꺼짐). 핫스팟(Galaxy 가 핫스팟, Mac 이 접속)에서는 `adb shell` 로는 닿지만 앱 트래픽은 닿지 않음 (앱이 스플래시에서 멈춤) | Wi-Fi 클라이언트 격리 추정 / 앱 네트워크 경로 | USB 터널(`adb reverse 4000/8081`) + `localhost` 주소로 우회. iPhone 은 우회 불가 → 아이폰 핫스팟 시험 필요 |
+| 2026-10-14 | iPhone 17 Pro | - | a62d653 | - | 빌드·설치 | 빌드 성공(설치 전) | 서명 인증서 0개였으나 `xcodebuild -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6` 자동 서명으로 빌드 성공. 아직 iPhone 에 설치·실행 안 함 | - | 사용자 지시로 Android 먼저 |
+| 2026-10-14 | Galaxy S22 | Galaxy Buds2 (해제 상태) | a62d653 | fake | 통화 화면·대화 화면 빈 안내문 | 실패→수정 | 빈 화면 안내문이 좌우 거울 글자로 보임 | 역순 목록 빈 화면을 우리가 한 번 더 뒤집음(최신 RN 은 네이티브에서 이미 바로 세움, Android 는 `scale:-1`) | 웹에서만 뒤집도록 수정, 실기기에서 바로 보임 확인 (미커밋) |
+| 2026-10-14 | Galaxy S22 | 없음(휴대폰 마이크) | a62d653 | fake | B: 통화에서 말하기 → 상대 수신 | 실패→수정→통과 | ① 음량 값에 -160(값 없음)이 계속 끼어들어 말 감지가 끊김 ② 음성 업로드가 `Unsupported FormDataPart implementation` 으로 전부 실패 (화면엔 "네트워크 연결을 확인해 주세요") | ① expo-audio Android 음량 측정 특성 ② Expo SDK 57 기본 fetch(expo/fetch)가 RN 파일 첨부 `{uri,name,type}` 미지원 → 문장 단위 통화·음성 메시지 업로드가 휴대폰에서 전부 실패하던 상태 | ① -160 은 건너뜀 ② 휴대폰 multipart 는 XMLHttpRequest 로 전송. 이후 말 감지·업로드(202)·상대 실시간 수신 확인 (미커밋) |
+| 2026-10-14 | Galaxy S22 | 없음 | a62d653 | fake | B: 두 번째 문장 | 실패(환경) | `Network request failed` | 같은 순간 adbd "timeout expired while flushing socket, closing" → USB 터널 순간 끊김 | 실제 Wi-Fi 에서는 해당 없음. 앱은 실패한 문장을 다시 보내지 않음 (기록만) |
+| 2026-10-14 | Galaxy S22 | Galaxy Buds2 (HFP 연결) | a62d653 | fake | C: 헤드셋 마이크로 통화 | **실패** | 입력 장치는 `AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET` 로 선택되지만 녹음 파일이 완전 무음(-90dB, 14.9초), 음량 값 전부 -160 → 말 감지 안 됨. 화면도 "이어폰이 연결되지 않았어요" | 블루투스 SCO 연결이 켜지지 않음(`SCO_STATE_INACTIVE`). expo-audio 는 입력만 고르고 SCO 를 시작하지 않음 (`docs/s0-report.md` 2절의 위험과 같음) | 미해결 → 네이티브 처리(S3: `setCommunicationDevice`/SCO 시작) 필요 |
+| 2026-10-14 | Galaxy S22 | - | a62d653 | fake | 무선 접속 재시험 (Wi-Fi 끄고 셀룰러 + Galaxy 핫스팟, Mac 접속) | 실패 | `adb shell` 로는 Mac:4000·8081 접속되지만 앱은 스플래시에서 멈춤, 서버에 휴대폰 요청 0건 | 핫스팟을 켠 휴대폰의 앱은 자기 핫스팟 손님(Mac)에 닿지 못함 | Galaxy 가 손님이 되는 구성(예: iPhone 핫스팟에 Mac·Galaxy 둘 다 접속) 시험 필요 |
+| 2026-10-15 | iPhone 17 Pro (iOS 26.7.1) | - | a62d653 + 수정(미커밋) | fake | 설치·실행 (Galaxy 핫스팟에 Mac·iPhone 둘 다 접속, 무선) | 통과 | 자동 서명 빌드 → `devicectl` 설치. 처음엔 "No script URL": 빌드 때 Mac 주소(`ip.txt`)가 박혀 있어 네트워크가 바뀌면 다시 빌드해야 함 | 개발 빌드가 expo-dev-client 없이 `ip.txt` 로 Metro 를 찾음 | 현재 주소로 다시 빌드 |
+| 2026-10-15 | iPhone 17 Pro | - | 〃 | fake | A: 상대 그룹 문자 수신 | 통과 | 실시간 도착 | - | - |
+| 2026-10-15 | iPhone 17 Pro | - | 〃 | fake | 받은 통역 음성 자동 재생 | 실패→수정→통과 | 재생이 끝나지 않아 통화 화면이 "통역 음성 재생 중 — 끝나면 말하세요"에 멈춤 (마이크 정지) | 서버 음성 주소가 `Range` 요청에 206 을 주지 않아 iOS 재생기(AVPlayer)가 파일을 열지 못함 → 끝 이벤트 없음 | 서버 음성 라우트에 Range(206/416) 지원 + 시험 추가, 앱 재생에 끝 감시 안전장치 |
+| 2026-10-15 | iPhone 17 Pro | 없음(휴대폰 마이크) | 〃 | fake | B: 통화에서 말하기 | 실패→수정→통과 | 업로드 파일이 28바이트(빈 파일) → 받아쓰기 실패 | iOS 녹음기가 다음 녹음을 **같은 파일 경로**에 다시 써서, 업로드가 읽기 전에 덮어씀 (Android 는 매번 새 파일) | iOS 는 업로드가 끝난 뒤 다음 녹음 시작. 이후 2문장 정상(약 44KB) 전달 |
+| 2026-10-15 | iPhone 17 Pro | AirPods Pro (HFP) | 〃 | fake | C: 헤드셋 마이크로 통화 | 실패→수정→통과 | 에어팟이 입력 목록에 있는데 화면은 "이어폰이 연결되지 않았어요" | expo-audio `getCurrentInput()` 이 타입은 Promise 인데 iOS 는 값을 바로 돌려줘 `.catch` 에서 오류 → "알 수 없음" 처리 | Promise 로 감싸 처리. 현재 입력 `AirPods Pro (BluetoothHFP)` 확인, 녹음 최대 -12dB 로 목소리 담김, 3문장 전달. **헤드셋으로 통역이 들리는지는 미확인** (가짜 엔진 음성은 0.1초 무음) |
 | | | | | | | | | | |
 
 - 실패는 재현 절차, 화면 캡처·로그 위치를 함께 적는다.

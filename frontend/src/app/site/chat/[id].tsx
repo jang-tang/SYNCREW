@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { Composer } from "@/components/chat/Composer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,6 +22,12 @@ import { useT } from "@/i18n";
 import { nativeNameOf } from "@/lib/format";
 import { toast } from "@/stores/toast";
 import { colors, font, spacing } from "@/theme";
+
+/**
+ * 역순(inverted) 목록의 빈 화면 보정. 네이티브는 React Native 가 빈 화면을 이미 바로 세워 주므로 웹에서만 뒤집는다.
+ * (네이티브에서도 뒤집으면 Android 는 좌우 거울 글자, iOS 는 거꾸로 보인다 — 2026-10-14 Galaxy S22 실기기에서 발견)
+ */
+const WEB_EMPTY_FLIP = Platform.OS === "web" ? { transform: [{ scaleY: -1 as const }] } : {};
 
 export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -84,7 +90,7 @@ export default function Chat() {
           contentContainerStyle={{ paddingVertical: spacing.md, flexGrow: 1 }}
           ListEmptyComponent={
             messages.isPending ? null : (
-              <View style={{ transform: [{ scaleY: -1 }], flex: 1, justifyContent: "center" }}>
+              <View style={{ ...WEB_EMPTY_FLIP, flex: 1, justifyContent: "center" }}>
                 <EmptyState icon="mic-outline" message={t("conv.noMessages")} />
               </View>
             )

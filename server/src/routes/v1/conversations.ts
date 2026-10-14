@@ -61,10 +61,43 @@ export function audioRouter(context: AppContext): Router {
     const wav = await storage.read(translation.audioPath);
     res.setHeader("Content-Type", "audio/wav");
     res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Accept-Ranges", "bytes");
+    // iOS 재생기(AVPlayer)는 먼저 "Range: bytes=0-1" 로 묻고 206 이 아니면 파일을 열지 않는다.
+    // (2026-10-14 iPhone 실기기에서 서버 번역 음성이 재생되지 않던 원인)
+    const range = parseRange(req.headers.range, wav.length);
+    if (range === "invalid") {
+      res.setHeader("Content-Range", `bytes */${wav.length}`);
+      res.status(416).end();
+      return;
+    }
+    if (range) {
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${wav.length}`);
+      res.send(wav.subarray(range.start, range.end + 1));
+      return;
+    }
     res.send(wav);
   });
 
   return router;
+}
+
+/** "bytes=시작-끝" 하나만 지원한다 (여러 구간 요청은 무시하고 전체를 보낸다). */
+function parseRange(header: string | undefined, size: number): { start: number; end: number } | "invalid" | null {
+  const match = header?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match || (match[1] === "" && match[2] === "")) return null;
+  let start: number;
+  let end: number;
+  if (match[1] === "") {
+    // "bytes=-500": 마지막 500바이트
+    start = Math.max(0, size - Number(match[2]));
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] === "" ? size - 1 : Math.min(Number(match[2]), size - 1);
+  }
+  if (start >= size || start > end) return "invalid";
+  return { start, end };
 }
 
 export function conversationsRouter(context: AppContext): Router {

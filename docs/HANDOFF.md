@@ -21,7 +21,12 @@
 - 진행 중인 큰 작업: **Phase 7 = 1:1 통화 "진짜 스트리밍 통역"** (말하는 동안 음성을 흘려 보내 지연을 약 6초 → 2초 이하로)
   - 서버(S1)·웹 앱(S2)은 완료, 실제 OpenAI 로도 웹에서 동작 확인
   - **휴대폰 쪽(S3 네이티브 오디오)은 실기기가 없어 시작하지 못함** → 지금 휴대폰 앱은 통화를 걸면 자동으로 "문장 단위 방식"(약 6초 지연)으로 통화한다
-- **실기기 준비: ⬜ 미완료** (사용자: "아직 준비 어려움", 2026-10-14 기준)
+- **실기기 준비: 🟡 진행 중** (2026-10-14 밤: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro 연결. Android 기준선 T2 일부 완료 — 결과 `docs/device-test-log.md`)
+  - Android 실기기에서 발견·수정(미커밋): 휴대폰 음성 업로드 전부 실패(Expo SDK 57 fetch → XMLHttpRequest 로 수정), 음량 -160 끼어듦(건너뜀), 빈 화면 안내문 거울 글자(웹에서만 뒤집기)
+  - **미해결: Android 블루투스 헤드셋 마이크가 무음** (SCO 미시작) → S3 네이티브에서 처리. 무선 접속은 Galaxy 핫스팟 구성에서 실패 → 지금은 USB 터널(`adb reverse`)
+  - iOS(2026-10-15): 설치·실행·A·B·C 통과 (Galaxy 핫스팟에 Mac·iPhone 무선 접속). 발견·수정(미커밋): 서버 음성 Range 미지원으로 iOS 재생 불가 → 마이크 멈춤, iOS 녹음 파일 경로 재사용으로 빈 파일 업로드, 헤드셋 현재 입력 판별 오류
+  - 남은 T2: D(일괄 지시)·E(비밀번호 메일 링크) 양쪽, 헤드셋으로 통역 듣기(실제 음성 필요), 두 휴대폰 동시 접속 네트워크(Galaxy 가 핫스팟 손님이어야 함)
+  - iOS 개발 빌드는 빌드 때의 Mac 주소를 앱에 넣는다(`ip.txt`) → 네트워크가 바뀌면 `xcodebuild … -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6` 로 다시 빌드 후 `xcrun devicectl device install app`
 
 ### 최종 완료 기준 (MVP)
 1. Android·iOS **실기기 2대**로 1:1 스트리밍 통역 통화가 된다: 말 끝 → 상대 이어폰 첫 소리 **P50 ≤ 2.0초, P90 ≤ 3.0초** (같은 Wi-Fi, 실기기 + 블루투스 헤드셋, 20회 이상 측정)
@@ -140,12 +145,12 @@ lsof -nP -iTCP:4000 -sTCP:LISTEN; lsof -nP -iTCP:5433 -sTCP:LISTEN   # 둘 다 �
 
 ## 4. 남은 작업 체크리스트 (우선순위·선후 관계 순)
 
-### T1. 실기기 준비 ⬜ — 담당: 사용자 / 선행: 없음 / **모든 실기기 작업의 선행 조건**
+### T1. 실기기 준비 ✅ (2026-10-14: Galaxy S22 + Buds2, iPhone 17 Pro + AirPods Pro) — 담당: 사용자 / 선행: 없음 / **모든 실기기 작업의 선행 조건**
 - 무엇: 5절의 기기·준비물을 갖추고 PC 와 연결
 - 왜: 남은 핵심 작업(S3·S4·S6)과 미확인 항목 대부분이 실기기에서만 확인 가능
 - 완료 기준: `adb devices -l` 에 Android 휴대폰이 `device` 로 보이고, `xcrun devicectl list devices` 에 iPhone 이 보이며(또는 사용 안 하면 그 사실 확인), 블루투스 헤드셋이 휴대폰에 연결됨
 
-### T2. 실기기 기준선: 지금 앱(문장 단위)을 휴대폰에서 실제 서버로 돌려 보기 ⬜ — 선행: T1
+### T2. 실기기 기준선: 지금 앱(문장 단위)을 휴대폰에서 실제 서버로 돌려 보기 🟡 (A·B 양쪽 통과, C iPhone 통과·Android 실패→S3, D·E 미실시 — `docs/implementation-plan.md` T2 절) — 선행: T1
 - 무엇: 스트리밍 작업 전에, **이미 만든 기능이 실기기에서 되는지** 먼저 확인 (Android 먼저, 그다음 iPhone)
 - 왜: 실기기 접속·네트워크·마이크·헤드셋 문제를 스트리밍 개발과 섞지 않고 먼저 걸러 낸다. 이후 문제의 원인을 좁히는 기준이 된다
 - 어떻게: 5절 "앱 설치와 실행" 절차대로 live 모드 개발 빌드 설치 → 5절 시나리오 A–E
@@ -191,7 +196,7 @@ lsof -nP -iTCP:4000 -sTCP:LISTEN; lsof -nP -iTCP:5433 -sTCP:LISTEN   # 둘 다 �
 
 ## 5. 실기기 준비 및 검증 체크리스트
 
-**준비 상태: ⬜ 미완료** (2026-10-14 사용자: 아직 준비 어려움). 에뮬레이터·시뮬레이터·웹에서 된 것은 실기기 검증이 아니다.
+**준비 상태: ✅ 준비됨** (2026-10-14 밤: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro + AirPods Pro. 실제로 된 실행 절차는 7절). `frontend/.env` 는 커밋 시점에 기본값(`mock`, `10.0.2.2`)으로 되돌려 두었다 — 실기기 시험 때 7절대로 바꾼다. 에뮬레이터·시뮬레이터·웹에서 된 것은 실기기 검증이 아니다.
 
 ### 필요한 기기·준비물
 - [ ] **Android 휴대폰 1대 이상** (Android 12 이상 권장 — 블루투스 통화 경로 지정 API 가 31+) + USB 케이블
@@ -292,28 +297,28 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 
 ## 7. 가장 먼저 할 다음 작업
 
-### 선정: **실기기 준비 상태 확인 → (준비됐으면) T2 Android 실기기 기준선 확인**
+### 선정 (2026-10-15 갱신): **S3 네이티브 오디오 — 실기기 시험** (구현은 2026-10-15 새벽 실기기 없이 진행, 결과는 `docs/streaming-plan.md` S3 절)
 
 선정 이유:
-1. 남은 핵심 작업(S3·S4·S6)과 미확인 항목 대부분의 **선행 조건이 실기기**이고, 실기기 준비 여부가 **확인되지 않았다**(마지막 상태: 2026-10-14 "아직 준비 어려움").
-2. 실기기 없이 할 수 있는 작업은 2026-10-14 에 모두 끝냈다 (남은 것은 다른 팀원 몫·나중 작업).
-3. 스트리밍(S3)부터 하면 네트워크·권한·헤드셋 문제와 오디오 구현 문제가 섞인다 → **이미 만든 기능(문장 단위)으로 실기기 환경을 먼저 검증**해야 재작업이 줄어든다.
+1. T1 실기기 준비 완료, T2 기준선은 Android·iPhone 모두 A·B 통과, iPhone C 통과 (2026-10-14–15). 남은 실패(Android 헤드셋 마이크 무음)는 **S3 에서만 고칠 수 있다**.
+2. S3 이후 S4(2대 통화)·S6(튜닝)이 이어진다. D·E 시나리오는 S3 시험 때 같이 해도 된다.
 
-### 실행 순서
-1. 사용자에게 확인: 지금 쓸 수 있는 **휴대폰(Android/iPhone, 모델·OS 버전), 블루투스 헤드셋, Apple 계정**이 있는지, PC 에 연결했는지
-   - 준비 안 됨 → 5절 "필요한 기기·준비물"·"휴대폰 설정"을 그대로 안내하고, 준비되면 다시 시작하자고 한다 (다른 작업을 임의로 시작하지 않는다)
-2. 준비됨 → 연결 확인: `adb devices -l`, `xcrun devicectl list devices`, `ipconfig getifaddr en0`, `df -h /System/Volumes/Data`
-3. 기준선 확인 (git 상태·자동 시험): `git status`, `git log --oneline | head -3`, `cd server && npm run typecheck && npm test`(200), `cd frontend && npm run typecheck && npm run test:unit`(18)
-4. 서버 실행 (`ENGINE=fake`), 휴대폰 브라우저로 `http://<PC IP>:4000/health` 확인
-5. `frontend/.env` live 모드 설정 (5절 2번, 바꾸기 전 사용자에게 알림) → Android 캐시 삭제 → JDK 21 → `npx expo run:android --device`
-6. 시나리오 A–E 진행 (B 는 "문장 단위 통역" 표시가 정상), 결과를 `docs/device-test-log.md` 에 기록
-7. iPhone 도 같은 순서 (`npx expo run:ios --device`)
-8. 보고: 기기·통과/실패·발견한 문제·다음(S3 시작 여부) → 멈추고 승인
+### 실기기 실행 절차 (2026-10-14–15 에 실제로 된 방법)
+- 서버: `cd server && npm run db:start` / `cd server && ENGINE=fake npm run dev`
+- **네트워크**: 일반 Wi-Fi 는 기기 간 통신이 막혔다. Galaxy 핫스팟에 Mac·iPhone 을 붙이면 iPhone 은 무선으로 됨. Galaxy 자신은 자기 핫스팟 손님(Mac)에 앱이 닿지 못함 → Galaxy 는 USB 터널:
+  - Android: `adb reverse tcp:4000 tcp:4000; adb reverse tcp:8081 tcp:8081`, `frontend/.env` 의 `EXPO_PUBLIC_API_BASE_URL=http://localhost:4000`
+  - iPhone: `EXPO_PUBLIC_API_BASE_URL=http://<Mac IP>:4000` (`.env` 하나라 Android·iPhone 을 동시에 쓰려면 두 휴대폰 모두 무선으로 닿는 구성이 필요 — iPhone 핫스팟에 Mac·Galaxy 를 붙여 시험해 볼 것)
+  - Metro: `cd frontend && REACT_NATIVE_PACKAGER_HOSTNAME=<Mac IP> npx expo start --dev-client --clear` (`.env` 를 바꾸면 Metro 재시작 + 앱 완전 종료 후 재실행)
+- Android 빌드: `rm -rf frontend/android/app/.cxx frontend/android/app/build` → `JAVA_HOME=<JDK 21>` → `cd frontend && npx expo run:android --device SM_S901N` (기기 이름으로 지정)
+- iOS 빌드: `cd frontend/ios && xcodebuild -workspace SYNCREW.xcworkspace -scheme SYNCREW -configuration Debug -destination 'id=00008150-0014783A3630C01C' -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6 CODE_SIGN_STYLE=Automatic build` → `xcrun devicectl device install app --device 00008150-0014783A3630C01C ~/Library/Developer/Xcode/DerivedData/SYNCREW-*/Build/Products/Debug-iphoneos/SYNCREW.app` → `xcrun devicectl device process launch --device … --terminate-existing com.syncfield.syncrew`. **빌드 때 Mac 주소가 앱에 들어가므로(`ip.txt`) 네트워크가 바뀌면 다시 빌드**
+- iPhone 앱 로그는 Metro 출력에 나온다. Android 는 `adb logcat | grep ReactNativeJS`
+- 상대 역할 스크립트(구성원 계정으로 문자 보내기·통화 걸기·수신 확인)는 세션 임시 폴더에 있었다 — 필요하면 다시 만든다: Supabase 비밀번호 로그인(`/auth/v1/token?grant_type=password`, publishable key) → `POST /api/v1/sites/:id/calls {userId}` + Socket.IO `/rt` 접속(`auth.token`) + `GET /api/v1/sessions/:id/messages` 감시
+- 오디오 경로 확인: Android `adb shell dumpsys media.audio_flinger | grep "Input device"`, `adb shell dumpsys audio | grep mScoAudioState`. 녹음 파일 크기·음량은 `server/storage/uploads/*.m4a` 를 `afconvert -f WAVE -d LEI16` 로 바꿔 측정
 
-### 확인 방법 (완료 판단)
-- `docs/device-test-log.md` 에 Android(와 iPhone) 시나리오 A–E 결과가 있고, 실패 항목은 원인·해결 계획이 적혀 있다
-- 서버·앱 자동 시험이 그대로 통과한다
-- 서버·DB 를 껐다 (4000·5433 포트 비어 있음), `frontend/tsconfig.json` 원복
+### 확인 방법 (S3 완료 판단)
+- 5절 시나리오 F·G·H 를 Android·iPhone 각각 통과, 결과를 `docs/device-test-log.md` 에 기록
+- Android 헤드셋 마이크가 무음이 아니다 (`Input device` 가 BLUETOOTH_SCO 이고 녹음에 목소리)
+- 서버·앱 자동 시험 통과, 서버·DB·Metro 종료, `frontend/tsconfig.json` 원복
 
 ---
 
