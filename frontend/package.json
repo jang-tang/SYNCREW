@@ -52,7 +52,7 @@
     "e2e:mic": "node e2e/mic.mjs",
     "e2e:latency": "node e2e/latency.mjs",
     "e2e:screens": "node e2e/screens.mjs",
-    "test:unit": "node --no-warnings --test e2e/vad.test.mjs e2e/recipients.test.mjs"
+    "test:unit": "node --no-warnings --test e2e/vad.test.mjs e2e/recipients.test.mjs e2e/duplex.test.mjs"
   },
   "private": true
 }

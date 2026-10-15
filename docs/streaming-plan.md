@@ -1,6 +1,6 @@
 # 진짜 스트리밍 통역 계획 (말하는 동안 음성을 흘려보내는 방식)
 
-작성 2026-10-12, **수정 2026-10-13** (S0 ① 결과와 사용자 결정 반영: 0-1절 아래 표). 진행: B1 완료, S0 ① 완료([s0-report.md](s0-report.md)), S1 서버 스트리밍 경로 완료(2026-10-13, 4-1절), **S2 웹 검증 클라이언트 완료(2026-10-14, 5-1절, 실제 OpenAI 확인 포함)**. **다음: S3 네이티브 오디오 (실기기 필요).**
+작성 2026-10-12, **수정 2026-10-13** (S0 ① 결과와 사용자 결정 반영: 0-1절 아래 표). 진행: B1 완료, S0 ① 완료([s0-report.md](s0-report.md)), S1 서버 스트리밍 경로 완료(2026-10-13, 4-1절), **S2 웹 검증 클라이언트 완료(2026-10-14, 5-1절, 실제 OpenAI 확인 포함)**. **S3 네이티브 오디오 구현(2026-10-15, 5-3절, 자체 Expo 모듈) — 실기기 시험 대기.**
 대상: SYNCREW 팀(PM·개발자)과 다음 작업 세션. 현재 구조는 `docs/live-interpretation.md`, 측정값은 `docs/phase6-report.md`를 기준으로 한다.
 
 ## 0. 요약
@@ -250,6 +250,42 @@ export interface DuplexAudio {
   - 데이터 한계: 지금 샘플 데이터(제조업 위주)는 용어가 한국어만 있고 번역은 베트남어만, "거푸집·안전모·안전고리"가 검증 문장에 없다 → 데이터 교체 때 보강
   - 단가 수정: gpt-4o-mini-transcribe 음성 입력 $1.25 → $3 /1M (이전 기록은 약 2.4배 적게 잡힘), gpt-4o-transcribe 추가 (가격 정리 사이트 기준, OpenAI 가격표로 재확인 권장)
   - 비용: 측정 $0.0221 (mini $0.0066 + 4o $0.0155), 누적 $0.3371
+
+### 5-3. S3 네이티브 오디오 구현 결과 (2026-10-15 새벽, 실기기 없이 — 사용자 지시 "실기기 확인 없이 최대한 꼼꼼히 구현")
+
+**D2 결정 변경: 라이브러리(react-native-audio-api 1.0 nightly) 대신 자체 Expo 모듈** (계획의 폴백안을 바로 채택)
+- 근거: ① 2026-10-14 실기기에서 **Android 헤드셋 마이크가 무음**(SCO 미시작) — react-native-audio-api 는 Android `setCommunicationDevice`/SCO 를 지원하지 않아(s0-report 2-1) 어차피 자체 네이티브 코드가 필요 ② 에코 제거가 nightly 에만 있어 버전 고정 위험 ③ 필요한 기능이 작고 분명해 직접 구현이 통제하기 쉽다(의존성 0, react-native-worklets 불필요)
+- 위치: `frontend/modules/syncrew-duplex/` (Expo 로컬 모듈, 자동 연결. `npx expo-modules-autolinking search` 로 확인)
+
+**구조**
+| 부분 | 내용 |
+|---|---|
+| JS 계약 | `modules/syncrew-duplex/index.ts` — `start(sampleRate, frameMs, echo)`, `stop`, `enqueue(streamId, pcmBase64, rate)`, `endStream`, `stopPlayback`, `enterCallRoute`/`exitCallRoute`, 이벤트 `onFrame{pcm base64, timestamp}`·`onRoute{route,name}`·`onPlayback{streamId,playing}`·`onError`. PCM 은 base64(100ms = 약 4.3KB, 초당 10번) |
+| iOS (`ios/SyncrewDuplexModule.swift`) | 세션 `playAndRecord` + `voiceChat` + `allowBluetoothHFP` + `defaultToSpeaker`, 블루투스 HFP·LE > 유선 입력 우선. `AVAudioEngine` 입력 `setVoiceProcessingEnabled(true)`(에코 제거) → `AVAudioConverter` 16kHz mono PCM16 → 100ms 조각. 재생은 같은 엔진의 `AVAudioPlayerNode`(24kHz), 비어 있다가 시작할 때 120ms 무음(지터 버퍼), 다른 표본율은 변환. 경로 변경·엔진 구성 변경·중단·미디어 서비스 재시작 처리 |
+| Android (`android/.../DuplexEngine.kt`, `CallRoute.kt`) | `CallRoute`: `MODE_IN_COMMUNICATION` + 통신 장치 선택 (블루투스 SCO·LE > 유선 > 스피커, API 31+ `setCommunicationDevice`, 이하 `startBluetoothSco`/스피커폰), 장치 연결·해제 시 다시 선택. 캡처 `AudioRecord(VOICE_COMMUNICATION, 16kHz)` + `AcousticEchoCanceler`·`NoiseSuppressor`·`AutomaticGainControl`, 재생 `AudioTrack(USAGE_VOICE_COMMUNICATION, 24kHz, MODE_STREAM)` 쓰기 스레드 + 큐, 120ms 무음, 선형 보간 표본율 변환. **직접 버퍼 + 논블로킹 읽기·쓰기(10ms 쉬기)** — 아래 "발견한 문제" |
+| JS 어댑터 | `src/audio/duplex/native.ts`(DuplexAudio 구현, 네이티브 이벤트 구독은 앱 전체 1번), `base64.ts`(Hermes atob 의존 없음, 단위 테스트 4), `index.ts`(iOS·Android 면 네이티브, 모듈이 없는 빌드면 null → 문장 단위) |
+| 통화 훅 | `useStreamingCall`: 경로(헤드셋·스피커)를 `onDevice` 로 상대에게 알림 (예전엔 unknown 고정) |
+| 문장 단위(폴백) | `useHandsFree` 가 Android 에서 `enterCallRoute()` 로 통신 모드 + 헤드셋 SCO 를 연 뒤 녹음 → **2026-10-14 Android 헤드셋 마이크 무음 문제의 해결 시도** (실기기 확인 필요). 장치 표시도 통신 장치 기준 |
+| 점검 화면 | `src/app/audio-check.tsx` (개발 빌드 전용, 주소 `syncrew:///audio-check`, `?auto=1` 자동 시작): 경로·마이크 음량·조각 간격, 시험음 2초(재생 중 마이크 최대 = 에코 정도), 3초 녹음 후 다시 듣기. 2초마다 `[audio-check]` 콘솔 요약. `EXPO_PUBLIC_DEV_START_ROUTE="/audio-check?auto=1"` 로 Metro 를 켜면 앱이 바로 이 화면으로 감(화면을 누를 수 없는 시뮬레이터용) |
+
+**확인한 것 (실기기 아님)**
+- 빌드: Android(Gradle) 성공, iOS 시뮬레이터(xcodebuild) 성공 — 새 모듈 경고 없음. iOS 실기기용(iphoneos) 빌드는 하지 않음(같은 Swift 코드, 서명만 다름)
+- Android 에뮬레이터(Pixel 9 Pro XL, API 35): 모듈 로드·시작, 경로 `speaker`(통신 장치 선택), **녹음 조각 간격 평균 100ms(최대 137ms)**, 시험음 재생 시작·끝 알림, 3초 녹음 → 16k→24k 변환 재생 정상
+- Android 에뮬레이터 live 통화: 휴대폰 앱이 **스트리밍 모드로 스트림을 열었다**(서버 "스트리밍 통역 시작 ko→vi") — 휴대폰 앱의 첫 스트리밍 통화
+- 회귀: 앱 타입 검사, 단위 22(새 4), 서버 200
+
+**발견하고 고친 문제**
+1. Android 캡처·재생 스레드의 블로킹 `read`/`write` — 오디오 장치가 데이터를 주지 않으면 그동안 런타임의 스레드 일시 정지가 끝나지 않아, JS 가 Java 모듈을 부르는 순간 앱 전체가 60초 멈췄다(소켓 ping timeout). 직접 버퍼 + 논블로킹으로 변경 (배열 판 read·write 는 JNI critical 로 GC 를 막기도 한다)
+2. Socket.IO 가 인증 단계 거부 뒤 스스로 다시 연결하지 않는 점 → 연결을 원하는 동안 3초 뒤 새 토큰으로 재시도 (`socketRealtime.ts`). (에뮬레이터에서 처음 의심한 "로그인 직후 미연결"은 시험 스크립트가 다른 현장으로 전화를 건 것이 원인이었다 — 이 안전장치는 실제 약점을 막으므로 유지)
+
+**이 PC 환경의 한계 (앱 문제 아님)**
+- 이 세션에서 띄운 에뮬레이터·시뮬레이터는 **Mac 마이크 권한 창을 누를 사람이 없어** CoreAudio 입력이 막힌다: iOS 시뮬레이터는 마이크 입력을 처음 열 때 `AURemoteIO::Initialize` RPC timeout 으로 강제 종료, Android 에뮬레이터는 `coreaudio(input): Could not resume the device` 로 입력이 수십 초씩 멈춤 → **에뮬레이터에서 live 통화 중 상대 통역 수신·재생은 끝까지 확인하지 못했다** (입력이 막혀 앱이 멈추는 동안 소켓이 끊김)
+- 그 뒤로 헤드리스 Chrome 의 마이크도 막혀 **웹 e2e 의 마이크 관련 시험이 실패**한다 — 변경 전 코드(마지막 커밋)로도 똑같이 실패해 환경 문제임을 확인 (데모 e2e 98/99, `e2e:mic` 1/2, live e2e 30/43 — 실패는 모두 마이크·통화 구간). Mac 화면의 권한 창 처리 또는 재부팅 뒤 다시 돌려야 한다
+
+**미검증 (실기기에서 할 것)** — 5절 시나리오 F·G·H, `docs/HANDOFF.md` 7절 절차
+- iOS 실제 동작 전부 (voice processing·HFP·경로 변경), Android 실기기 동작 전부
+- 에코 루프 없음(스피커), 블루투스 헤드셋 입출력(Android SCO 가 실제로 열리는지, iOS HFP), 끊김·지연 측정
+- 문장 단위(폴백)에서 Android 헤드셋 마이크가 이제 소리를 받는지, 그때 통역 재생(expo-audio, media 용도)이 헤드셋으로 나오는지 (통신 모드에서 media 소리가 스피커로 갈 위험)
 
 ## 5. 앱 설계
 

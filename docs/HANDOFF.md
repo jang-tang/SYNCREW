@@ -20,7 +20,7 @@
 - 서버·앱 기능은 대부분 완성. **PC(웹 브라우저·에뮬레이터·시뮬레이터)에서는 검증 완료**, **실기기(휴대폰)에서는 한 번도 검증하지 않았다.**
 - 진행 중인 큰 작업: **Phase 7 = 1:1 통화 "진짜 스트리밍 통역"** (말하는 동안 음성을 흘려 보내 지연을 약 6초 → 2초 이하로)
   - 서버(S1)·웹 앱(S2)은 완료, 실제 OpenAI 로도 웹에서 동작 확인
-  - **휴대폰 쪽(S3 네이티브 오디오)은 실기기가 없어 시작하지 못함** → 지금 휴대폰 앱은 통화를 걸면 자동으로 "문장 단위 방식"(약 6초 지연)으로 통화한다
+  - **S3 네이티브 오디오: 2026-10-15 새벽 자체 Expo 모듈(`frontend/modules/syncrew-duplex/`)로 구현 완료, 실기기 시험 전** → 이 빌드의 휴대폰 앱은 통화를 걸면 스트리밍 방식으로 연결된다(안 되면 자동으로 문장 단위). 결과·미검증: `docs/streaming-plan.md` 5-3절
 - **실기기 준비: 🟡 진행 중** (2026-10-14 밤: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro 연결. Android 기준선 T2 일부 완료 — 결과 `docs/device-test-log.md`)
   - Android 실기기에서 발견·수정(미커밋): 휴대폰 음성 업로드 전부 실패(Expo SDK 57 fetch → XMLHttpRequest 로 수정), 음량 -160 끼어듦(건너뜀), 빈 화면 안내문 거울 글자(웹에서만 뒤집기)
   - **미해결: Android 블루투스 헤드셋 마이크가 무음** (SCO 미시작) → S3 네이티브에서 처리. 무선 접속은 Galaxy 핫스팟 구성에서 실패 → 지금은 USB 터널(`adb reverse`)
@@ -158,7 +158,7 @@ lsof -nP -iTCP:4000 -sTCP:LISTEN; lsof -nP -iTCP:5433 -sTCP:LISTEN   # 둘 다 �
 - 완료 기준: 시나리오 A–E 결과를 `docs/device-test-log.md` 에 기록 (통과/실패/원인)
 - 주의: 실제 OpenAI 를 쓰는 시나리오는 비용 안내 후. 흐름만 볼 때는 `ENGINE=fake`
 
-### T3. S3 네이티브 오디오 구현 ⬜ — 선행: T1 (구현 자체는 T2 와 병행 가능, 시험은 실기기)
+### T3. S3 네이티브 오디오 구현 🟡 (구현 완료 2026-10-15, 실기기 시험 남음 — `docs/streaming-plan.md` 5-3절. 라이브러리 대신 자체 Expo 모듈로 결정) — 선행: T1
 - 무엇: `frontend/src/audio/duplex/` 에 iOS·Android 구현을 붙여 휴대폰에서 "녹음하면서 동시에 PCM 조각 재생 + 에코 제거 + 블루투스 HFP" 를 한다
 - 왜: 웹은 되지만 휴대폰은 `expo-audio`(녹음 파일 단위)로는 스트리밍이 불가능
 - 어떻게:
@@ -297,11 +297,23 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 
 ## 7. 가장 먼저 할 다음 작업
 
-### 선정 (2026-10-15 갱신): **S3 네이티브 오디오 — 실기기 시험** (구현은 2026-10-15 새벽 실기기 없이 진행, 결과는 `docs/streaming-plan.md` S3 절)
+### 선정 (2026-10-15 새벽 갱신): **S3 네이티브 오디오 실기기 시험** (Android → iPhone)
 
-선정 이유:
-1. T1 실기기 준비 완료, T2 기준선은 Android·iPhone 모두 A·B 통과, iPhone C 통과 (2026-10-14–15). 남은 실패(Android 헤드셋 마이크 무음)는 **S3 에서만 고칠 수 있다**.
-2. S3 이후 S4(2대 통화)·S6(튜닝)이 이어진다. D·E 시나리오는 S3 시험 때 같이 해도 된다.
+선정 이유: S3 코드는 다 썼고 에뮬레이터에서 녹음·재생·시험음까지는 확인했지만, 실제 소리·에코·블루투스 헤드셋·통화 전체는 실기기에서만 확인된다 (이 PC 의 에뮬레이터·시뮬레이터는 Mac 마이크 권한 문제로 입력이 막혔다 — `docs/streaming-plan.md` 5-3절).
+
+### 시작 전에 (Mac)
+1. **Mac 화면에 마이크 권한 창이 남아 있으면 처리**(터미널·Code·qemu·Simulator 등이 마이크를 요청). 오디오가 꼬였으면 **Mac 재부팅** — 그 뒤 웹 e2e 를 다시 돌려 회귀 확인: `cd frontend && npm run bundle:web && npm run e2e`(99), `npm run e2e:mic`(2), `npm run bundle:web:live && npm run e2e:live`(43, ENGINE=fake 서버 필요). 2026-10-15 새벽엔 이 환경 문제로 변경 전 코드로도 마이크 시험이 실패했다
+2. 디스크 여유 확인 (`df -h /System/Volumes/Data`, 2026-10-15 약 6GB) — 네이티브 빌드 2번이면 부족할 수 있다. 지워도 되는 것: `~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex`, `~/.npm/_cacache`(`npm cache clean --force`)
+
+### 실행 순서
+1. 서버 `ENGINE=fake` + DB, 네트워크·Metro 는 아래 "실기기 실행 절차"대로 (`.env` 는 지금 기본값 mock)
+2. **새 네이티브 모듈이 들어갔으므로 두 휴대폰 모두 개발 빌드를 새로 설치** (Android `expo run:android --device SM_S901N`, iOS `xcodebuild` + `devicectl install`)
+3. **점검 화면 먼저** (Metro 를 `EXPO_PUBLIC_DEV_START_ROUTE="/audio-check?auto=1"` 로 켜거나 앱에서 `syncrew:///audio-check`): 
+   - 휴대폰 스피커: 경로 `speaker`, 조각 간격 약 100ms, 말하면 음량이 오르는지, 시험음이 들리는지, **시험음 중 마이크 최대(에코)**가 말할 때보다 충분히 낮은지, 3초 녹음 후 다시 듣기
+   - 블루투스 헤드셋 연결 후: 경로 `bluetooth (헤드셋 이름)`, 헤드셋에 말하면 음량이 오르는지(Android 는 `adb shell dumpsys audio | grep mScoAudioState` 가 ACTIVE), 시험음이 헤드셋으로 들리는지
+4. **스트리밍 통화 (5절 F·G·H)**: 상대 역할은 스크립트 또는 두 번째 휴대폰. 통화 화면 "실시간 통역 · 말하는 동안 전송", 상대 통역 자막·재생, 중복 재생 없음, 스피커 에코 루프 없음, 헤드셋 연결·해제
+5. **문장 단위 폴백에서 Android 헤드셋 재시험 (어제 실패한 C)**: `frontend/.env` 에 `EXPO_PUBLIC_STREAMING=off` 로 Metro 재시작 → 헤드셋 마이크로 녹음되는지 + 통역 재생이 헤드셋으로 나오는지
+6. 결과를 `docs/device-test-log.md` 에, 고친 것은 커밋. 그다음 S4(2대 통화)
 
 ### 실기기 실행 절차 (2026-10-14–15 에 실제로 된 방법)
 - 서버: `cd server && npm run db:start` / `cd server && ENGINE=fake npm run dev`

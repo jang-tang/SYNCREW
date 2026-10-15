@@ -1,0 +1,10 @@
+{
+  "name": "syncrew-duplex",
+  "version": "0.1.0",
+  "description": "SYNCREW 이중(동시 녹음·재생) 오디오 네이티브 모듈 — 통화용 에코 제거, 블루투스 헤드셋 경로",
+  "main": "index.ts",
+  "license": "UNLICENSED",
+  "author": "SyncField",
+  "homepage": "https://github.com/jang-tang/SYNCREW",
+  "private": true
+}

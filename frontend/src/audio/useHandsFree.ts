@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import type { DeviceStatus } from "@shared/api";
 import { selectHeadsetInput } from "./audioDevice";
+import { enterCallRoute, exitCallRoute } from "./duplex";
 import { usePlaybackStore } from "./playback";
 import { preprocessRecording } from "./preprocess";
 import type { Recording } from "./useVoiceRecorder";
@@ -182,9 +183,11 @@ export function useHandsFree(options: {
           interruptionMode: "doNotMix",
           shouldRouteThroughEarpiece: false,
         });
+        // Android: 통신 모드 + 블루투스 헤드셋 SCO 를 먼저 연다 (녹음기가 헤드셋 마이크를 받도록)
+        await enterCallRoute();
         if (!l.recording && !l.busy) await startSegment();
         if (cancelled) return;
-        reportDevice({ ...(await selectHeadsetInput(recorder)), micPermission: "granted" });
+        reportDevice({ ...(await detectDevice()), micPermission: "granted" });
         setState("listening");
       } catch {
         setError("failed");
@@ -198,12 +201,26 @@ export function useHandsFree(options: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active, shouldRecord, error]);
 
-  // 세션이 끝나면 녹음을 멈추고 녹음 모드를 푼다
+  // 세션이 끝나면 녹음을 멈추고 녹음 모드·통화 경로를 푼다
   useEffect(() => {
     if (options.active) return;
-    void stopSegment().then(() => setAudioModeAsync({ allowsRecording: false }).catch(() => undefined));
+    void stopSegment()
+      .then(() => setAudioModeAsync({ allowsRecording: false }).catch(() => undefined))
+      .then(() => exitCallRoute());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active]);
+
+  // 화면을 떠날 때도 통화 경로를 푼다
+  useEffect(() => () => void exitCallRoute(), []);
+
+  /** 지금 쓰는 입력 장치: Android 는 통화 경로(통신 장치)를 다시 맞춘 결과, 그 밖에는 녹음기 입력 */
+  async function detectDevice(): Promise<Pick<DeviceStatus, "audioRoute" | "inputName">> {
+    const call = await enterCallRoute();
+    if (call && call.route !== "unknown") {
+      return { audioRoute: call.route === "speaker" ? "builtin" : call.route, inputName: call.name };
+    }
+    return selectHeadsetInput(recorder);
+  }
 
   // ─── 음량 감시 → 말 시작·끝 ─────────────────────────
 
@@ -236,7 +253,7 @@ export function useHandsFree(options: {
     if (!options.active) return;
     const timer = setInterval(() => {
       if (!loop.current.recording) return;
-      void selectHeadsetInput(recorder).then((input) => reportDevice({ ...input, micPermission: "granted" }));
+      void detectDevice().then((input) => reportDevice({ ...input, micPermission: "granted" }));
     }, DEVICE_CHECK_MS);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps

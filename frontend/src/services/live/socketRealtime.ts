@@ -6,6 +6,8 @@ import type { ConnectionState } from "@/stores/session";
 import type { AuthService, RealtimeService } from "../types";
 
 const ACK_TIMEOUT_MS = 5000;
+/** 인증 거부로 연결이 끊긴 뒤 다시 시도하기까지 */
+const RETRY_MS = 3000;
 
 /** docs/realtime-protocol.md 의 Socket.IO 연결 */
 export function createSocketRealtime(auth: AuthService): RealtimeService {
@@ -28,7 +30,18 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
     if (lastDevice) void socket.timeout(ACK_TIMEOUT_MS).emitWithAck("device:status", lastDevice).catch(() => undefined);
   });
   socket.on("disconnect", () => emitState("offline"));
-  socket.on("connect_error", () => emitState("offline"));
+  // 서버가 인증 단계에서 거부하면(토큰이 아직 없거나 만료) Socket.IO 는 스스로 다시 연결하지 않는다 (socket.active = false).
+  // 연결을 원하는 동안은 잠시 뒤 새 토큰으로 다시 시도한다 (로그인 직후 토큰이 아직 저장되지 않은 순간 등에 끊긴 채 남지 않도록).
+  let wanted = false;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  socket.on("connect_error", () => {
+    emitState("offline");
+    if (!wanted || socket.active || retryTimer) return;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (wanted && !socket.connected) socket.connect();
+    }, RETRY_MS);
+  });
   socket.io.on("reconnect_attempt", () => emitState("connecting"));
   // 토큰 만료: 연결을 끊고 새 토큰으로 다시 연결
   socket.on("auth:expired", () => {
@@ -38,10 +51,14 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
 
   return {
     connect() {
+      wanted = true;
       emitState("connecting");
       socket.connect();
     },
     disconnect() {
+      wanted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
       socket.disconnect();
       emitState("idle");
     },

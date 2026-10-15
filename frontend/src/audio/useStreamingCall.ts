@@ -76,6 +76,7 @@ export function useStreamingCall(options: {
     if (!duplex) return goUtterance("NO_DUPLEX", false);
 
     let cancelled = false;
+    let offRoute: (() => void) | null = null;
     const l = live.current;
     setMode("connecting");
     setState("starting");
@@ -106,11 +107,19 @@ export function useStreamingCall(options: {
       setError(null);
       setMode(result.mode === "relay" ? "relay" : "stream");
       setState(callbacks.current.muted ? "muted" : "listening");
-      callbacks.current.onDevice?.({ audioRoute: "unknown", inputName: null, micPermission: "granted" });
+      // 오디오 경로(블루투스 헤드셋·유선·스피커)를 상대 화면에 알린다. 바뀔 때마다 다시 알린다 (웹은 unknown)
+      offRoute = duplex.onRoute((route, name) =>
+        callbacks.current.onDevice?.({
+          audioRoute: route === "speaker" ? "builtin" : route,
+          inputName: name ?? null,
+          micPermission: "granted",
+        }),
+      );
     })();
 
     return () => {
       cancelled = true;
+      offRoute?.();
       if (l.streamId) services.realtime.closeStream(l.streamId);
       l.streamId = null;
       l.sending = false;

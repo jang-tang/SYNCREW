@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["SyncrewDuplexModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.syncrewduplex.SyncrewDuplexModule"]
+  }
+}

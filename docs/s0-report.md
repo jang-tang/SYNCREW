@@ -126,7 +126,8 @@
 
 ### 2-3. 실기기 결과
 
-(아직 없음)
+- 2026-10-14 실기기(Galaxy S22 + Buds2): expo-audio 로 헤드셋 입력만 고르면 SCO 가 열리지 않아 녹음이 완전 무음 → 위 표의 "Android 블루투스 경로 지정 없음" 위험이 실제로 확인됨 (`docs/device-test-log.md`)
+- **2026-10-15 D2 결정: 라이브러리 대신 자체 Expo 모듈** (`frontend/modules/syncrew-duplex/`, 구현·확인 범위는 `docs/streaming-plan.md` 5-3절). 실기기 결과는 시험 후 여기에 적는다
 
 ## 3. ① 결과로 바뀌는 계획 항목
 

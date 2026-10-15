@@ -9,6 +9,12 @@ import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 
+/**
+ * 개발 빌드 전용: 앱을 열면 바로 이 경로로 간다 (예: EXPO_PUBLIC_DEV_START_ROUTE="/audio-check?auto=1" npx expo start).
+ * 화면을 누를 수 없는 iOS 시뮬레이터에서 오디오 점검 화면을 자동으로 열 때 쓴다. 보통은 비워 둔다.
+ */
+const DEV_START_ROUTE = __DEV__ ? process.env.EXPO_PUBLIC_DEV_START_ROUTE : undefined;
+
 /** 시작 분기: 로그인 → 프로필 → 현장 선택 → 현장 화면 */
 export default function Gate() {
   const { t } = useT();
@@ -26,6 +32,7 @@ export default function Gate() {
     if (me.data) setUiLang(me.data.preferredLang);
   }, [me.data, setUiLang]);
 
+  if (DEV_START_ROUTE) return <Redirect href={DEV_START_ROUTE as never} />;
   if (!hydrated || authStatus === "loading") return <Splash />;
   if (!signedIn) return <Redirect href="/welcome" />;
 

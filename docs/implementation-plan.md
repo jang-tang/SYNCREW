@@ -282,6 +282,15 @@
 - USB 터널(adb reverse)이 순간 끊겨 문장 1개 손실 — 실제 Wi-Fi 에서는 해당 없음. 앱은 실패한 문장을 다시 보내지 않음
 - 검증: 서버 200(Range 확인 추가), 단위 18, 데모 e2e 99, live e2e 43, 타입 검사
 
+### S3 네이티브 오디오 — 구현 (2026-10-15 새벽, 실기기 시험 전, 상세: [streaming-plan.md](streaming-plan.md) 5-3절)
+
+사용자 지시: "실기기 확인 없이 S3 코드 구현을 최대한 꼼꼼히, 문제가 생기면 알아서 해결". 결정: 라이브러리 대신 **자체 Expo 모듈** `frontend/modules/syncrew-duplex/` (Android 헤드셋 SCO 가 라이브러리로는 안 되므로).
+- iOS: AVAudioEngine + voice processing(에코 제거) + 블루투스 HFP, AVAudioPlayerNode 재생, 경로·중단·재시작 처리
+- Android: 통신 모드 + 통신 장치(SCO > 유선 > 스피커), AudioRecord(VOICE_COMMUNICATION)+AEC/NS/AGC, AudioTrack(VOICE_COMMUNICATION) 스트리밍, 직접 버퍼·논블로킹
+- JS: `DuplexAudio` 네이티브 어댑터, base64(테스트 4), 통화 경로 보고, **문장 단위 폴백에서도 Android 헤드셋 SCO 사용**(어제 C 실패 해결 시도), 개발용 점검 화면 `/audio-check`, 개발용 시작 경로 `EXPO_PUBLIC_DEV_START_ROUTE`, 소켓 인증 거부 후 재연결
+- 검증: Android·iOS(시뮬레이터) 빌드, Android 에뮬레이터 점검 화면(100ms 조각·재생·녹음 재생), 에뮬레이터 앱의 스트리밍 스트림 열림. 타입 검사, 단위 22, 서버 200
+- 미검증·환경 문제: 실기기 전부. 이 PC 의 Mac 마이크 권한 문제로 에뮬레이터 입력이 막혀 live 통화 끝까지 확인 못 함, 웹 e2e 마이크 구간 실패(변경 전 코드도 동일 → 환경) — Mac 정리 후 재실행 필요
+
 ## 2. 다른 개발자 연결 지점
 
 | 담당 | 연결 지점 | 계약 |
