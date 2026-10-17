@@ -1,6 +1,6 @@
 # SYNCREW 인수인계 문서 (작업 재개 기준)
 
-작성 2026-10-14 (커밋 `12831ff` 기준). 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
+작성 2026-10-14 (커밋 `12831ff` 기준), **최종 갱신 2026-10-17 (실기기 없이 할 수 있는 일 마무리 — 커밋 `f249136` 이후 미커밋 변경 포함)**. 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
 더 자세한 근거는 각 절에 적은 문서·파일에 있다. 작업 규칙의 원본은 루트 `CLAUDE.md`.
 
 표기: ✅ 완료(실제로 실행·확인함) · 🟡 진행 중/부분 완료 · ⬜ 미완료(아직 안 함) · ❓ 미확인(상태를 확인하지 못함)
@@ -16,17 +16,19 @@
 - 언어: 한국어(ko)·중국어(zh)·베트남어(vi)·우즈베크어(uz)·러시아어(ru)
 - 기능: 1:1 대화, 현장 그룹 대화, 관리자 일괄 지시(문자·실시간 음성) + 확인·완료 응답, **1:1 실시간 통역 통화**
 
-### 현재 상태 (2026-10-14)
-- 서버·앱 기능은 대부분 완성. **PC(웹 브라우저·에뮬레이터·시뮬레이터)에서는 검증 완료**, **실기기(휴대폰)에서는 한 번도 검증하지 않았다.**
-- 진행 중인 큰 작업: **Phase 7 = 1:1 통화 "진짜 스트리밍 통역"** (말하는 동안 음성을 흘려 보내 지연을 약 6초 → 2초 이하로)
-  - 서버(S1)·웹 앱(S2)은 완료, 실제 OpenAI 로도 웹에서 동작 확인
-  - **S3 네이티브 오디오: 2026-10-15 새벽 자체 Expo 모듈(`frontend/modules/syncrew-duplex/`)로 구현 완료, 실기기 시험 전** → 이 빌드의 휴대폰 앱은 통화를 걸면 스트리밍 방식으로 연결된다(안 되면 자동으로 문장 단위). 결과·미검증: `docs/streaming-plan.md` 5-3절
-- **실기기 준비: 🟡 진행 중** (2026-10-14 밤: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro 연결. Android 기준선 T2 일부 완료 — 결과 `docs/device-test-log.md`)
-  - Android 실기기에서 발견·수정(미커밋): 휴대폰 음성 업로드 전부 실패(Expo SDK 57 fetch → XMLHttpRequest 로 수정), 음량 -160 끼어듦(건너뜀), 빈 화면 안내문 거울 글자(웹에서만 뒤집기)
-  - **미해결: Android 블루투스 헤드셋 마이크가 무음** (SCO 미시작) → S3 네이티브에서 처리. 무선 접속은 Galaxy 핫스팟 구성에서 실패 → 지금은 USB 터널(`adb reverse`)
-  - iOS(2026-10-15): 설치·실행·A·B·C 통과 (Galaxy 핫스팟에 Mac·iPhone 무선 접속). 발견·수정(미커밋): 서버 음성 Range 미지원으로 iOS 재생 불가 → 마이크 멈춤, iOS 녹음 파일 경로 재사용으로 빈 파일 업로드, 헤드셋 현재 입력 판별 오류
-  - 남은 T2: D(일괄 지시)·E(비밀번호 메일 링크) 양쪽, 헤드셋으로 통역 듣기(실제 음성 필요), 두 휴대폰 동시 접속 네트워크(Galaxy 가 핫스팟 손님이어야 함)
-  - iOS 개발 빌드는 빌드 때의 Mac 주소를 앱에 넣는다(`ip.txt`) → 네트워크가 바뀌면 `xcodebuild … -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6` 로 다시 빌드 후 `xcrun devicectl device install app`
+### 현재 상태 (2026-10-17) — 한 줄 요약: **"네이티브 오디오까지 만들었지만 실제 휴대폰으로는 아직 한 번도 안 켜 봤다. 실기기 없이 할 수 있는 일은 모두 끝났다"**
+- 2026-10-17 실기기 없이 마무리: S3 네이티브 코드 전체 재점검(네이티브 결함 없음), **통화 버그 1개 발견·수정(한쪽만 스트리밍하면 문장 단위 쪽이 상대 말을 못 들음)**, **상대 역할 스크립트 `server/scripts/call-peer.ts`** 추가(스크립트끼리 통화로 확인), OpenAI 가격 공식 페이지 대조(일치), 빌드 캐시 정리. 상세는 2절 "실기기 없이 마무리 (2)"
+- **⚠ 디스크 여유 약 2GB (10-17 작업 후)** — 네이티브 빌드(Android 수 GB·iOS 수 GB)가 들어가지 않는다. 실기기 시험 전에 사용자가 공간 확보 필요 (7절 "시작 전에")
+- 서버·앱 기능은 대부분 완성. 웹·에뮬레이터 검증 완료, **실기기는 문장 단위 통화까지만 확인**(10-14 밤 T2)
+- 진행 중인 큰 작업: **Phase 7 = 1:1 통화 "진짜 스트리밍 통역"** (지연 약 6초 → 2초 이하)
+  - S1 서버·S2 웹 완료(실제 OpenAI 확인), **S3 네이티브 오디오는 코드 구현 완료**(10-15 새벽, 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`) — 휴대폰 앱이 통화를 걸면 스트리밍으로 연결을 시도하고, 안 되면 자동으로 문장 단위. 상세 `docs/streaming-plan.md` 5-3절
+  - **다음 할 일 = S3 실기기 시험** (7절). 실기기에서 처음 켜 보는 코드라 고칠 것이 나올 가능성이 크다
+- 실기기: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro + AirPods Pro (사용자 소유, 연결은 매번 확인)
+  - T2 결과 (10-14 밤–10-15): 문자 수신·문장 단위 통화 양쪽 통과, iPhone 헤드셋 통과, **Android 헤드셋 마이크 무음(SCO 미시작) → S3 에서 처리, 재시험 필요**. 실기기에서만 드러난 버그 6개 수정(커밋 `0c995ad`) — `docs/implementation-plan.md` T2 절, `docs/device-test-log.md`
+  - 네트워크: 일반 Wi-Fi 는 기기 간 통신 막힘. Galaxy 핫스팟에 Mac·iPhone 무선 접속 가능, Galaxy 자신은 USB 터널(`adb reverse`). 두 휴대폰 동시(S4)는 둘 다 핫스팟 손님인 구성 필요(미시험)
+  - iOS 개발 빌드는 빌드 때 Mac 주소가 앱에 들어감(`ip.txt`) → 네트워크가 바뀌면 다시 빌드 (7절 명령)
+- 자동 시험 (10-15 아침, 모두 통과): 서버 200, 앱 단위 22, 데모 e2e 99, live e2e 43, 마이크 e2e 2
+- **주의 (이 PC)**: 에뮬레이터·시뮬레이터가 Mac 마이크를 쓰게 하면(`adb emu avd hostmicon` 등) 권한 창 때문에 CoreAudio 입력이 막혀 앱이 멈추고 웹 e2e 마이크까지 꼬인다(10-15 새벽, Mac 정리 후 회복). 에뮬레이터는 오디오 입력이 무음/가짜 신호라 "소리"는 실기기에서만 확인
 
 ### 최종 완료 기준 (MVP)
 1. Android·iOS **실기기 2대**로 1:1 스트리밍 통역 통화가 된다: 말 끝 → 상대 이어폰 첫 소리 **P50 ≤ 2.0초, P90 ≤ 3.0초** (같은 Wi-Fi, 실기기 + 블루투스 헤드셋, 20회 이상 측정)
@@ -53,29 +55,45 @@
 | 실기기 없이 마무리 | 관리자 지정·해제 API·화면, 같은 언어 통화 앱 e2e, 서버 노이즈 필터 조각 단위 연결 지점, 받아쓰기 모델 `gpt-4o-transcribe` 교체 | `12831ff` |
 | Supabase 재설정 | 사용자 대시보드 설정(앱 주소 `syncrew://reset-password` 등록·메일 문구·Gmail SMTP) + 메일 수신·링크 이동 확인 (`docs/operations.md` 8절) | `12831ff`(문서) |
 
-자동 시험 (마지막 실행 2026-10-14, 모두 통과): 서버 **200**, 앱 단위 **18**, 데모 e2e **99**, live e2e **43**, 마이크 e2e **2**, Android 번들 빌드, expo-doctor **21/21**.
+| T2 실기기 기준선 | Android·iPhone 문장 단위 통화·문자 수신, iPhone 헤드셋 + 실기기 버그 6개 수정 (업로드·Range·iOS 녹음 파일·헤드셋 판별·음량·빈 화면) | `0c995ad` |
+| S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
+| 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | 미커밋 |
+
+#### 실기기 없이 마무리 (2) — 2026-10-17
+- **S3 네이티브 코드 재점검** (Swift 482줄·Kotlin 554줄·JS 어댑터·`useStreamingCall`·`useHandsFree` 를 처음부터 읽음): 실기기 전에 고쳐야 할 결함은 찾지 못했다. 확인한 것 — Android: 통신 모드 진입·복원, Android 12+ `setCommunicationDevice`(블루투스 SCO > 유선 > 스피커, 수화기 제외), 장치 붙음·빠짐 재선택, 녹음·재생 논블로킹 스레드와 정지 순서, 시작 실패 시 정리, AEC/NS/AGC. iOS: playAndRecord+voiceChat+HFP, voice processing 실패 시 계속, 경로 변경·엔진 설정 변경·중단·미디어 서비스 재시작 시 재구성, 재생 세대 번호로 이전 콜백 무시, 권한 요청. JS: 스트림 열기 실패·마이크 실패 → 문장 단위, 들은 문장 재생 안 함
+  - 실기기에서 눈여겨볼 점(결함은 아님): ① Android 블루투스 SCO 는 켜지는 데 시간이 걸려 통화 첫 0.5–1초는 휴대폰 마이크로 녹음될 수 있다 ② 재생 오류가 계속되면 `onError` 가 20ms 마다 반복될 수 있다(로그가 많아짐) ③ iOS 녹음 탭 크기는 iOS 가 정해 첫 조각까지 약 100ms 더 걸릴 수 있다 ④ 오디오 포커스(다른 앱 음악 멈춤)는 요청하지 않는다
+- **버그 발견·수정 — 한쪽만 스트리밍하는 통화에서 문장 단위 쪽이 상대 말을 하나도 못 들음** (`frontend/src/audio/useStreamingCall.ts`): 서버는 듣는 사람이 스트리밍 중인지와 상관없이 통역 조각(`stream:out:*`)을 보내는데, 앱은 자기가 문장 단위(폴백)여도 그 턴을 "스트림으로 들음"으로 표시해 이어 오는 기록 알림(`message:new`)까지 건너뛰었다(스트림 조각은 이중 오디오가 멈춰 있어 재생 안 됨). 휴대폰 2대 통화(S4)에서 한쪽만 마이크 열기 실패·서버 상한(BUSY)·`EXPO_PUBLIC_STREAMING=off` 등으로 폴백하면 그쪽이 무음이 되는 문제. → **내 스트림이 열려 있을 때만 스트림 턴을 받도록** 고침
+  - 확인: live e2e 에 `E2E_MIXED=1` 추가(서버 `STREAM_MAX_SESSIONS=1` 로 한쪽만 스트리밍). **수정 전 코드: 문장 단위 쪽 재생 0건·건너뜀 3건으로 실패(대조군)**, 수정 후 18/18 통과(재생 3건·건너뜀 0). 회귀: live e2e 43/43, 데모 e2e 99/99, 단위 22/22
+  - 같은 언어 통화(직접 전달)는 기록이 남지 않으므로, 한쪽만 스트리밍이면 문장 단위 쪽은 여전히 상대 말을 듣지 못한다 (남은 한계 — 같은 언어 + 혼합 상황은 드물어 그대로 둠, 필요하면 서버가 상대 스트림이 없을 때 직접 전달 대신 기록을 남기게 바꿔야 함)
+- **상대 역할 스크립트 `server/scripts/call-peer.ts`** (예전에는 세션 임시 폴더에만 있어 사라졌던 것을 정식 추가): e2e 계정으로 휴대폰(다른 e2e 계정)과 통화 → 몇 초마다 합성 음성으로 말하기(스트리밍 또는 `--utterance` 문장 단위) → 휴대폰이 보낸 소리의 조각 수·첫 조각 시간·**음량(dBFS, 최대 -50dB 미만이면 "거의 무음" 경고)** 출력·wav 저장, 휴대폰 오디오 경로 보고 출력, Ctrl+C 로 통화 끊기. 같은 언어 통화면 휴대폰 마이크 소리가 그대로 와서 **헤드셋 마이크 무음·에코를 바로 확인**할 수 있다. 확인: `ENGINE=fake` 서버에서 스크립트 두 개(관리자 `--answer`, 구성원 걸기)로 통화 — 걸기·받기·양방향 스트리밍·받은 음성 저장·기록 도착·끊기, `--utterance` 업로드 모두 동작 (비용 0)
+- **OpenAI 가격 대조** (공식 가격표 developers.openai.com/api/docs/pricing, 2026-10-17): `gpt-realtime-2.1` 텍스트 입력 $4·캐시 $0.4·출력 $24, 음성 입력 $32·출력 $64 (/1M 토큰) — 서버 표와 일치. `gpt-4o-transcribe` 분당 약 $0.006 — 서버 설정과 일치 (미확인 항목 해소)
+- **캐시 정리**: Android 빌드 캐시(예전 한글 경로가 남아 있던 `frontend/android/app/.cxx`·`build`, 2.6GB — 다음 빌드 전에 지워야 했던 것), Xcode `ModuleCache.noindex`, npm 캐시
+- **하지 못한 것**: 에뮬레이터에서 앱이 상대 통역 음성 조각(이진 데이터)을 받아 재생하는지 확인 — 디스크가 1.5GB 까지 줄어(원인은 이 작업 밖, 프로젝트·에뮬레이터 파일은 그대로) 에뮬레이터가 켜지지 않았고, 캐시 정리 뒤(3.3GB)에는 시작 중 비정상 종료. 실기기 시험의 점검 화면·F 시나리오에서 함께 확인된다
+- 자동 시험 (10-17, 모두 통과): 서버 **200**, 앱 단위 **22**, 데모 e2e **99**, live e2e **43** + 혼합 통화 `E2E_MIXED` **18**, 타입 검사 양쪽. (`e2e:mic` 는 바뀐 코드와 무관해 다시 돌리지 않음 — 10-15 아침 2/2)
+
+자동 시험 (마지막 실행 2026-10-15 아침, 모두 통과): 서버 **200**, 앱 단위 **22**, 데모 e2e **99**, live e2e **43**, 마이크 e2e **2**. 네이티브 빌드: Android(Gradle)·iOS 시뮬레이터 성공 (iOS 실기기용은 10-14 S3 이전 코드로만 성공).
 
 ### 🟡 진행 중
-- **Phase 7 스트리밍 — S3(네이티브 오디오) 대기**: 실기기 준비가 선행 조건. 코드상 `frontend/src/audio/duplex/index.ts` 가 iOS·Android 에서 `null` 을 돌려주므로 휴대폰은 문장 단위 방식으로 자동 전환된다(정상 동작, 의도된 상태).
+- **Phase 7 스트리밍 — S3 실기기 시험 대기**: 코드는 완료. 에뮬레이터에서 녹음 조각 100ms·시험음·녹음 재생·스트림 열림까지 확인. 실제 소리·에코·헤드셋·통화 전체는 미확인 (7절 절차)
+- T2 남은 것: D(일괄 지시)·E(비밀번호 메일 링크) 양쪽, 헤드셋으로 통역 듣기
 
 ### ⬜ 미완료 (아직 하지 않음)
-1. **실기기 준비** (사용자) — 5절
-2. 실기기에서 **현재 앱(문장 단위) 기준선 확인** — 한 번도 안 함
-3. **S3 네이티브 오디오** (iOS·Android) → **S4 휴대폰 2대 통화** → **S6 실기기 튜닝**
+1. ~~실기기 준비~~ ✅ / ~~T2 기준선~~ 🟡 (D·E 남음)
+2. **S3 실기기 시험** (iOS·Android) → **S4 휴대폰 2대 통화** → **S6 실기기 튜닝**
 4. 실제 노이즈 필터 구현 (다른 팀원, 서버 연결 지점만 준비됨)
 5. 현장 용어 데이터 보강 (다른 팀원: "거푸집·안전모·안전고리"가 검증 문장에 없음, 번역은 베트남어만 있음)
+※ **실기기 없이 할 수 있는 일은 2026-10-17 에 모두 끝났다** — 위 1–2 는 실기기, 4–5 는 다른 팀원, 6 은 사용자 결정으로 나중
 6. 나중에(사용자 결정): UI 문구 원어민 검수, 업무용 메일 서비스, 우즈베크어 통역 품질(보류), 용어집 지시문(보류), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ### ❓ 미확인 (확인하지 못한 것 — 완료로 보지 말 것)
-- **모든 실기기 동작**: 휴대폰 → PC 서버 접속, 휴대폰 마이크·블루투스 헤드셋 녹음, 이어폰 재생, 에코, 백그라운드
-- 프로젝트 이동(2026-10-14) 후 **새 경로에서 iOS·Android 네이티브 빌드** (안 해 봄). `frontend/ios/` 는 예전 경로에서 만든 폴더 — 새 경로에서 그대로 쓸 수 있는지 미확인
-- Expo 패치 업데이트(2026-10-14) 후 **개발 빌드**는 다시 만들지 않음 (에뮬레이터·시뮬레이터에 설치된 앱은 예전 네이티브)
+- **S3 네이티브 오디오의 실기기 동작 전부**: 실제 목소리 통역 전달, 스피커 에코 루프 없음, 블루투스 헤드셋 입출력(특히 Android SCO), 경로 변경, 끊김·지연, iOS 는 실행 자체도 미확인(시뮬레이터 마이크가 Mac 권한 문제로 막혀 컴파일만 확인)
+- 문장 단위 폴백에서 Android 헤드셋 마이크가 이제 소리를 받는지, 그때 통역 재생(expo-audio, media 용도)이 헤드셋으로 나오는지
+- 백그라운드 통화, 두 휴대폰 동시 접속 네트워크
 - 비밀번호 재설정 메일 링크 → **휴대폰에서 앱이 열리는지**
 - 받아쓰기 "비계 → 기계" 오류가 **사람 목소리에서도** 나는지 (합성 음성에서만 확인)
 - 사람이 귀로 듣는 통역 소리 품질·체감 지연 (헤드리스 브라우저는 소리를 못 들음)
-- `react-native-audio-api` 1.0 nightly 가 실제로 블루투스 HFP·에코 제거를 하는지 (소스 조사만, `docs/s0-report.md` 2-1절)
 - 웹 브라우저의 실제 확인 창(관리자 지정 등)은 사람이 눌러 본 적 없음 (e2e 는 확인 창을 자동 "확인"으로 바꿔 시험)
-- OpenAI 가격: 받아쓰기 단가는 가격 정리 사이트 기준 (OpenAI 가격표로 재확인 안 함)
+- 휴대폰 앱이 `stream:out:audio` 이진 조각을 받아 재생하는 경로 (웹에서만 확인, 에뮬레이터 시험은 디스크 부족으로 못 함)
 
 ---
 
@@ -302,8 +320,9 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 선정 이유: S3 코드는 다 썼고 에뮬레이터에서 녹음·재생·시험음까지는 확인했지만, 실제 소리·에코·블루투스 헤드셋·통화 전체는 실기기에서만 확인된다 (이 PC 의 에뮬레이터·시뮬레이터는 Mac 마이크 권한 문제로 입력이 막혔다 — `docs/streaming-plan.md` 5-3절).
 
 ### 시작 전에 (Mac)
-1. **Mac 화면에 마이크 권한 창이 남아 있으면 처리**(터미널·Code·qemu·Simulator 등이 마이크를 요청). 오디오가 꼬였으면 **Mac 재부팅** — 그 뒤 웹 e2e 를 다시 돌려 회귀 확인: `cd frontend && npm run bundle:web && npm run e2e`(99), `npm run e2e:mic`(2), `npm run bundle:web:live && npm run e2e:live`(43, ENGINE=fake 서버 필요). 2026-10-15 새벽엔 이 환경 문제로 변경 전 코드로도 마이크 시험이 실패했다
-2. 디스크 여유 확인 (`df -h /System/Volumes/Data`, 2026-10-15 약 6GB) — 네이티브 빌드 2번이면 부족할 수 있다. 지워도 되는 것: `~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex`, `~/.npm/_cacache`(`npm cache clean --force`)
+1. **Mac 화면에 마이크 권한 창이 남아 있으면 처리**(터미널·Code·qemu·Simulator 등이 마이크를 요청). 오디오가 꼬였으면 **Mac 재부팅** — (2026-10-15 아침 정리 후 웹 e2e 재실행: `e2e:mic` 2/2, 데모 99/99, live 43/43 통과 — S3 로 인한 웹 회귀 없음)
+2. **디스크 여유 확보 (사용자, 필수)**: `df -h /System/Volumes/Data` — 2026-10-17 작업 후 **약 2GB** 로 네이티브 빌드가 들어가지 않는다 (Android 빌드 약 2.6GB + Gradle, iOS 빌드 수 GB). **최소 15GB 이상** 확보 권장. 이미 정리한 것: Android 빌드 캐시, Xcode `ModuleCache.noindex`, npm 캐시. 큰 곳(10-17 측정): `~/Downloads` 8.9GB, `~/Library/Caches` 8.1GB, `~/Library/Developer/Xcode` 9.1GB(대부분 DerivedData — 지우면 iOS 는 처음부터 다시 빌드, 어차피 네트워크가 바뀌면 다시 빌드한다), `~/Library/Developer/CoreSimulator` 7.0GB(iOS 시뮬레이터 — 실기기 시험에는 필요 없음), 에뮬레이터 `~/.android/avd/Pixel_9_Pro_XL.avd` 7.7GB. 어느 것을 지울지는 사용자가 정한다
+3. 에뮬레이터를 켜다 비정상 종료된 적이 있다(10-17, 공간 부족) — Mac 화면에 에뮬레이터 오류 보고 창이 남아 있으면 닫는다
 
 ### 실행 순서
 1. 서버 `ENGINE=fake` + DB, 네트워크·Metro 는 아래 "실기기 실행 절차"대로 (`.env` 는 지금 기본값 mock)
@@ -311,8 +330,8 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 3. **점검 화면 먼저** (Metro 를 `EXPO_PUBLIC_DEV_START_ROUTE="/audio-check?auto=1"` 로 켜거나 앱에서 `syncrew:///audio-check`): 
    - 휴대폰 스피커: 경로 `speaker`, 조각 간격 약 100ms, 말하면 음량이 오르는지, 시험음이 들리는지, **시험음 중 마이크 최대(에코)**가 말할 때보다 충분히 낮은지, 3초 녹음 후 다시 듣기
    - 블루투스 헤드셋 연결 후: 경로 `bluetooth (헤드셋 이름)`, 헤드셋에 말하면 음량이 오르는지(Android 는 `adb shell dumpsys audio | grep mScoAudioState` 가 ACTIVE), 시험음이 헤드셋으로 들리는지
-4. **스트리밍 통화 (5절 F·G·H)**: 상대 역할은 스크립트 또는 두 번째 휴대폰. 통화 화면 "실시간 통역 · 말하는 동안 전송", 상대 통역 자막·재생, 중복 재생 없음, 스피커 에코 루프 없음, 헤드셋 연결·해제
-5. **문장 단위 폴백에서 Android 헤드셋 재시험 (어제 실패한 C)**: `frontend/.env` 에 `EXPO_PUBLIC_STREAMING=off` 로 Metro 재시작 → 헤드셋 마이크로 녹음되는지 + 통역 재생이 헤드셋으로 나오는지
+4. **스트리밍 통화 (5절 F·G·H)**: 상대 역할은 `server/scripts/call-peer.ts`(아래 "실기기 실행 절차") 또는 두 번째 휴대폰. 통화 화면 "실시간 통역 · 말하는 동안 전송", 상대 통역 자막·재생, 중복 재생 없음, 스피커 에코 루프 없음, 헤드셋 연결·해제
+5. **문장 단위 폴백에서 Android 헤드셋 재시험 (10-14 실패한 C)**: `frontend/.env` 에 `EXPO_PUBLIC_STREAMING=off` 로 Metro 재시작 → 헤드셋 마이크로 녹음되는지 + 통역 재생이 헤드셋으로 나오는지. 상대 스크립트는 **`--utterance`** 로 하면 휴대폰 2대가 모두 문장 단위인 상황과 같다 (스트리밍으로 보내도 10-17 수정 이후에는 휴대폰이 기록 음성으로 재생한다)
 6. 결과를 `docs/device-test-log.md` 에, 고친 것은 커밋. 그다음 S4(2대 통화)
 
 ### 실기기 실행 절차 (2026-10-14–15 에 실제로 된 방법)
@@ -324,7 +343,12 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 - Android 빌드: `rm -rf frontend/android/app/.cxx frontend/android/app/build` → `JAVA_HOME=<JDK 21>` → `cd frontend && npx expo run:android --device SM_S901N` (기기 이름으로 지정)
 - iOS 빌드: `cd frontend/ios && xcodebuild -workspace SYNCREW.xcworkspace -scheme SYNCREW -configuration Debug -destination 'id=00008150-0014783A3630C01C' -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6 CODE_SIGN_STYLE=Automatic build` → `xcrun devicectl device install app --device 00008150-0014783A3630C01C ~/Library/Developer/Xcode/DerivedData/SYNCREW-*/Build/Products/Debug-iphoneos/SYNCREW.app` → `xcrun devicectl device process launch --device … --terminate-existing com.syncfield.syncrew`. **빌드 때 Mac 주소가 앱에 들어가므로(`ip.txt`) 네트워크가 바뀌면 다시 빌드**
 - iPhone 앱 로그는 Metro 출력에 나온다. Android 는 `adb logcat | grep ReactNativeJS`
-- 상대 역할 스크립트(구성원 계정으로 문자 보내기·통화 걸기·수신 확인)는 세션 임시 폴더에 있었다 — 필요하면 다시 만든다: Supabase 비밀번호 로그인(`/auth/v1/token?grant_type=password`, publishable key) → `POST /api/v1/sites/:id/calls {userId}` + Socket.IO `/rt` 접속(`auth.token`) + `GET /api/v1/sessions/:id/messages` 감시
+- **상대 역할 스크립트** `server/scripts/call-peer.ts` (2026-10-17 추가, 휴대폰에는 관리자 e2e 계정으로 로그인):
+  - `cd server && npx tsx scripts/call-peer.ts` — 구성원 계정(베트남어)이 휴대폰에 전화 → 받으면 8초마다 말하기. `--answer` 휴대폰이 거는 전화 받기, `--as manager` 역할 바꾸기, `--listen` 말하지 않기, `--utterance` 문장 단위, `--every 5`, `--count 3`, `--text "문장"`, `--server http://<주소>:4000`. 끝내기 Ctrl+C
+  - 휴대폰이 문장 단위(폴백)면 스크립트 화면에 `◀ 휴대폰 말 …` 대신 `◀ 기록 도착` 만 나온다
+  - 출력: `◀ 휴대폰 말 끝 … 조각 N개 · 첫 조각 Nms · 음량 평균/최대 dB (⚠ 거의 무음)`, `휴대폰 오디오 경로: bluetooth (Galaxy Buds2)`. 받은 소리 `server/call-peer-output/*.wav` (git 제외)
+  - **휴대폰 마이크 소리를 그대로 듣고 싶으면 같은 언어 통화**(직접 전달)로: 두 계정의 언어를 같게 하면 받은 wav 가 휴대폰 마이크 원음이다 — 헤드셋 마이크 무음·에코·끊김 확인용. 다른 언어면 받은 소리는 통역 음성(`ENGINE=fake` 면 가짜)
+  - 비용: `ENGINE=fake` 서버면 0
 - 오디오 경로 확인: Android `adb shell dumpsys media.audio_flinger | grep "Input device"`, `adb shell dumpsys audio | grep mScoAudioState`. 녹음 파일 크기·음량은 `server/storage/uploads/*.m4a` 를 `afconvert -f WAVE -d LEI16` 로 바꿔 측정
 
 ### 확인 방법 (S3 완료 판단)

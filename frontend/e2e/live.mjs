@@ -165,7 +165,10 @@ async function signIn(u, account, { name, langLabel, signInLabel, startLabel }) 
 // E2E_STREAMING=off: 서버를 STREAMING=off 로 띄웠을 때 — 앱이 문장 단위 방식으로 바꿔 통화하는지(폴백) 확인
 const STREAMING = process.env.E2E_STREAMING !== "off";
 // E2E_ONLY_CALL=1: 1:1 통화만 확인 (실제 OpenAI 로 돌릴 때 다른 구간의 통역 비용을 쓰지 않기 위해 — 대화·일괄 지시·문자 지시 건너뜀)
-const ONLY_CALL = process.env.E2E_ONLY_CALL === "1";
+// E2E_MIXED=1: 서버를 STREAM_MAX_SESSIONS=1 로 띄웠을 때 — 한 사람만 스트리밍, 다른 사람은 문장 단위(BUSY 폴백)인 통화.
+//   문장 단위 쪽이 상대의 스트림 통역을 "들은 것"으로 치지 않고 기록 알림(message:new)으로 재생하는지 확인 (통화만 확인)
+const MIXED = process.env.E2E_MIXED === "1";
+const ONLY_CALL = process.env.E2E_ONLY_CALL === "1" || MIXED;
 // E2E_REAL=1: 서버가 실제 OpenAI(ENGINE=openai)일 때 — 가짜 엔진 문구 대신 "양쪽이 번역 1턴씩 받았는지"로 확인하고 바로 끊는다 (비용 최소)
 const REAL = process.env.E2E_REAL === "1";
 const runId = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, "");
@@ -234,7 +237,21 @@ try {
   await member.check("구성원: 수신 화면(실시간)", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
   await member.tap("Nghe");
   await manager.check("관리자: 통화 중", "통화 중", 10000);
-  if (STREAMING) {
+  let utteranceSide = null; // MIXED: 문장 단위로 통화하는 쪽
+  if (MIXED) {
+    // 연결 중에는 문장 단위 문구가 잠깐 보이므로, 스트리밍 문구가 나오는지 먼저 기다린다
+    const modeOf = (u, streamLabel, utteranceLabel) =>
+      u.page
+        .waitForFunction((a) => document.body.innerText.includes(a), { timeout: 15000 }, streamLabel)
+        .then(() => "stream", () => u.page.evaluate((b) => (document.body.innerText.includes(b) ? "utterance" : "none"), utteranceLabel));
+    const [m, v] = await Promise.all([
+      modeOf(manager, "실시간 통역 · 말하는 동안 전송", "문장 단위 통역"),
+      modeOf(member, "Dịch trực tiếp · gửi trong khi nói", "Dịch theo từng câu"),
+    ]);
+    if ([m, v].sort().join() === "stream,utterance") { pass++; console.log(`  ✓ 한쪽만 스트리밍 (관리자 ${m}, 구성원 ${v})`); }
+    else { fail++; console.log("  ✗ 한쪽만 스트리밍", { manager: m, member: v }); }
+    utteranceSide = m === "utterance" ? manager : member;
+  } else if (STREAMING) {
     await manager.check("관리자: 스트리밍 방식으로 연결", "실시간 통역 · 말하는 동안 전송", 15000);
     await member.check("구성원: 스트리밍 방식으로 연결", "Dịch trực tiếp · gửi trong khi nói", 15000);
   } else {
@@ -259,7 +276,12 @@ try {
   await manager.check("관리자: 구성원 말이 한국어로 도착", "[ko] [음성 vi]", 30000);
   }
   await wait(4000); // 기록 알림(message:new)까지 받을 시간
-  if (!STREAMING) {
+  if (MIXED) {
+    // 문장 단위 쪽: 상대 스트림 턴을 받지 않고(조각 0·건너뜀 0), 상대 말의 기록 알림을 재생 대기열에 넣었는지
+    const stats = await utteranceSide.page.evaluate(() => window.__syncrewPlayback);
+    if (stats.streamChunks === 0 && stats.skipped.length === 0 && stats.enqueued.length > 0) { pass++; console.log(`  ✓ [${utteranceSide.label}] 문장 단위 쪽: 스트림 조각 0, 건너뜀 0, 기록 알림 재생 ${stats.enqueued.length}건`); }
+    else { fail++; console.log(`  ✗ [${utteranceSide.label}] 문장 단위 쪽이 상대 말을 재생하지 못함`, stats); }
+  } else if (!STREAMING) {
     // 폴백: 스트림 재생 없이 기록 알림으로 재생 대기열에 들어간다
     const stats = await member.page.evaluate(() => window.__syncrewPlayback);
     if (stats.streamChunks === 0 && stats.enqueued.length > 0) { pass++; console.log(`  ✓ [구성원] 폴백: 스트림 조각 0, 기록 알림 재생 ${stats.enqueued.length}건`); }

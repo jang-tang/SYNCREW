@@ -12,7 +12,7 @@
 - 실행하지 않은 테스트를 통과했다고 보고하지 않는다. 결정이 바뀌면 `docs/`도 함께 고친다.
 - 응답은 한국어.
 
-## 현재 상태 (2026-10-15 새벽, Phase 7 S3 네이티브 오디오 구현 완료·실기기 시험 전 — 인수인계: `docs/HANDOFF.md`)
+## 현재 상태 (2026-10-17, Phase 7 S3 구현 완료·실기기 시험 전, 실기기 없이 할 일은 모두 끝남 — 인수인계: `docs/HANDOFF.md`)
 
 | 단계 | 상태 | 커밋 |
 |---|---|---|
@@ -23,7 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 완료 (10-14). **실기기 준비·T2 기준선 (10-14–15): Android·iPhone A·B 통과, iPhone 헤드셋 통과, Android 헤드셋 마이크 무음 → S3. 실기기 버그 6개 수정** (`docs/implementation-plan.md` T2 절). **S3 구현 (10-15 새벽): 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`, 에뮬레이터 확인, 실기기 시험 전** (`docs/streaming-plan.md` 5-3절). **다음: S3 실기기 시험** — `docs/HANDOFF.md` 7절 | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff`·`0c995ad`·`b038223` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 완료 (10-14). **실기기 준비·T2 기준선 (10-14–15): Android·iPhone A·B 통과, iPhone 헤드셋 통과, Android 헤드셋 마이크 무음 → S3. 실기기 버그 6개 수정** (`docs/implementation-plan.md` T2 절). **S3 구현 (10-15 새벽): 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`, 에뮬레이터 확인, 실기기 시험 전** (`docs/streaming-plan.md` 5-3절). **실기기 없이 마무리 (2) (10-17)**: S3 코드 재점검, 혼합 통화 무음 버그 수정(+e2e `E2E_MIXED`), 상대 역할 스크립트 `server/scripts/call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (미커밋). **다음: 디스크 확보(약 2GB 남음) → S3 실기기 시험** — `docs/HANDOFF.md` 7절 | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff`·`0c995ad`·`b038223` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -77,7 +77,7 @@
   - **Android 빌드는 JDK 21** (`/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home`). 기본 JDK 26·Android Studio JDK 25는 CMake 단계에서 실패.
   - **프로젝트는 2026-10-14부터 영문 경로** `/Users/taewoongjang/PlayGround/SYNCREW` (예전 한글 경로에서는 iOS `pod install` 이 실패해 복사본으로 빌드했다 — 이제 원래 폴더에서 바로 `expo run:ios` 가능, 아직 실제로 빌드해 보지는 않음).
   - 시뮬레이터 조작 도구가 없어 iOS는 화면 캡처만 가능. Android는 `adb shell input`으로 조작.
-  - **디스크 여유 공간이 적다** (2026-10-13 기준 약 22GB). Android 빌드(Gradle)·iOS 빌드(Pods)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인한다.
+  - **디스크 여유 공간이 적다** (2026-10-17 작업 후 **약 2GB** — 네이티브 빌드·에뮬레이터가 안 들어간다. 10-17 에 에뮬레이터가 공간 부족으로 켜지지 않았다. 사용자가 공간을 확보해야 함, `docs/HANDOFF.md` 7절). Android 빌드(Gradle)·iOS 빌드(Pods)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인한다.
   - 에뮬레이터 마이크로는 실제 말소리가 들어오지 않았다 → 말소리 자동 감지는 웹 가짜 마이크(`npm run e2e:mic`)로 확인했고, 최종은 실기기.
   - 에뮬레이터 조작: uiautomator 화면 구조(`adb shell uiautomator dump`)에서 글자로 좌표를 찾아 `adb shell input tap`. 개발 빌드는 에뮬레이터에 설치돼 있으므로 Metro만 띄우면 된다 (`docs/phase4-report.md` 7절).
   - `expo start`가 `frontend/tsconfig.json`을 자동으로 고쳐 쓴다 → 작업 후 `git checkout -- frontend/tsconfig.json`.
@@ -143,6 +143,8 @@ cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
 cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 43개 (통화는 스트리밍, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
+cd frontend && E2E_MIXED=1 npm run e2e:live      # 한쪽만 스트리밍하는 통화 18개 (서버를 ENGINE=fake STREAM_MAX_SESSIONS=1 로 실행 중이어야 함)
+cd server && npx tsx scripts/call-peer.ts        # 실기기 시험용 통화 상대 (e2e 계정, 합성 음성 말하기·휴대폰 소리 음량/wav). --answer·--utterance·--as manager. ENGINE=fake 면 비용 0
 ```
 
 - 백그라운드로 띄운 DB·서버는 작업이 끝나면 **반드시** 종료한다: 서버 `pkill -f "src/index.ts"` (`npm run dev` 는 `tsx watch src/index.ts` 라 "tsx src/index.ts" 패턴으로는 안 죽는다), DB `pkill -INT -f scripts/db.ts` 후에도 postgres 가 남으면 `cd server && node_modules/@embedded-postgres/darwin-arm64/native/bin/pg_ctl -D .pgdata stop -m fast`. 확인: `lsof -nP -iTCP:4000 -sTCP:LISTEN`, `lsof -nP -iTCP:5433 -sTCP:LISTEN` 이 비어 있어야 한다 (2026-10-13 확인).

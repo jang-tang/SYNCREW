@@ -185,6 +185,9 @@ export function useStreamingCall(options: {
     const offs = [
       realtime.on("stream:out:start", (p) => {
         if (p.sessionId !== callbacks.current.sessionId) return;
+        // 내 스트림(이중 오디오)이 열려 있을 때만 스트림으로 듣는다. 문장 단위로 통화 중이면(폴백·이중 오디오 없음) 이 턴을 받지 않아야
+        // 들은 것으로 표시되지 않고, 이어 오는 기록 알림(message:new)이 평소처럼 재생된다 (상대만 스트리밍하는 통화에서 소리가 안 나던 문제, 2026-10-17)
+        if (!live.current.streamId) return;
         turns.current.set(p.turnId, p.sampleRate);
         debug.streamTurns += 1;
         setCaptions((list) => [...list, { turnId: p.turnId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS));

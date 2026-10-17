@@ -8,8 +8,9 @@ node_modules
 /storage
 # live 모드 e2e 테스트 계정 (비밀번호 포함)
 /.e2e-accounts.json
-# 실제 OpenAI 확인·측정 스크립트 출력 (음성·결과)
+# 실제 OpenAI 확인·측정·실기기 시험(call-peer) 스크립트 출력 (음성·결과)
 /openai-check-output
 /stream-measure-output
 /translate-compare-output
 /stt-hint-output
+/call-peer-output
