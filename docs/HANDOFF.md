@@ -23,6 +23,8 @@
 - 진행 중인 큰 작업: **Phase 7 = 1:1 통화 "진짜 스트리밍 통역"** (지연 약 6초 → 2초 이하)
   - S1 서버·S2 웹 완료(실제 OpenAI 확인), **S3 네이티브 오디오는 코드 구현 완료**(10-15 새벽, 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`) — 휴대폰 앱이 통화를 걸면 스트리밍으로 연결을 시도하고, 안 되면 자동으로 문장 단위. 상세 `docs/streaming-plan.md` 5-3절
   - **다음 할 일 = S3 실기기 시험** (7절). 실기기에서 처음 켜 보는 코드라 고칠 것이 나올 가능성이 크다
+  - **⚠ 2026-10-17 인수인계 후: 새 담당자에게 Android 기기가 없어 Android 시험은 하지 못한다.** 가진 기기는 iPhone 15 Pro Max + AirPods Pro → S3 는 iOS 만 진행. Android 헤드셋 마이크 재시험·Android 스트리밍·2대 통화(S4)는 Android 기기를 구할 때까지 보류 (`docs/device-test-log.md` 상단)
+  - **✅ 2026-10-17 밤 S3 iOS 실기기 시험 (iPhone 15 Pro Max + AirPods Pro, 가짜 엔진, 비용 0)**: 점검 화면 스피커·에어팟·통화 중 전환 통과, **F 스트리밍 통화 통과**(상대 `call-peer.ts`, 12턴, 에어팟 마이크 포함). 실기기에서 처음 켜 보니 **iOS 네이티브 버그 1개 발견·수정**: voice processing 을 켠 엔진이 설정 변경 알림으로 멈추고 재구성하면 또 멈추는 무한 반복(스피커에서 간헐, 블루투스 HFP 에서 항상) → 48kHz 고정 + 블루투스에서는 voice processing 안 씀 + 반복 보호. 알려진 한계: 통화 도중 스피커로 바뀌면 에코 제거가 꺼진 채 남음. G·H 는 가짜 엔진으로 볼 수 없어 실제 OpenAI 시험 필요. 상세 `docs/device-test-log.md`. **코드는 미커밋**(브랜치 `docs/handover-android-unavailable`)
 - 실기기: Galaxy S22 + Galaxy Buds2, iPhone 17 Pro + AirPods Pro (사용자 소유, 연결은 매번 확인)
   - T2 결과 (10-14 밤–10-15): 문자 수신·문장 단위 통화 양쪽 통과, iPhone 헤드셋 통과, **Android 헤드셋 마이크 무음(SCO 미시작) → S3 에서 처리, 재시험 필요**. 실기기에서만 드러난 버그 6개 수정(커밋 `0c995ad`) — `docs/implementation-plan.md` T2 절, `docs/device-test-log.md`
   - 네트워크: 일반 Wi-Fi 는 기기 간 통신 막힘. Galaxy 핫스팟에 Mac·iPhone 무선 접속 가능, Galaxy 자신은 USB 터널(`adb reverse`). 두 휴대폰 동시(S4)는 둘 다 핫스팟 손님인 구성 필요(미시험)
@@ -316,6 +318,8 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 ## 7. 가장 먼저 할 다음 작업
 
 ### 선정 (2026-10-15 새벽 갱신): **S3 네이티브 오디오 실기기 시험** (Android → iPhone)
+
+> **2026-10-17 변경: Android 기기 없음 → iPhone(15 Pro Max + AirPods Pro)만 진행.** 아래 절차의 Android 단계(빌드·`adb`·SCO 확인·실행 순서 5번 Android 헤드셋 재시험)는 Android 기기를 구할 때까지 건너뛴다. iOS 서명은 새 담당자 Apple 계정·번들 ID 로 바꿔야 한다 (이전 팀 ID `RVB3MMNVS6` 사용 불가).
 
 선정 이유: S3 코드는 다 썼고 에뮬레이터에서 녹음·재생·시험음까지는 확인했지만, 실제 소리·에코·블루투스 헤드셋·통화 전체는 실기기에서만 확인된다 (이 PC 의 에뮬레이터·시뮬레이터는 Mac 마이크 권한 문제로 입력이 막혔다 — `docs/streaming-plan.md` 5-3절).
 
