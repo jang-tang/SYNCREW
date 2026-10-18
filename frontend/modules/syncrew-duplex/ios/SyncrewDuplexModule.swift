@@ -74,7 +74,17 @@ enum DuplexError: LocalizedError {
   }
 }
 
+// 실기기 진단 로그 (DEBUG 빌드에서만, `[duplex-diag]`): 엔진 생성·설정 변경 복구·재생 예약을 남긴다.
+// 2026-10-17 iPhone 15 Pro Max 에서 voice processing 재시작 반복을 이 로그로 찾았다. 보는 법: `xcrun devicectl device process launch --console …`
+@inline(__always) func dlog(_ m: @autoclosure () -> String) {
+#if DEBUG
+  NSLog("[duplex-diag] %@", m())
+#endif
+}
+
 final class DuplexEngine {
+  private var diagCaptures = 0
+  private var diagConverts = 0
   typealias Emit = (String, [String: Any?]) -> Void
 
   private let emit: Emit
@@ -88,6 +98,14 @@ final class DuplexEngine {
   private var running = false
   private var echoCancellation = true
   private var observers: [NSObjectProtocol] = []
+  /** 탭·변환기를 만든 입력 형식. 설정 변경 알림 뒤 이 형식이 그대로면 엔진을 다시 만들지 않고 다시 시작만 한다 */
+  private var tapFormat: AVAudioFormat?
+  /** 설정 변경으로 인한 복구 시각 (짧은 시간에 반복되면 멈추고 알린다 — 실기기에서 0.4초마다 재구성이 무한 반복된 적 있음) */
+  private var recoveries: [Date] = []
+  private static let maxRecoveries = 4
+  private static let recoveryWindow: TimeInterval = 10
+  /** 지금 엔진에 voice processing 을 실제로 켰는지 (블루투스 헤드셋에서는 끈다 — 아래 shouldUseVoiceProcessing) */
+  private var vpActive = false
 
   // 캡처 (captureLock)
   private var outFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
@@ -132,6 +150,7 @@ final class DuplexEngine {
 
   func start(sampleRate: Double, frameMs: Int, echoCancellation: Bool, done: @escaping (Error?) -> Void) {
     queue.async {
+      dlog("start called running=\(self.running)")
       if self.running {
         done(nil)
         return
@@ -141,6 +160,7 @@ final class DuplexEngine {
           throw DuplexError.format
         }
         self.echoCancellation = echoCancellation
+        self.recoveries.removeAll()
         self.captureLock.lock()
         self.outFormat = format
         self.frameSamples = max(1, Int(sampleRate) * frameMs / 1000)
@@ -184,9 +204,23 @@ final class DuplexEngine {
     options.insert(.allowBluetooth)
 #endif
     try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
+    // voice processing 을 켜면 출력이 44.1kHz, 입력은 48kHz 로 어긋나 iOS 가 설정을 계속 다시 잡는 일이 있었다
+    // (2026-10-17 iPhone 15 Pro Max: 0.4초마다 엔진 재구성 반복) → 입출력을 48kHz 로 맞춰 둔다
+    try? session.setPreferredSampleRate(48_000)
     try? session.setPreferredIOBufferDuration(0.02)
     try session.setActive(true)
+    dlog("session sampleRate=\(session.sampleRate) ioBuffer=\(session.ioBufferDuration) route=\(DuplexEngine.currentRoute())")
     preferHeadsetInput()
+  }
+
+  /**
+   * iOS voice processing(에코 제거)은 휴대폰 스피커·유선일 때만 켠다.
+   * 블루투스 HFP 헤드셋과 함께 켜면 엔진이 시작 직후 설정 변경으로 멈추고 다시 만들어도 반복된다 (2026-10-17 iPhone 15 Pro Max + AirPods Pro, 약 1초 간격 무한 반복).
+   * HFP 헤드셋은 마이크와 스피커가 귀에 붙어 있어 스피커폰 같은 되울림이 없고 헤드셋 자체 처리도 있으므로 끄고 쓴다.
+   */
+  private func shouldUseVoiceProcessing() -> Bool {
+    guard echoCancellation else { return false }
+    return (DuplexEngine.currentRoute()["route"] as? String) != "bluetooth"
   }
 
   /** 블루투스 헤드셋(HFP·LE) > 유선 헤드셋 마이크 순으로 입력을 고른다 (출력도 같은 헤드셋으로 바뀐다) */
@@ -203,15 +237,18 @@ final class DuplexEngine {
   private func buildEngine() throws {
     let engine = AVAudioEngine()
     let input = engine.inputNode
-    if echoCancellation {
+    vpActive = false
+    if shouldUseVoiceProcessing() {
       do {
         try input.setVoiceProcessingEnabled(true)
+        vpActive = true
       } catch {
         // 시뮬레이터 등 voice processing 을 못 쓰는 환경: 에코 제거 없이 계속 (세션 mode voiceChat 의 처리만)
         emit("onError", ["code": "voice_processing", "message": error.localizedDescription])
       }
     }
     let inFormat = input.outputFormat(forBus: 0)
+    dlog("buildEngine inFormat=\(inFormat) target=\(outFormat) vp=\(input.isVoiceProcessingEnabled)")
     captureLock.lock()
     let target = outFormat
     captureLock.unlock()
@@ -219,6 +256,7 @@ final class DuplexEngine {
       throw DuplexError.noInput
     }
     converter.downmix = true
+    tapFormat = inFormat
     captureLock.lock()
     self.converter = converter
     pending.removeAll(keepingCapacity: true)
@@ -239,6 +277,7 @@ final class DuplexEngine {
       throw error
     }
     player.play()
+    dlog("engine started isRunning=\(engine.isRunning) route=\(DuplexEngine.currentRoute()) outHw=\(engine.outputNode.outputFormat(forBus: 0)) mixerOut=\(engine.mainMixerNode.outputFormat(forBus: 0))")
     self.engine = engine
     self.player = player
   }
@@ -251,12 +290,13 @@ final class DuplexEngine {
       engine.inputNode.removeTap(onBus: 0)
       player?.stop()
       engine.stop()
-      if echoCancellation {
+      if vpActive {
         try? engine.inputNode.setVoiceProcessingEnabled(false)
       }
     }
     engine = nil
     player = nil
+    tapFormat = nil
     playConverters.removeAll()
     captureLock.lock()
     converter = nil
@@ -279,11 +319,36 @@ final class DuplexEngine {
     emitRoute()
   }
 
+  /**
+   * 설정 변경(AVAudioEngineConfigurationChange)으로 엔진이 멈췄을 때: 엔진을 다시 만든다.
+   * 실기기(iPhone 15 Pro Max, 2026-10-17)에서 voice processing 을 켠 엔진이 시작 직후 설정 변경으로 멈추고,
+   * 다시 만들면 또 멈추는 일이 0.4초 간격으로 끝없이 반복된 적이 있다. 짧은 시간에 반복되면
+   * voice processing(에코 제거)을 끄고 한 번 더 만들고, 그래도 반복되면 멈추고 알린다.
+   */
+  private func recoverEngine() {
+    let now = Date()
+    recoveries = recoveries.filter { now.timeIntervalSince($0) < DuplexEngine.recoveryWindow } + [now]
+    if recoveries.count > DuplexEngine.maxRecoveries * 2 {
+      dlog("recover: too many (\(recoveries.count)) — giving up")
+      emit("onError", ["code": "restart_loop", "message": "오디오 엔진이 계속 다시 시작되어 멈췄습니다."])
+      return
+    }
+    if recoveries.count > DuplexEngine.maxRecoveries, echoCancellation {
+      dlog("recover: restart loop with voice processing — disabling it")
+      echoCancellation = false
+      emit("onError", ["code": "voice_processing_loop", "message": "에코 제거를 끄고 오디오를 다시 시작합니다."])
+    }
+    dlog("recover: rebuilding engine (#\(recoveries.count), vp=\(echoCancellation))")
+    restartEngine()
+  }
+
   // MARK: - 캡처 (탭 스레드)
 
   private func capture(_ buffer: AVAudioPCMBuffer) {
     captureLock.lock()
     defer { captureLock.unlock() }
+    diagCaptures += 1
+    if diagCaptures <= 3 || diagCaptures % 100 == 0 { dlog("tap #\(diagCaptures) frames=\(buffer.frameLength) fmt=\(buffer.format) converter=\(converter != nil)") }
     guard let converter, buffer.frameLength > 0 else { return }
     let ratio = outFormat.sampleRate / buffer.format.sampleRate
     let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 64
@@ -299,6 +364,8 @@ final class DuplexEngine {
       inputStatus.pointee = .haveData
       return buffer
     }
+    diagConverts += 1
+    if diagConverts <= 3 || diagConverts % 100 == 0 { dlog("convert #\(diagConverts) status=\(status.rawValue) out=\(out.frameLength) err=\(String(describing: error))") }
     guard status != .error, out.frameLength > 0, let channel = out.int16ChannelData else { return }
     pending.append(contentsOf: UnsafeBufferPointer(start: channel[0], count: Int(out.frameLength)))
 
@@ -314,7 +381,10 @@ final class DuplexEngine {
 
   func enqueue(streamId: String, base64: String, sampleRate: Double) {
     queue.async {
-      guard self.running, let player = self.player, let data = Data(base64Encoded: base64), data.count >= 2 else { return }
+      guard self.running, let player = self.player, let data = Data(base64Encoded: base64), data.count >= 2 else {
+        dlog("enqueue dropped running=\(self.running) player=\(self.player != nil) b64len=\(base64.count)")
+        return
+      }
       guard let buffer = self.makePlayBuffer(data, sampleRate: sampleRate) else { return }
       if self.scheduled == 0, let silence = self.silence(seconds: DuplexEngine.jitterSeconds) {
         self.schedule(silence, on: player)
@@ -324,6 +394,7 @@ final class DuplexEngine {
         self.emit("onPlayback", ["streamId": streamId, "playing": true])
       }
       self.schedule(buffer, on: player)
+      if self.scheduled <= 2 { dlog("enqueue stream=\(streamId) scheduled=\(self.scheduled) playerPlaying=\(player.isPlaying) engineRunning=\(self.engine?.isRunning ?? false)") }
     }
   }
 
@@ -354,6 +425,7 @@ final class DuplexEngine {
       self.queue.async {
         guard scheduledGeneration == self.generation else { return }
         self.scheduled = max(0, self.scheduled - 1)
+        if self.scheduled <= 1 { dlog("played back, remaining=\(self.scheduled)") }
         self.settle()
       }
     }
@@ -447,6 +519,13 @@ final class DuplexEngine {
       self?.queue.async {
         guard let self, self.running else { return }
         if reason == .newDeviceAvailable { self.preferHeadsetInput() }
+        // 헤드셋이 붙거나 떨어져 voice processing 을 켜야 할지가 바뀌면 엔진을 다시 만든다
+        let wantVP = self.shouldUseVoiceProcessing()
+        if wantVP != self.vpActive, self.engine != nil {
+          dlog("route change: vp \(self.vpActive) -> \(wantVP), rebuilding")
+          self.recoveries.removeAll()
+          self.restartEngine()
+        }
         self.emitRoute()
       }
     })
@@ -454,7 +533,8 @@ final class DuplexEngine {
       self?.queue.async {
         guard let self, self.running, let engine = self.engine, (note.object as AnyObject?) === engine else { return }
         // 형식이 바뀌면 엔진이 멈춘다. 아직 돌고 있으면(재구성 직후 알림 등) 그대로 둔다
-        if !engine.isRunning { self.restartEngine() }
+        dlog("configChange isRunning=\(engine.isRunning)")
+        if !engine.isRunning { self.recoverEngine() }
       }
     })
     observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] note in
