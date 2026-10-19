@@ -4,7 +4,8 @@
 
 노이즈 필터는 서버에서 실행한다 (2026-10-14 결정, `docs/operations.md` 5절). 필터를 Python 등 다른 언어로 만들 수 있게,
 서버 프로세스 밖의 **사이드카 컨테이너**로 띄우고 서버가 웹소켓으로 100ms 조각을 주고받는다.
-배포 자리는 `deploy/docker-compose.yml` 의 `denoise` 서비스 (`profiles: ["denoise"]`, 이미지 미정).
+배포 자리는 `deploy/docker-compose.yml` 의 `denoise` 서비스 (`profiles: ["denoise"]`, `build: ../denoise`).
+구현: `denoise/` (GTCRN 스트리밍 ONNX, 추가 지연 32ms — `denoise/README.md`).
 
 > 이 문서는 규격만 정한다. 서버 쪽 연결 코드(`sidecar` 필터)는 **별도 PR** 이며, 그 전까지 서버는 사이드카를 쓰지 않는다 (`STREAM_AUDIO_FILTER=passthrough`).
 > 발화 단위(녹음 전체) 필터 `AUDIO_PREPROCESSOR` 는 이 문서 범위가 아니다.

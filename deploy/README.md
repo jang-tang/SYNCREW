@@ -125,10 +125,14 @@ docker compose up -d --build server
 - 마이그레이션은 되돌리지 않는다 (Prisma 는 앞으로만). 새 마이그레이션이 들어간 업데이트를 롤백하면 옛 코드가 새 스키마 위에서 돈다 — 컬럼 추가 정도면 대개 동작하지만, 그런 업데이트는 시연 직전에 하지 않는다
 - 설정만 잘못됐다면 `./render-env.sh <fake|openai>` 를 다시 실행하고 `docker compose up -d server`
 
-## 7. 노이즈 필터 사이드카 (준비만)
+## 7. 노이즈 필터 사이드카
 
-`docker-compose.yml` 의 `denoise` 는 `profiles: ["denoise"]` 라 평소에는 뜨지 않는다. 이미지가 정해지면
-`DENOISE_IMAGE=<이미지> docker compose --profile denoise up -d` 로 띄운다. 서버 쪽 연결(`STREAM_AUDIO_FILTER=sidecar`)은 별도 PR이며, 그 전까지는 사이드카를 띄워도 서버가 쓰지 않는다. 규격: `docs/denoise-sidecar.md`.
+`docker-compose.yml` 의 `denoise` 는 `profiles: ["denoise"]` 라 평소에는 뜨지 않는다. 구현은 `denoise/` (GTCRN, `denoise/README.md`).
+`docker compose --profile denoise up -d --build denoise` 로 띄운다 (EC2 에서 arm64 로 바로 빌드). 서버 쪽 연결(`STREAM_AUDIO_FILTER=sidecar`)은 별도 PR이며, 그 전까지는 사이드카를 띄워도 서버가 쓰지 않는다. 규격: `docs/denoise-sidecar.md`.
+
+- 확인: `docker compose logs -f denoise` — 연결마다 닫힐 때 `처리 ms P50 / P99` 가 찍힌다
+- EC2 안에서 처리 시간 측정: `docker compose exec denoise python bench.py` (동시 4연결, P99 < 30ms 이면 통과)
+- 원본 섞기: `DENOISE_DRY_MIX=0.2 docker compose --profile denoise up -d denoise` (`.env` 는 `render-env.sh` 가 다시 만들므로 셸 변수로 준다)
 
 ## 8. 10/31 정리 (백업 → 삭제)
 
