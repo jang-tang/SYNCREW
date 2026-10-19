@@ -1,8 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import type { ComponentProps } from "react";
+import { memo, useSyncExternalStore, type ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { DeviceStatus, LiveSession } from "@shared/api";
+import { getMicLevel, subscribeMicLevel } from "@/audio/micLevel";
 import type { HandsFreeError, HandsFreeState } from "@/audio/useHandsFree";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { useMe, useOpenSessions, useSiteId } from "@/hooks/queries";
@@ -23,8 +24,18 @@ const STATE_TEXT: Record<HandsFreeState, StringKey> = {
   error: "live.recordFailed",
 };
 
-/** 핸즈프리 마이크 상태 + 음량 표시 */
-export function MicStatus({ state, error, level }: { state: HandsFreeState; error: HandsFreeError | null; level: number }) {
+/** 음량 막대. 음량 저장소(audio/micLevel)를 이 부품만 구독해 통화 화면 전체가 100ms 마다 다시 그려지지 않게 한다 (2026-10-20) */
+function MicMeter({ tone }: { tone: string }) {
+  const level = useSyncExternalStore(subscribeMicLevel, getMicLevel, getMicLevel);
+  return (
+    <View style={styles.meter}>
+      <View style={[styles.meterFill, { width: `${Math.round(level * 100)}%`, backgroundColor: tone }]} />
+    </View>
+  );
+}
+
+/** 핸즈프리 마이크 상태 + 음량 표시. 상태가 바뀔 때만 다시 그린다 (memo) */
+export const MicStatus = memo(function MicStatus({ state, error }: { state: HandsFreeState; error: HandsFreeError | null }) {
   const { t } = useT();
   const active = state === "listening" || state === "speaking";
   const tone = state === "error" ? colors.danger : state === "speaking" ? colors.brand : active ? colors.success : colors.muted;
@@ -37,15 +48,11 @@ export function MicStatus({ state, error, level }: { state: HandsFreeState; erro
       </View>
       <View style={{ flex: 1, gap: spacing.xs }}>
         <Text style={[font.bodyStrong, state === "error" && { color: colors.danger }]}>{text}</Text>
-        {active && (
-          <View style={styles.meter}>
-            <View style={[styles.meterFill, { width: `${Math.round(level * 100)}%`, backgroundColor: tone }]} />
-          </View>
-        )}
+        {active && <MicMeter tone={tone} />}
       </View>
     </View>
   );
-}
+});
 
 const ROUTE: Record<DeviceStatus["audioRoute"], { icon: IconName; text: StringKey; tone: string }> = {
   bluetooth: { icon: "bluetooth", text: "audio.bluetooth", tone: colors.info },
@@ -55,7 +62,7 @@ const ROUTE: Record<DeviceStatus["audioRoute"], { icon: IconName; text: StringKe
 };
 
 /** 오디오 장치 표시 (작은 칩) */
-export function DeviceChip({ device }: { device: DeviceStatus | null | undefined }) {
+export const DeviceChip = memo(function DeviceChip({ device }: { device: DeviceStatus | null | undefined }) {
   const { t } = useT();
   if (!device) {
     return (
@@ -75,7 +82,7 @@ export function DeviceChip({ device }: { device: DeviceStatus | null | undefined
       </Text>
     </View>
   );
-}
+});
 
 /** 휴대폰 마이크·스피커로 확인됐을 때만 이어폰 연결 안내 (확인할 수 없으면 단정하지 않는다) */
 export function HeadsetNotice({ device }: { device: DeviceStatus | null }) {

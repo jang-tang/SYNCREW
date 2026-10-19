@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo } from "react";
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo } from "react";
+import { FlatList, Platform, StyleSheet, Text, View, type ListRenderItem } from "react-native";
+import type { MessageView } from "@shared/api";
 import { Composer } from "@/components/chat/Composer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { Avatar } from "@/components/ui/Avatar";
@@ -29,6 +30,9 @@ import { colors, font, spacing } from "@/theme";
  */
 const WEB_EMPTY_FLIP = Platform.OS === "web" ? { transform: [{ scaleY: -1 as const }] } : {};
 
+const keyOf = (item: MessageView) => item.id;
+const LIST_CONTENT = { paddingVertical: spacing.md, flexGrow: 1 };
+
 export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useT();
@@ -53,6 +57,12 @@ export default function Chat() {
   const group = conversation?.type === "group";
 
   const onError = (error: unknown) => toast(errorMessage(error), "error");
+  // 말풍선(memo)에 같은 콜백·렌더 함수를 넘겨 메시지가 추가돼도 기존 말풍선은 다시 그리지 않는다 (2026-10-20)
+  const retryMessage = useCallback((messageId: string) => retry.mutate(messageId, { onError: (error: unknown) => toast(errorMessage(error), "error") }), [retry, errorMessage]);
+  const renderItem = useCallback<ListRenderItem<MessageView>>(
+    ({ item }) => <MessageBubble message={item} me={profile!} showSender={group} onRetry={retryMessage} />,
+    [profile, group, retryMessage],
+  );
   const peer = conversation?.peer;
   const call = peer
     ? () => startCall.mutate(peer.userId, { onSuccess: (session) => router.push(`/site/call/${session.id}`), onError })
@@ -86,8 +96,11 @@ export default function Chat() {
         <FlatList
           inverted
           data={data}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingVertical: spacing.md, flexGrow: 1 }}
+          keyExtractor={keyOf}
+          contentContainerStyle={LIST_CONTENT}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           ListEmptyComponent={
             messages.isPending ? null : (
               <View style={{ ...WEB_EMPTY_FLIP, flex: 1, justifyContent: "center" }}>
@@ -95,14 +108,7 @@ export default function Chat() {
               </View>
             )
           }
-          renderItem={({ item }) => (
-            <MessageBubble
-              message={item}
-              me={profile}
-              showSender={group}
-              onRetry={() => retry.mutate(item.id, { onError })}
-            />
-          )}
+          renderItem={renderItem}
         />
       )}
       <Composer

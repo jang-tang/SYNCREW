@@ -52,3 +52,6 @@ e2e/output/
 /modules/*/android/build/
 /modules/*/android/.cxx/
 /modules/*/android/.gradle/
+
+# 성능 측정용 번들 출력 (docs/perf-app-2026-10-20.md)
+dist-perf*/

@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { memo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import type { MessageView, Profile } from "@shared/api";
 import { playNow, usePlaybackStore } from "@/audio/playback";
@@ -7,7 +8,7 @@ import { useT } from "@/i18n";
 import { formatTime, nativeNameOf } from "@/lib/format";
 import { colors, font, radius, spacing } from "@/theme";
 
-function MineStatus({ message, onRetry }: { message: MessageView; onRetry: () => void }) {
+function MineStatus({ message, onRetry }: { message: MessageView; onRetry: (messageId: string) => void }) {
   const { t } = useT();
   if (message.status === "queued" || message.status === "processing") {
     return (
@@ -19,7 +20,7 @@ function MineStatus({ message, onRetry }: { message: MessageView; onRetry: () =>
   }
   if (message.status === "failed" || message.status === "partially_failed") {
     return (
-      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.statusRow}>
+      <Pressable accessibilityRole="button" onPress={() => onRetry(message.id)} style={styles.statusRow}>
         <Ionicons name="alert-circle" size={14} color={colors.danger} />
         <Text style={[styles.statusText, { color: colors.danger }]}>
           {t(message.status === "failed" ? "chat.failed" : "chat.partial")} · {t("common.retry")}
@@ -36,7 +37,16 @@ function MineStatus({ message, onRetry }: { message: MessageView; onRetry: () =>
   );
 }
 
-export function MessageBubble({
+/** 재시도가 없는 목록(통화·일괄 지시)용 고정 콜백 — 같은 참조를 넘겨야 memo 가 듣는다 */
+export const NO_RETRY = (_messageId: string) => undefined;
+
+/**
+ * 말풍선. 목록이 바뀔 때 바뀌지 않은 메시지는 다시 그리지 않는다 (memo, 2026-10-20 저사양 폰 최적화).
+ * - message·me 는 react-query 가 같은 내용이면 같은 참조를 유지한다 (structural sharing)
+ * - onRetry 는 (messageId) => void 로 받아 부모가 안정된 콜백 하나를 넘길 수 있게 한다
+ * - 재생 중 표시는 "이 메시지가 재생 중인가" 만 구독해, 다른 메시지가 재생돼도 다시 그리지 않는다
+ */
+export const MessageBubble = memo(function MessageBubble({
   message,
   me,
   showSender,
@@ -45,10 +55,10 @@ export function MessageBubble({
   message: MessageView;
   me: Profile;
   showSender: boolean;
-  onRetry: () => void;
+  onRetry: (messageId: string) => void;
 }) {
   const { t, lang } = useT();
-  const playingId = usePlaybackStore((state) => state.playingId);
+  const playing = usePlaybackStore((state) => state.playingId === message.id);
   const mine = message.senderId === me.id;
   const time = formatTime(message.createdAt, lang);
 
@@ -74,7 +84,6 @@ export function MessageBubble({
     );
   }
 
-  const playing = playingId === message.id;
   const translated = message.sourceLang !== me.preferredLang;
   return (
     <View style={[styles.wrap, styles.left]}>
@@ -117,7 +126,7 @@ export function MessageBubble({
       </View>
     </View>
   );
-}
+});
 
 /** 실시간 통역 중 발화 표시: 1:1 통화는 '통화', 일괄 지시는 '실시간' */
 function LiveTag({ instruction }: { instruction: boolean }) {
