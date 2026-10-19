@@ -27,6 +27,9 @@ export type PricingTable = Record<string, ModelPrice>;
  * - 받아쓰기 (2026-10-14 갱신, 가격 정리 사이트 기준 — OpenAI 가격표로 다시 확인 권장):
  *   gpt-4o-transcribe(기본, 2026-10-14부터): 텍스트 입력 $2.5, 출력 $10, 음성 입력 $6 (약 $0.006/분)
  *   gpt-4o-mini-transcribe: 텍스트 입력 $1.25, 출력 $5, 음성 입력 $3 (약 $0.003/분). 이전에는 음성 입력을 $1.25 로 잘못 두어 받아쓰기 비용을 약 2.4배 적게 기록했다
+ *   gpt-live-transcribe (2026-10-20, 스트리밍 전사 전용 세션 기본 STREAM_STT_MODEL): OpenAI 가격표는 **말한 시간 기준 $0.017/분**이고
+ *   API 사용량도 토큰이 아니라 duration(초)으로 온다. 표·DB 는 토큰 열뿐이라 **1분 = 1,000 "음성 토큰"**(DURATION_AUDIO_TOKENS_PER_SECOND)
+ *   으로 환산해 음성 입력 $17/1M 로 적는다 (durationUsage) — 결과는 정확히 $0.017/분. 텍스트·출력 단가는 없다(0)
  * 실제 단가가 다르면 OPENAI_PRICING_JSON 으로 덮어쓴다.
  *
  * ── 음성 메시지 1건 비용 (추정) ─────────────────────────────
@@ -52,7 +55,19 @@ export const DEFAULT_PRICING: PricingTable = {
   "gpt-realtime-2": { inputText: 4, outputText: 24, inputAudio: 32, outputAudio: 64, cachedInput: 0.4 },
   "gpt-4o-transcribe": { inputText: 2.5, outputText: 10, inputAudio: 6, outputAudio: 0, cachedInput: 2.5 },
   "gpt-4o-mini-transcribe": { inputText: 1.25, outputText: 5, inputAudio: 3, outputAudio: 0, cachedInput: 1.25 },
+  "gpt-live-transcribe": { inputText: 0, outputText: 0, inputAudio: 17, outputAudio: 0, cachedInput: 0 },
 };
+
+/**
+ * 시간(초) 기준으로 청구되는 모델(gpt-live-transcribe, usage.type === "duration")의 환산율: 1분 = 1,000 음성 토큰.
+ * 단가표의 inputAudio(USD/1M 토큰) × 이 환산율 = 분당 요금 ÷ 1,000 → gpt-live-transcribe $17/1M ↔ $0.017/분
+ */
+export const DURATION_AUDIO_TOKENS_PER_SECOND = 1000 / 60;
+
+/** 말한 시간(초)을 단가표 형식(음성 입력 토큰)으로. 올림이라 0초도 0, 짧은 턴은 1토큰 이상 */
+export function durationUsage(seconds: number): UsageTokens {
+  return { inputAudioTokens: Math.ceil(Math.max(0, seconds) * DURATION_AUDIO_TOKENS_PER_SECOND) };
+}
 
 export function buildPricingTable(overrideJson: string | undefined): PricingTable {
   if (!overrideJson) return { ...DEFAULT_PRICING };

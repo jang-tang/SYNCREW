@@ -65,7 +65,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**233개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**36개**).
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**239개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**36개**).
 4. **실기기 준비 여부를 먼저 확인**한다 (`docs/HANDOFF.md` 5·7절). 준비 전이면 준비 절차를 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 약 $0.34 사용). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -100,7 +100,7 @@
 | 데이터 저장 | 로컬 Postgres(`embedded-postgres`) + Prisma 7. Supabase에는 데이터 저장 안 함. 음성 파일은 서버 로컬 디스크 |
 | 호스팅 | 로컬 PC. 휴대폰은 같은 Wi-Fi로 접속 |
 | 언어 | ko, zh, vi, uz, ru |
-| 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 **`gpt-4o-transcribe`** (2026-10-14 mini 에서 교체 — 현장 용어·숫자가 더 정확, 용어 힌트는 오히려 나빠 쓰지 않음). **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
+| 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 **`gpt-4o-transcribe`** (2026-10-14 mini 에서 교체 — 현장 용어·숫자가 더 정확, 용어 힌트는 오히려 나빠 쓰지 않음). 스트리밍 통화의 전사 전용 세션은 **`gpt-live-transcribe`**(`STREAM_STT_MODEL`, 2026-10-20, 말하는 도중 자막, $0.017/분). **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
 | 비용 | BudgetGuard가 모든 호출을 감쌈. 서버 한도 **$3 누적** (10-12 $0.5 → 10-13 $3). 잔액 $80(10-14), 막 쓰지 않기 |
 | 현장 특화 처리 | 로직만 구현, 데이터셋은 어댑터로 교체 (기존 저장소 데이터는 샘플). 제조업 데이터여도 무방 |
 | 노이즈 필터 / 보존 정책 | 다른 개발자가 구현 → 플러그인 인터페이스만 제공 (`server/src/plugins/`). **노이즈 필터는 서버에서 실행** (2026-10-14 결정) |
@@ -129,7 +129,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 233개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
+cd server && npm run typecheck && npm test       # 테스트 239개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션(gpt-live-transcribe)·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)

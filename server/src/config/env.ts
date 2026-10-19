@@ -19,6 +19,12 @@ const envSchema = z.object({
   OPENAI_PRICING_JSON: optionalString,
   /** 받아쓰기 모델. 2026-10-14 비교 측정으로 gpt-4o-transcribe 로 바꿈 (현장 용어·숫자 정확도, docs/streaming-plan.md 5-2절) */
   STT_MODEL: z.string().default("gpt-4o-transcribe"),
+  /**
+   * 스트리밍 전사 전용 세션(STREAM_LIVE_TRANSCRIPTION=on)의 받아쓰기 모델 (2026-10-20). 기본 gpt-live-transcribe: VAD 없이 연속 전사라
+   * 말하는 도중(말 시작 약 1초 뒤)부터 원문 조각이 온다. $0.017/분. gpt-4o-transcribe 로 두면 예전처럼 server_vad + 말 끝 뒤 조각 ($0.006/분).
+   * 발화 단위 STT 와 전사 세션 실패 시 번역 세션 전사는 그대로 STT_MODEL 을 쓴다
+   */
+  STREAM_STT_MODEL: z.string().default("gpt-live-transcribe"),
   TRANSLATION_MODEL: z.string().default("gpt-realtime-2.1"),
   /** openai: 실제 호출 / fake: 키 없이 개발·앱 연동 확인용 가짜 엔진 (비용 없음) */
   ENGINE: z.enum(["openai", "fake"]).default("openai"),
