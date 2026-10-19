@@ -118,7 +118,8 @@ export default function Conversations() {
 
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
+  // 제목 아래 목록이 바로 붙지 않게 약간의 위 여백 (헤더 자체 여백은 LargeHeader 가 가짐)
+  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.xxxl },
   group: { backgroundColor: colors.ink, borderColor: colors.ink, gap: spacing.md },
   groupTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   groupIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.brand },
