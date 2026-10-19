@@ -10,7 +10,8 @@
 #     (SecureString 을 고객 관리형 KMS 키로 암호화했다면) kms:Decrypt.
 #
 # 덮어쓸 수 있는 환경 변수: AWS_REGION, SSM_PREFIX, DB_INSTANCE_ID, DB_USER, DB_NAME,
-#   DB_HOST·DB_PORT(지정하면 RDS 조회 생략), OPENAI_BUDGET_USD
+#   DB_HOST·DB_PORT(지정하면 RDS 조회 생략), OPENAI_BUDGET_USD,
+#   STREAM_AUDIO_FILTER(passthrough|sidecar, 기본 passthrough), DENOISE_URL(기본 ws://denoise:8765)
 set -euo pipefail
 umask 077
 
@@ -124,7 +125,8 @@ TRANSLATION_VOICE=marin
 STREAMING=on
 STREAM_MAX_SESSIONS=4
 STREAM_VAD_SILENCE_MS=500
-STREAM_AUDIO_FILTER=passthrough
+STREAM_AUDIO_FILTER=${STREAM_AUDIO_FILTER:-passthrough}
+DENOISE_URL=${DENOISE_URL:-ws://denoise:8765}
 
 # ─── 저장소 (compose 볼륨 server_data) ───
 STORAGE_DIR=/data
