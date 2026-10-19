@@ -61,6 +61,13 @@
 | S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
+#### 전사 전용 세션 + 폰 재생 신호 메아리 차단 — 2026-10-19 밤 (브랜치 `fix/stream-commit-race`, 실기기 2차 발견 2건)
+- **증상 (iPhone 스피커, 시드니 서버)**: 내 말 자막이 말 끝 0.5–1.5초 뒤에야 뜨고 4턴 중 2턴은 원문 없음(6초 말이 "안녕." 으로) / 메아리 차단이 39조각을 무음으로 바꿨는데도 한 번 샘(폰 재생이 서버 추정 + 300ms 보다 늦음)
+- **A. 전사 전용 세션** (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off` 기본 on): 화자 스트림마다 `?intent=transcription` 세션(gpt-4o-transcribe, 같은 server_vad)을 하나 더 열어 같은 음성을 넣고, 번역 세션의 입력 전사는 끔(2번 청구 방지). 턴 id 는 엔진 uuid, 두 세션 항목을 순서(FIFO)로 짝짓기 + 4초 뒤 버림. 전사 세션 실패 시 번역 세션 전사로 자동 복귀. `STREAM_DEBUG=1` 로 두 세션 이벤트 추적
+  - **실제 OpenAI 확인 ($0.039)**: 4턴 모두 done·원문 있음, 짝 모두 맞음. **그러나 gpt-4o-transcribe 는 전사 세션에서도 턴 확정 뒤에야 조각을 낸다** — 첫 조각은 말 끝 0.07–0.40초 뒤(완성본 0.52–0.76초), 말하는 도중 자막은 안 됨. 말하는 도중 자막은 `gpt-live-transcribe`(OpenAI 문서, VAD 없음) 후속 — 모델·가격 결정 필요 (`docs/streaming-plan.md` 4-3절)
+- **B. 폰 재생 신호** (`stream:playing {streamId, playing}`, 앱 `useStreamingCall.ts`·`playingSignal.ts`, 서버 `streamHub.ts`): 앱이 이중 오디오의 실제 재생 시작/끝을 알리면(끝은 200ms 떨림 제거) 서버는 그 신호(+꼬리 300ms)로만 무음 처리, 신호 없는 옛 앱은 서버 추정 그대로. **실기기 미검증**(스크립트는 소리를 재생하지 않음) — 다음 실기기 시험에서 `echoDropped` 와 메아리 유무 확인
+- 문서: `docs/realtime-protocol.md` 10절, `docs/streaming-plan.md` 4-3절. 시험: 서버 **233** (+4), 앱 단위 **36** (+3)
+
 #### 반이중 메아리 차단 + 스트리밍 용어집 — 2026-10-19 (브랜치 `fix/stream-commit-race`, 실기기 발견 2건)
 - **메아리**: iPhone 스피커로 들은 통역이 마이크로 되돌아와 내 다음 턴에 섞였다 → 서버가 X 에게 턴을 보내는 동안 + 꼬리 300ms(`StreamHubOptions.echoGuardMs`) 동안 X 의 조각을 버린다 — 통역 스트림은 **같은 길이 무음으로 바꿔** 엔진에 넣는다(그냥 버리면 말 끝 무음이 사라져 OpenAI VAD 가 턴을 못 끝냄 — 실제 확인에서 발견), relay 는 그냥 버림. 버린 수는 스트림 닫힐 때 로그 `echoDropped`·기록 `timings.echoDropped`. 반이중이라 상대 턴 중 끼어들기는 안 된다 — 단말 AEC 가 1순위, 꼬리 길이는 실기기에서 조정
 - **실제 OpenAI 확인**: `call-peer.ts` 2개로 4턴 모두 done, ko→vi 에서 비계 → giàn giáo·안전모 → mũ bảo hộ, 2번째 턴부터 지시문 캐시 적중(cached 1,408). 비용 $0.061 (DB 기록 누적 $0.147)

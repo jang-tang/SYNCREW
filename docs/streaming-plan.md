@@ -253,6 +253,39 @@ export interface DuplexAudio {
 - 비용: 1차 $0.019 + 2차 $0.042 = **$0.061** (승인 상한 $0.15). 말 끝 → 첫 조각 0.73–1.13초.
 - 남은 한계: 두 사람이 겹쳐 말하면 겹친 부분은 무음이 된다(반이중). 실기기에서 스피커 에코가 실제로 사라지는지, 꼬리 300ms 가 단말 재생 지연에 맞는지는 실기기 시험에서 확인.
 
+### 4-3. 전사 전용 세션(실시간 원문 자막) + 폰 재생 신호 메아리 차단 (2026-10-19, 실기기 2차 발견)
+
+실기기(iPhone, 스피커, 시드니 서버) 1:1 스트리밍 통화에서 발견: ① 내 말 자막("나" 상자)이 말을 멈춘 뒤 0.5–1.5초 뒤에야 뜨고, 4턴 중 2턴은 원문이 아예 없었으며 6초짜리 말이 "안녕." 으로만 전사됐다 — 번역 세션의 입력 전사(`audio.input.transcription`)는 **턴이 확정된 뒤에야** 시작되기 때문 ② 메아리 차단이 조각 39개를 무음으로 바꿨지만 한 번 샜다 — 서버 추정(`stream:out:start`~`end`+300ms)보다 폰의 실제 재생이 늦다(네트워크 + 지터 버퍼).
+
+**① 전사 전용 세션 (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off`, 기본 on)**
+- 화자 스트림마다 OpenAI 연결 2개: **번역 세션**(기존, `?model=gpt-realtime-2.1`) + **전사 세션**(`?intent=transcription`, `session.update {type:"transcription", audio.input: {format pcm 24k, transcription: {model: STT_MODEL, language, prompt: STT_PROMPT}, turn_detection: server_vad(같은 무음 설정)}}`). `append` 는 같은 PCM 을 두 세션에 모두 보낸다. 전사 세션의 `...transcription.delta` 를 `originalDelta`(앱 `original_partial`)로, `completed` 를 `original`(완성본)으로 올린다.
+- **실측 결과가 기대와 다름 (아래 표)**: 계획은 "전사 세션은 말하는 도중 조각을 낸다" 였으나, `gpt-4o-transcribe` 는 전사 세션에서도 **턴 확정(speech_stopped→committed) 뒤에야** 조각을 내기 시작한다 — 확정 구간을 전사하면서 글자를 흘리는 것이지 입력을 따라가며 받아쓰는 것이 아니다. 그래도 번역 응답과 분리돼 **첫 조각이 말 끝 0.07–0.40초, 완성본 0.52–0.76초 뒤**에 오고 **4턴 모두 원문**이 있었다 (전: 0.5–1.5초, 4턴 중 2턴 누락). 말하는 도중 자막은 OpenAI 문서의 **`gpt-live-transcribe`**(turn_detection 없이 연속 전사, `delay: low`, `languages` 배열) 가 필요 — 설계 초안: 전사 세션은 VAD 없이 열고, 번역 세션이 `committed` 를 낼 때 서버가 전사 세션에 `input_audio_buffer.commit` 을 보내 1:1 로 짝을 맞춘다(수동 commit 금지는 번역 세션 VAD 얘기). 모델·가격(`DEFAULT_PRICING` 추가)·`STT_PROMPT` 호환(`prompt` 길이 제한)은 사용자 결정 뒤 실제 호출로 확인(탐침 약 $0.01–0.02).
+- 번역 세션의 `audio.input.transcription` 은 **끈다**(받아쓰기 2번 청구 방지). 전사 세션을 못 열거나(설정 거부·HTTP 오류·시간 초과) 통화 중 끊기면 번역 세션 설정을 전사가 켜진 채로 다시 보내 **예전 동작으로 되돌아간다**(로그 "번역 세션 전사로 대체").
+- **턴 짝짓기 규칙**: 턴 id 는 엔진이 만든 uuid. 두 세션은 같은 음성·같은 VAD 설정이라 같은 자리에서 말 끝을 낸다고 가정하고, 어느 세션이든 새 `item_id` 가 처음 보이면 "상대 세션 항목이 아직 안 붙은 가장 오래된 턴"에 붙이고 없으면 새 턴을 만든다(FIFO). 전사 세션의 `speech_started`/조각이 먼저 턴을 만들고, 번역 세션의 `committed` 가 거기 붙는 것이 보통 순서. 완성본 `original` 은 번역 턴이 시작된(`response.created`) 뒤에만 올린다(듣는 사람 앱은 `stream:out:start` 뒤의 자막만 받으므로). 기록(`persistTurn`)의 원문은 전사 세션 완성본.
+  - **실패 모드**: 한 세션만 말을 둘로 나누면(VAD 판단이 다르면) 그 뒤 턴들의 원문이 하나씩 밀린다. 완화: 번역 턴이 없는 전사 턴은 완성 뒤 `ORIGINAL_WAIT_MS`(4초) 안에 짝이 안 생기면 버리고(로그 "전사만 있고 번역 턴이 없어 버림"), 전사가 없는 번역 턴은 응답 뒤 4초만 기다렸다 원문 없이 끝낸다(기존 규칙). 밀림이 실제로 보이면 `STREAM_DEBUG=1` 로 두 세션의 `committed` 시각을 대조한다.
+- 비용: 전사 completed 의 `usage`(tokens 형, 없으면 duration·초 추정)를 BudgetGuard 에 kind `stt` 로 기록(예약은 번역 턴 확정 때 잡고, 완성본이 먼저 와도 예약 뒤에 기록). 번역 턴이 끝내 안 생긴 전사는 기록하지 않는다(소액 누락).
+- **엔진 이벤트 추적 `STREAM_DEBUG=1`**: 두 세션의 조각(delta) 아닌 모든 이벤트 + 턴마다 첫 전사 조각(`... (first)`)을 세션 종류(`session: conversation|transcription`)와 함께 info 로 남긴다("스트리밍 엔진 이벤트"). 기본 꺼짐, 비용 0.
+- OpenAI 문서 대조(2026-10-19): 공식 "Realtime transcription" 안내 페이지는 새 모델 `gpt-live-transcribe`(turn_detection 없이 연속 전사, `delay`·`keywords`·`languages` 필드) 중심으로 바뀌어 `gpt-4o-transcribe` + `server_vad` 모양은 더 이상 예시에 없다. 이 프로젝트는 번역 턴과 **같은 VAD 경계**가 필요해 `STT_MODEL`(gpt-4o-transcribe) + `server_vad` 를 쓰고 실제 호출로 동작을 확인했다(아래). `gpt-live-transcribe` 는 나중 개선 후보.
+
+**② 폰 재생 신호 메아리 차단 (`streamHub.ts`, 앱 `useStreamingCall.ts`·`playingSignal.ts`)**
+- 앱은 이중 오디오 `onPlayback` 이 실제 재생 시작/끝을 알리면 `stream:playing {streamId, playing}` 을 보낸다. "끝" 은 200ms 떨림 제거(턴 사이 짧은 끊김에 끝→시작을 보내지 않음), "시작" 은 바로. 스트림이 닫히면 기다리던 "끝" 은 버린다.
+- 서버: 스트림마다 `appPlaying`(null = 한 번도 안 보냄). 앱 신호가 있으면 `playing=true` 동안 + `false` 뒤 꼬리 `echoGuardMs` 동안 조각을 무음으로 바꾸고(기존 기전), 없으면 서버 추정(4-2절)을 쓴다. 둘을 섞지 않는다 — 어긋나면 앱 신호가 이긴다. 버린 수는 둘 다 `echoDropped`.
+- 시험: `test/streamingEngine.test.ts` +4 (전사 세션 설정·같은 음성, off 면 예전 그대로, 전사 세션 거부 → 되돌림, 말하는 도중 조각 → 턴 시작 뒤 완성본, 2턴 순서 짝짓기, STREAM_DEBUG 추적), `test/integration/streaming.test.ts` +1 (앱 신호 재생 중 무음 → 끝+꼬리 뒤 통역, 서버 추정과 어긋나도 앱 신호 우선, 남의 스트림 신호 무시; 신호 없는 스트림은 기존 시험이 서버 추정을 확인), 앱 단위 +3 (`e2e/playingSignal.test.mjs`).
+
+**실제 OpenAI 확인 (2026-10-19 밤, `scripts/call-peer.ts` 2개, 관리자 ko ↔ 구성원 vi, 각 2턴, 9초 간격, `STREAM_DEBUG=1`, 비용 $0.039 — stt 4건·translate 4건 기록, DB 누적 $0.186)**
+
+서버 로그의 전사 세션 이벤트 시각 기준 (말 시작 = `input_audio_buffer.speech_started`, 말 끝 = `speech_stopped`; 두 세션의 `committed` 는 같은 시각(≤10ms)에 왔고 짝짓기는 4턴 모두 맞았다):
+
+| 턴 | 방향 | 말 시작→말 끝 | 말 시작→첫 `original_partial` | 말 끝→첫 조각 | 말 끝→완성본 | 원문 | 결과 |
+|---|---|---|---|---|---|---|---|
+| 1 | vi→ko | 3.41초 | **3.62초** (말 끝 뒤) | 0.21초 | 0.54초 | Tôi hiểu rồi, tôi sẽ bắt đầu ngay. | done |
+| 2 | ko→vi | 3.80초 | **4.20초** (말 끝 뒤) | 0.40초 | 0.76초 | 안전모를 쓰고 3층 비계 작업을 시작하세요. | done |
+| 3 | vi→ko | 3.14초 | **3.39초** (말 끝 뒤) | 0.25초 | 0.57초 | Tôi hiểu rồi, tôi sẽ bắt đầu ngay. | done |
+| 4 | ko→vi | 3.67초 | **3.75초** (말 끝 뒤) | 0.08초 | 0.53초 | 안전모를 쓰고 3층 비계 작업을 시작하시오. | done |
+
+- 핵심 지표(말 시작→첫 조각)가 "말 길이보다 훨씬 짧아야" 한다는 목표는 **달성하지 못했다** — 모델 특성(위). 대신 원문 누락 0건, 말 끝→원문 완성본 0.5–0.8초(번역 첫 조각 0.76–1.45초보다 앞).
+- 통역: ko→vi 2턴 모두 비계 → giàn giáo, 안전모 → mũ bảo hộ. 서버 경고·오류 0건. 메아리 차단: 관리자 스트림 `echoDropped: 18`(스크립트는 `stream:playing` 을 안 보내므로 서버 추정), 구성원 0. **폰 재생 신호(②)는 스크립트가 소리를 재생하지 않아 이 확인으로는 검증되지 않았다** — 실기기 시험 항목.
+
 ### 5-1. S2 구현 결과 (2026-10-14, 실제 OpenAI 확인 완료)
 
 | 파일 (`frontend/src/`) | 내용 |

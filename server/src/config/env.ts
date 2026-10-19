@@ -33,6 +33,14 @@ const envSchema = z.object({
   STREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(64).default(4),
   /** OpenAI server_vad 말 끝 무음 (ms). S0 실측 기준 500, S6에서 300–400 실험 */
   STREAM_VAD_SILENCE_MS: z.coerce.number().int().min(200).max(2000).default(500),
+  /**
+   * 스트리밍 전사 전용 세션 (2026-10-19): on 이면 화자 스트림마다 OpenAI 전사 세션(intent=transcription)을 하나 더 열어
+   * 원문 조각(original_partial)을 번역 응답과 따로, 말 끝 직후(0.1–0.4초)에 받는다. 번역 세션의 입력 전사는 끈다(받아쓰기 2번 청구 방지).
+   * off 면 예전처럼 번역 세션이 전사까지 한다(원문이 0.5–1.5초 늦고 빠지기도 했다)
+   */
+  STREAM_LIVE_TRANSCRIPTION: z.enum(["on", "off"]).default("on"),
+  /** 1 이면 스트리밍 엔진의 OpenAI 이벤트(조각 제외)를 세션 종류와 함께 info 로 남긴다 (원문 누락 진단용) */
+  STREAM_DEBUG: z.enum(["0", "1"]).default("0"),
   /** 업로드 음성·번역 음성 저장 위치 */
   STORAGE_DIR: z.string().default("./storage"),
   /** 음성 URL 서명 키. 비우면 서버 시작마다 새로 만든다 (재시작 후 이전 URL 무효 → 앱이 목록을 다시 받음) */

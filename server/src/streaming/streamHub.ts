@@ -226,8 +226,8 @@ export class StreamHub {
           this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "translation", text });
         },
         originalDelta: (turnId, text) => {
-          // 받아쓰는 중 글자는 말한 사람에게만 (듣는 사람은 완성본만)
-          if (!stream.turns.has(turnId) || stream.closed) return;
+          // 받아쓰는 중 글자는 말한 사람에게만 (듣는 사람은 완성본만). 전사 세션 조각은 번역 응답(turnStart)보다 먼저 올 수 있다
+          if (stream.closed) return;
           this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original_partial", text });
         },
         original: (turnId, text) => {

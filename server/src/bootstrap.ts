@@ -75,8 +75,11 @@ export async function createContext(
       voice: env.TRANSLATION_VOICE,
       reasoning: env.TRANSLATION_REASONING,
       silenceMs: env.STREAM_VAD_SILENCE_MS,
+      liveTranscription: env.STREAM_LIVE_TRANSCRIPTION === "on",
       budget,
       log: (message, detail) => logger.warn(detail ?? {}, message),
+      // STREAM_DEBUG=1: 두 세션(번역·전사)의 이벤트를 모두 남긴다 (원문 누락·턴 짝짓기 진단)
+      ...(env.STREAM_DEBUG === "1" ? { trace: (session, type, detail) => logger.info({ session, type, ...detail }, "스트리밍 엔진 이벤트") } : {}),
     });
     stt = new OpenAiStt(env.OPENAI_API_KEY, env.STT_MODEL, budget);
     translator = new RealtimeTranslator({
