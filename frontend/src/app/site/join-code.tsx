@@ -1,5 +1,5 @@
 import { Share, StyleSheet, Text, View } from "react-native";
-import QRCode from "react-native-qrcode-svg";
+import { QrCode } from "@/components/QrCode";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,7 +34,7 @@ export default function JoinCodeScreen() {
               {site?.name}
             </Text>
             <View style={styles.qr}>
-              <QRCode value={code.qrPayload} size={200} color={colors.ink} backgroundColor="#FFFFFF" />
+              <QrCode value={code.qrPayload} size={200} color={colors.ink} backgroundColor="#FFFFFF" />
             </View>
             <Text style={styles.code} selectable>
               {code.code.slice(0, 4)} {code.code.slice(4)}

@@ -1,4 +1,4 @@
-import { createClient, type Session } from "@supabase/supabase-js";
+import { GoTrueClient, type Session } from "@supabase/auth-js";
 import { AppState } from "react-native";
 import { PASSWORD_RESET_REDIRECT, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/config";
 import { secureStorage } from "@/lib/storage";
@@ -12,15 +12,20 @@ export function createSupabaseAuth(): AuthService {
     throw new Error("EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY 가 없습니다 (.env 확인).");
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    auth: {
-      storage: secureStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-      flowType: "pkce",
-    },
+  // 앱은 Supabase 의 인증(auth)만 쓴다 → supabase-js 전체(postgrest·realtime·storage·functions, 번들 약 115KB) 대신 auth-js 만 (2026-10-20 저사양 폰 최적화).
+  // 주소·헤더·저장 키는 supabase-js 의 createClient 가 만들던 것과 같게 맞춘다 (저장 키가 같아야 업데이트 뒤에도 로그인이 유지된다).
+  const base = new URL(SUPABASE_URL);
+  const auth = new GoTrueClient({
+    url: new URL("auth/v1", base.href.endsWith("/") ? base.href : `${base.href}/`).href,
+    headers: { Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`, apikey: SUPABASE_PUBLISHABLE_KEY },
+    storageKey: `sb-${base.hostname.split(".")[0]}-auth-token`,
+    storage: secureStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: "pkce",
   });
+  const supabase = { auth };
 
   // 앱이 화면에 있을 때만 토큰 자동 갱신 (Supabase 권장)
   AppState.addEventListener("change", (state) => {
