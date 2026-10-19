@@ -257,7 +257,7 @@ export interface DuplexAudio {
 
 실기기(iPhone, 스피커, 시드니 서버) 1:1 스트리밍 통화에서 발견: ① 내 말 자막("나" 상자)이 말을 멈춘 뒤 0.5–1.5초 뒤에야 뜨고, 4턴 중 2턴은 원문이 아예 없었으며 6초짜리 말이 "안녕." 으로만 전사됐다 — 번역 세션의 입력 전사(`audio.input.transcription`)는 **턴이 확정된 뒤에야** 시작되기 때문 ② 메아리 차단이 조각 39개를 무음으로 바꿨지만 한 번 샜다 — 서버 추정(`stream:out:start`~`end`+300ms)보다 폰의 실제 재생이 늦다(네트워크 + 지터 버퍼).
 
-**① 전사 전용 세션 (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off`, 기본 on)**
+**① 전사 전용 세션 (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off`, 기본 on)** — 아래 ③(2026-10-20)에서 모델을 `gpt-live-transcribe` 로 바꿔 "말하는 도중 자막"을 달성했다. 이 절의 측정은 `gpt-4o-transcribe` 기준.
 - 화자 스트림마다 OpenAI 연결 2개: **번역 세션**(기존, `?model=gpt-realtime-2.1`) + **전사 세션**(`?intent=transcription`, `session.update {type:"transcription", audio.input: {format pcm 24k, transcription: {model: STT_MODEL, language, prompt: STT_PROMPT}, turn_detection: server_vad(같은 무음 설정)}}`). `append` 는 같은 PCM 을 두 세션에 모두 보낸다. 전사 세션의 `...transcription.delta` 를 `originalDelta`(앱 `original_partial`)로, `completed` 를 `original`(완성본)으로 올린다.
 - **실측 결과가 기대와 다름 (아래 표)**: 계획은 "전사 세션은 말하는 도중 조각을 낸다" 였으나, `gpt-4o-transcribe` 는 전사 세션에서도 **턴 확정(speech_stopped→committed) 뒤에야** 조각을 내기 시작한다 — 확정 구간을 전사하면서 글자를 흘리는 것이지 입력을 따라가며 받아쓰는 것이 아니다. 그래도 번역 응답과 분리돼 **첫 조각이 말 끝 0.07–0.40초, 완성본 0.52–0.76초 뒤**에 오고 **4턴 모두 원문**이 있었다 (전: 0.5–1.5초, 4턴 중 2턴 누락). 말하는 도중 자막은 OpenAI 문서의 **`gpt-live-transcribe`**(turn_detection 없이 연속 전사, `delay: low`, `languages` 배열) 가 필요 — 설계 초안: 전사 세션은 VAD 없이 열고, 번역 세션이 `committed` 를 낼 때 서버가 전사 세션에 `input_audio_buffer.commit` 을 보내 1:1 로 짝을 맞춘다(수동 commit 금지는 번역 세션 VAD 얘기). 모델·가격(`DEFAULT_PRICING` 추가)·`STT_PROMPT` 호환(`prompt` 길이 제한)은 사용자 결정 뒤 실제 호출로 확인(탐침 약 $0.01–0.02).
 - 번역 세션의 `audio.input.transcription` 은 **끈다**(받아쓰기 2번 청구 방지). 전사 세션을 못 열거나(설정 거부·HTTP 오류·시간 초과) 통화 중 끊기면 번역 세션 설정을 전사가 켜진 채로 다시 보내 **예전 동작으로 되돌아간다**(로그 "번역 세션 전사로 대체").
@@ -285,6 +285,30 @@ export interface DuplexAudio {
 
 - 핵심 지표(말 시작→첫 조각)가 "말 길이보다 훨씬 짧아야" 한다는 목표는 **달성하지 못했다** — 모델 특성(위). 대신 원문 누락 0건, 말 끝→원문 완성본 0.5–0.8초(번역 첫 조각 0.76–1.45초보다 앞).
 - 통역: ko→vi 2턴 모두 비계 → giàn giáo, 안전모 → mũ bảo hộ. 서버 경고·오류 0건. 메아리 차단: 관리자 스트림 `echoDropped: 18`(스크립트는 `stream:playing` 을 안 보내므로 서버 추정), 구성원 0. **폰 재생 신호(②)는 스크립트가 소리를 재생하지 않아 이 확인으로는 검증되지 않았다** — 실기기 시험 항목.
+
+**③ gpt-live-transcribe 로 말하는 도중 자막 (2026-10-20 구현·실제 OpenAI 확인, 브랜치 `feat/live-transcribe`)** — 위 설계 초안을 그대로 구현했다.
+- 설정: `STREAM_STT_MODEL`(기본 **`gpt-live-transcribe`**, 전사 전용 세션에만 적용. 발화 단위 STT·전사 세션 실패 시 번역 세션 전사는 그대로 `STT_MODEL`). 단가 `DEFAULT_PRICING["gpt-live-transcribe"]` = **$0.017/분** — 사용량이 duration(초) 형이라 1분 = 1,000 음성 토큰(`durationUsage`)으로 환산해 음성 입력 $17/1M 로 적는다(결과는 정확히 $0.017/분, gpt-4o-transcribe 의 약 2.8배).
+- 전사 세션 `session.update`: `{type:"transcription", audio.input:{format pcm 24k, transcription:{model:"gpt-live-transcribe", languages:[원문 언어 ISO 639-1], delay:"low", prompt: STT_PROMPT, keywords: 용어집 원문 용어 ≤50(한 줄·`<>` 없음)}, turn_detection: null}}`. `STREAM_STT_MODEL=gpt-4o-transcribe` 면 예전 server_vad 설정 그대로(회귀 경로).
+- 말 끝: 번역 세션이 `input_audio_buffer.committed` 를 내는 순간 서버가 전사 세션에 `input_audio_buffer.commit` 을 **턴당 정확히 1번** 보낸다 → 전사 세션의 `committed`(약 0.3초 뒤) → `completed`. 두 세션 항목이 구조적으로 1:1 이라 FIFO 짝짓기가 어긋날 여지가 거의 없다(FIFO·4초 버림 규칙은 안전장치로 유지). 조각은 말하는 도중 `originalDelta`(앱 `original_partial`)로 — 번역 턴(`turnStart`)이 생기기 전에도 말한 사람에게 간다(`streamHub` 는 턴 없이도 보낸다, 시험으로 확인). 완성본이 뒤바뀌어 와도 `item_id` 로 제 턴에 붙는다.
+- 시험 `test/streamingEngine.test.ts` +6 (설정·keywords 필터·말하는 도중 조각 + commit 1번 + duration 비용·여러 턴 순서/뒤바뀐 완성본·gpt-4o-transcribe 회귀·전사 세션 거부 시 STT_MODEL 복귀) → 서버 **239개**.
+
+**실제 OpenAI 확인 (2026-10-20, `call-peer.ts` 2개, 관리자 ko ↔ 구성원 vi, 각 3턴, 9초 간격, `STREAM_DEBUG=1`, 서버 상한 `OPENAI_BUDGET_USD=0.3`) — 비용 $0.075 (stt 6건 $0.0071 + translate 6건 $0.0681, DB 누적 $0.2616)**
+
+서버 로그 기준 (말 시작·말 끝 = 번역 세션 `speech_started`·`speech_stopped`, 첫 조각 = 전사 세션 `...delta (first)`). 합성 음성 길이 ko 3.4초·vi 2.7초:
+
+| 턴 | 방향 | **말 시작→첫 `original_partial`** | 말 길이(VAD) | 말 끝→전사 `committed` | 말 끝→완성본 | 말 끝→`response.done` | 원문 | 결과 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | ko→vi | **0.70초** (말하는 도중) | 4.02초 | 0.30초 | 0.68초 | 2.48초 | 안전모를 쓰고 삼층 비계 작업을 시작하세요. | done |
+| 2 | vi→ko | **0.76초** (말하는 도중) | 3.22초 | 0.30초 | 0.75초 | 1.39초 | Tôi hiểu rồi, tôi sẽ bắt đầu ngay. | done |
+| 3 | vi→ko | **0.47초** (말하는 도중) | 3.21초 | 0.30초 | 0.79초 | 1.60초 | Tôi hiểu rồi. Tôi sẽ bắt đầu ngay. | done |
+| 4 | ko→vi | **0.59초** (말하는 도중) | 3.51초 | 0.30초 | 0.65초 | 2.09초 | 안전모를 쓰고 삼층 비계 작업을 시작합니다. | done |
+| 5 | vi→ko | **0.67초** (말하는 도중) | 3.22초 | 0.30초 | 0.84초 | 1.67초 | Tôi hiểu rồi. Tôi sẽ bắt đầu ngay. | done |
+| 6 | ko→vi | **0.50초** (말하는 도중) | 2.71초 | 0.30초 | 0.76초 | 2.10초 | 안전모를 쓰고 삼층 비계 작업 | done |
+
+- **핵심 지표 달성**: 말 시작→첫 원문 조각 0.47–0.76초 (말 길이 2.7–4.0초보다 훨씬 짧음, 말하는 도중). 전 단계(gpt-4o-transcribe)는 3.4–4.2초(말 끝 뒤)였다. 말 끝→완성본 0.65–0.84초(전 0.52–0.76초와 비슷).
+- 6턴 모두 done·원문 있음·짝 모두 맞음(커밋 1번씩, 뒤바뀜 없음). ko→vi 3턴 모두 비계 → giàn giáo, 안전모 → mũ bảo hộ. 서버 경고·오류 0건(`commit_empty` 없음).
+- 6턴 원문 "안전모를 쓰고 삼층 비계 작업" 이 잘림: 두 스크립트가 거의 동시에 말해 관리자 스트림 조각 40개가 메아리 차단으로 무음이 됐다(`echoDropped: 40`, VAD 말 길이도 2.71초로 짧음) — 반이중 한계이지 전사 세션 문제가 아니다(번역은 온전함).
+- 비용: 말한 1분당 stt 약 $0.017 추가(턴당 약 $0.0011, 번역 턴당 $0.007–0.015 에 비하면 작음).
 
 ### 5-1. S2 구현 결과 (2026-10-14, 실제 OpenAI 확인 완료)
 

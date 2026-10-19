@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 import type { Lang } from "../shared/languages";
 import { BudgetExceededError, type BudgetGuard, type Reservation } from "../engine/budget/budgetGuard";
-import type { UsageTokens } from "../engine/budget/pricing";
+import { durationUsage, type UsageTokens } from "../engine/budget/pricing";
 import { STT_PROMPT } from "../messaging/pipeline";
 import type { StreamGlossary } from "../engine/domain/domainProcessor";
 import {
@@ -30,6 +30,11 @@ import {
 //     OpenAI 문서의 gpt-live-transcribe(turn_detection 없이 연속 전사) 가 필요 — 모델·가격 결정 뒤 후속 (docs/streaming-plan.md 4-3절).
 //     번역 세션의 audio.input.transcription 은 끈다 (받아쓰기를 2번 청구하지 않기 위해). 전사 세션을 못 열거나 끊기면 번역 세션
 //     전사로 되돌아간다(예전 동작).
+//   - **gpt-live-transcribe (2026-10-20, STREAM_STT_MODEL 기본)**: 전사 세션을 `turn_detection: null` + `languages:[원문 언어]` + `delay:"low"`
+//     (+ 용어집 keywords ≤50) 로 연다. VAD 없이 입력을 따라가며 받아쓰므로 조각이 **말하는 도중**(실측 말 시작 약 1초 뒤)에 온다.
+//     말 끝은 여전히 번역 세션의 server_vad 가 정한다: 번역 세션이 `input_audio_buffer.committed` 를 내면 서버가 전사 세션에
+//     `input_audio_buffer.commit` 을 보내 그 턴의 전사 항목을 닫는다 (턴당 정확히 1번 → 두 세션 항목이 1:1). 완성본은 commit 뒤 `completed`.
+//     사용량은 duration(초) 형 → durationUsage 로 기록 ($0.017/분). STREAM_STT_MODEL=gpt-4o-transcribe 면 위의 server_vad 방식 그대로.
 //   - 턴 = 엔진이 만든 id 로, 두 세션의 항목(item_id)을 **순서대로** 묶는다 (아래 "턴 짝짓기")
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
@@ -56,7 +61,10 @@ export type SessionKind = "conversation" | "transcription";
 export type RealtimeStreamOptions = {
   apiKey: string;
   model: string;
+  /** 받아쓰기 모델 (STT_MODEL): 전사 세션이 없을 때 번역 세션의 입력 전사에 쓴다 */
   transcribeModel: string;
+  /** 전사 전용 세션 모델 (STREAM_STT_MODEL, 기본 transcribeModel). gpt-live-transcribe 면 VAD 없는 연속 전사 방식 */
+  streamTranscribeModel?: string;
   voice: string;
   reasoning: "minimal" | "low" | "medium" | "high";
   silenceMs: number;
@@ -85,6 +93,32 @@ type SttUsage = {
   output_tokens?: number;
   input_token_details?: { text_tokens?: number; audio_tokens?: number };
 };
+
+/** 전사 세션 모델이 VAD 없는 연속 전사(gpt-live-transcribe 계열)인지 */
+export function isLiveTranscribeModel(model: string): boolean {
+  return model.includes("live-transcribe");
+}
+
+/** 앱 언어 코드 → gpt-live-transcribe `languages` (ISO 639-1). 지금 5개 언어는 모두 ISO 639-1 과 같다 */
+const ISO_639_1: Record<Lang, string> = { ko: "ko", zh: "zh", vi: "vi", uz: "uz", ru: "ru" };
+
+/** 전사 세션 keywords 상한 (OpenAI 문서 기준 넉넉히) */
+const MAX_KEYWORDS = 50;
+const MAX_KEYWORD_CHARS = 64;
+
+/** 용어집의 원문 언어 용어 → gpt-live-transcribe keywords: 한 줄짜리, `<` `>` 없는 것만, 중복 제거, 최대 50개 */
+export function transcriptionKeywords(glossary: StreamGlossary | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const term of glossary?.terms ?? []) {
+    const word = term.source.trim();
+    if (!word || word.length > MAX_KEYWORD_CHARS || /[\r\n<>]/.test(word) || seen.has(word)) continue;
+    seen.add(word);
+    out.push(word);
+    if (out.length >= MAX_KEYWORDS) break;
+  }
+  return out;
+}
 
 type ServerEvent = {
   type: string;
@@ -147,6 +181,8 @@ type Turn = {
   originalDone: boolean;
   /** 전사 completed 사용량 (예약이 늦게 잡혀도 기록할 수 있게 보관) */
   sttUsage: SttUsage | null | undefined;
+  /** 이 턴의 전사를 맡은 모델 (예약 시점의 세션 상태 기준 — 전사 세션이면 streamTranscribeModel, 아니면 transcribeModel) */
+  sttModel: string;
   responseDone: boolean;
   responseStatus: string | null;
   itemIds: string[];
@@ -167,6 +203,10 @@ class RealtimeConnection implements StreamConnection {
   private stt: WebSocket | null = null;
   /** 전사 세션이 살아 있어 번역 세션의 전사를 끈 상태 */
   private sttAlive = false;
+  /** 전사 전용 세션 모델 */
+  private readonly sttModel: string;
+  /** 전사 세션이 VAD 없는 연속 전사(gpt-live-transcribe)라 번역 세션의 말 끝마다 서버가 commit 을 보내야 하는 방식 */
+  private readonly liveStt: boolean;
   private readonly turns = new Map<string, Turn>();
   private readonly byConvItem = new Map<string, Turn>();
   private readonly bySttItem = new Map<string, Turn>();
@@ -189,6 +229,8 @@ class RealtimeConnection implements StreamConnection {
     const headers = { Authorization: `Bearer ${options.apiKey}` };
     const live = options.liveTranscription !== false;
     this.sttAlive = live;
+    this.sttModel = options.streamTranscribeModel ?? options.transcribeModel;
+    this.liveStt = isLiveTranscribeModel(this.sttModel);
     this.ws = new WebSocket(`${base}?model=${encodeURIComponent(options.model)}`, { headers });
     const convReady = this.waitReady(this.ws, "conversation", () => this.send(this.sessionUpdate(true)));
     if (live) {
@@ -280,8 +322,21 @@ class RealtimeConnection implements StreamConnection {
     };
   }
 
-  /** 전사 전용 세션 설정 (session.type = transcription, 같은 음성 형식·같은 VAD) */
+  /**
+   * 전사 전용 세션 설정 (session.type = transcription, 같은 음성 형식).
+   *   - gpt-live-transcribe: VAD 없음(turn_detection null) + languages + delay low + 용어집 keywords. 말 끝은 서버가 commit 으로 알린다
+   *   - 그 외(gpt-4o-transcribe 등): 번역 세션과 같은 server_vad (예전 동작)
+   */
   private transcriptionSessionUpdate(): object {
+    const transcription = this.liveStt
+      ? {
+          model: this.sttModel,
+          languages: [ISO_639_1[this.sourceLang]],
+          delay: "low",
+          prompt: STT_PROMPT,
+          ...(transcriptionKeywords(this.glossary).length > 0 ? { keywords: transcriptionKeywords(this.glossary) } : {}),
+        }
+      : { model: this.sttModel, language: this.sourceLang, prompt: STT_PROMPT };
     return {
       type: "session.update",
       session: {
@@ -289,8 +344,8 @@ class RealtimeConnection implements StreamConnection {
         audio: {
           input: {
             format: { type: "audio/pcm", rate: RATE },
-            transcription: this.transcriptionConfig(),
-            turn_detection: this.turnDetection({}),
+            transcription,
+            turn_detection: this.liveStt ? null : this.turnDetection({}),
           },
         },
       },
@@ -379,6 +434,7 @@ class RealtimeConnection implements StreamConnection {
         original: null,
         originalDone: false,
         sttUsage: undefined,
+        sttModel: this.options.transcribeModel,
         responseDone: false,
         responseStatus: null,
         itemIds: [],
@@ -414,6 +470,8 @@ class RealtimeConnection implements StreamConnection {
     switch (event.type) {
       case "input_audio_buffer.committed":
         // 서버 VAD 가 말 끝을 정해 확정함 → 턴 시작 (create_response 로 응답이 저절로 붙는다)
+        // gpt-live-transcribe 전사 세션은 VAD 가 없어 같은 자리에서 서버가 commit 을 보내 그 턴의 전사 항목을 닫는다 (턴당 1번)
+        if (this.sttAlive && this.liveStt) this.sendStt({ type: "input_audio_buffer.commit" });
         if (event.item_id) void this.newTurn(event.item_id);
         break;
       case "response.created": {
@@ -486,7 +544,8 @@ class RealtimeConnection implements StreamConnection {
     switch (event.type) {
       case "input_audio_buffer.speech_started":
       case "input_audio_buffer.committed":
-        // 말 시작·말 끝: 턴을 미리 만들어 둔다 (조각이 오기 전에 짝을 맞추려고)
+        // 말 시작·말 끝: 턴을 미리 만들어 둔다 (조각이 오기 전에 짝을 맞추려고). gpt-live-transcribe 는 speech_started 가 없고
+        // committed 는 서버가 보낸 commit 의 응답이라 그 턴에 이미 조각이 붙어 있는 것이 보통이다
         if (event.item_id) this.turnFor("transcription", event.item_id);
         break;
       case "conversation.item.input_audio_transcription.delta":
@@ -548,13 +607,15 @@ class RealtimeConnection implements StreamConnection {
     if (turn.originalTimer) clearTimeout(turn.originalTimer);
     turn.originalTimer = null;
     this.awaitingResponse.push(turn);
-    const { budget, model, transcribeModel } = this.options;
+    const { budget, model } = this.options;
+    // 전사를 맡은 모델: 전사 세션이 살아 있으면 전사 세션 모델, 아니면 번역 세션 전사(STT_MODEL)
+    turn.sttModel = this.sttAlive ? this.sttModel : this.options.transcribeModel;
     const instructionsChars = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary).length;
     let ok = true;
     turn.reserved = (async () => {
       try {
         turn.reservation = await budget.reserve(budget.estimate(model, turnEstimate(instructionsChars, inputSeconds)));
-        turn.sttReservation = await budget.reserve(budget.estimate(transcribeModel, transcribeEstimate(inputSeconds)));
+        turn.sttReservation = await budget.reserve(budget.estimate(turn.sttModel, transcribeEstimate(turn.sttModel, inputSeconds)));
       } catch {
         ok = false;
       }
@@ -590,6 +651,7 @@ class RealtimeConnection implements StreamConnection {
     turn.sttReservation = null;
     if (!reservation) return;
     const usage = turn.sttUsage;
+    // tokens 형(gpt-4o-transcribe) 은 그대로, duration 형(gpt-live-transcribe: 말한 초) 은 durationUsage 로 환산, 사용량이 없으면 입력 길이로 추정
     const tokens: UsageTokens =
       usage?.input_tokens !== undefined
         ? {
@@ -597,8 +659,10 @@ class RealtimeConnection implements StreamConnection {
             inputTextTokens: usage.input_token_details?.text_tokens ?? 0,
             outputTextTokens: usage.output_tokens ?? 0,
           }
-        : transcribeEstimate(usage?.type === "duration" && usage.seconds !== undefined ? usage.seconds : turn.inputSeconds);
-    await this.options.budget.commit(reservation, { ...tokens, kind: "stt", model: this.options.transcribeModel }).catch(() => {});
+        : usage?.type === "duration" && usage.seconds !== undefined
+          ? durationUsage(usage.seconds)
+          : transcribeEstimate(turn.sttModel, turn.inputSeconds);
+    await this.options.budget.commit(reservation, { ...tokens, kind: "stt", model: turn.sttModel }).catch(() => {});
   }
 
   private releaseTurn(turn: Turn): void {
@@ -683,4 +747,6 @@ export function turnEstimate(instructionsChars: number, inputSeconds: number): U
   };
 }
 
-const transcribeEstimate = (seconds: number): UsageTokens => ({ inputAudioTokens: Math.ceil((seconds + 0.5) * 40), outputTextTokens: 60 });
+/** 전사 1턴 예상 사용량: 시간 기준 모델(gpt-live-transcribe)은 말한 초(+0.5초 여유), 토큰 기준 모델은 초당 40토큰(여유 있게) + 출력 60토큰 */
+export const transcribeEstimate = (model: string, seconds: number): UsageTokens =>
+  isLiveTranscribeModel(model) ? durationUsage(seconds + 0.5) : { inputAudioTokens: Math.ceil((seconds + 0.5) * 40), outputTextTokens: 60 };

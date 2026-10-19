@@ -61,6 +61,12 @@
 | S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
+#### 말하는 도중 원문 자막: 전사 세션을 gpt-live-transcribe 로 — 2026-10-20 (브랜치 `feat/live-transcribe`, 실제 OpenAI 확인)
+- **무엇**: 전사 전용 세션 모델을 `STREAM_STT_MODEL`(새 환경 변수, 기본 **`gpt-live-transcribe`**, `$0.017/분`)로 분리. VAD 없이(`turn_detection: null`, `languages:[원문]`, `delay:"low"`, 용어집 `keywords` ≤50) 입력을 따라가며 받아쓰므로 **`original_partial` 이 말 시작 0.47–0.76초 뒤(말하는 도중)** 에 온다 — 전에는 말 끝 뒤(3.4–4.2초). 말 끝은 그대로 번역 세션 server_vad 가 정하고, 번역 세션 `committed` 때 서버가 전사 세션에 `input_audio_buffer.commit` 을 턴당 1번 보내 두 세션 항목을 1:1 로 맞춘다. `STREAM_STT_MODEL=gpt-4o-transcribe` 면 예전(server_vad) 그대로. 발화 단위 STT 는 `STT_MODEL` 유지
+- **비용 기록**: duration(초) 사용량 → 1분 = 1,000 음성 토큰 환산(`durationUsage`), `DEFAULT_PRICING["gpt-live-transcribe"]` 음성 입력 $17/1M = $0.017/분. 턴당 약 $0.001
+- **실제 OpenAI 확인 ($0.075, DB 누적 $0.2616)**: `call-peer.ts` 2개 ko↔vi 각 3턴 — 6턴 모두 done·원문·짝 맞음, 비계 → giàn giáo, 경고 0. 표는 `docs/streaming-plan.md` 4-3절 ③. 6턴 원문이 잘린 것은 두 스크립트가 동시에 말해 메아리 차단(`echoDropped: 40`)이 조각을 무음으로 바꾼 탓(반이중 한계)
+- 파일: `server/src/streaming/realtimeStream.ts`, `config/env.ts`, `bootstrap.ts`, `engine/budget/pricing.ts`, `.env.example`, `deploy/render-env.sh`. 시험: 서버 **239** (+6). **실기기 미검증** — 다음 실기기 시험에서 "나" 자막이 말하는 도중 뜨는지 확인
+
 #### 전사 전용 세션 + 폰 재생 신호 메아리 차단 — 2026-10-19 밤 (브랜치 `fix/stream-commit-race`, 실기기 2차 발견 2건)
 - **증상 (iPhone 스피커, 시드니 서버)**: 내 말 자막이 말 끝 0.5–1.5초 뒤에야 뜨고 4턴 중 2턴은 원문 없음(6초 말이 "안녕." 으로) / 메아리 차단이 39조각을 무음으로 바꿨는데도 한 번 샘(폰 재생이 서버 추정 + 300ms 보다 늦음)
 - **A. 전사 전용 세션** (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off` 기본 on): 화자 스트림마다 `?intent=transcription` 세션(gpt-4o-transcribe, 같은 server_vad)을 하나 더 열어 같은 음성을 넣고, 번역 세션의 입력 전사는 끔(2번 청구 방지). 턴 id 는 엔진 uuid, 두 세션 항목을 순서(FIFO)로 짝짓기 + 4초 뒤 버림. 전사 세션 실패 시 번역 세션 전사로 자동 복귀. `STREAM_DEBUG=1` 로 두 세션 이벤트 추적

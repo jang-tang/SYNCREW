@@ -8,7 +8,7 @@ import { LegacyWorkplaceAdapter } from "../src/engine/dataset/legacyWorkplaceAda
 import { DomainProcessor, type StreamGlossary } from "../src/engine/domain/domainProcessor";
 import { LANG_CODES } from "../src/shared/languages";
 import { buildStreamInstructions, STREAM_INSTRUCTIONS_MAX_CHARS, type StreamEngineEvents, type TurnEnd } from "../src/streaming/engine";
-import { RealtimeStreamEngine, realtimeUsage, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
+import { RealtimeStreamEngine, realtimeUsage, transcribeEstimate, transcriptionKeywords, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
 import { LinearResampler, rms } from "../src/streaming/resample";
 
 // Phase 7 S1: 스트리밍 엔진 단위 검증 (비용 0)
@@ -217,7 +217,7 @@ const until = async (check: () => boolean, ms = 2000) => {
   }
 };
 
-function engine(url: string, limitUsd = 5, extra: Partial<Pick<RealtimeStreamOptions, "liveTranscription" | "trace" | "log">> = {}) {
+function engine(url: string, limitUsd = 5, extra: Partial<Pick<RealtimeStreamOptions, "liveTranscription" | "streamTranscribeModel" | "trace" | "log">> = {}) {
   const store = new InMemoryUsageStore();
   const budget = new BudgetGuard(store, DEFAULT_PRICING, { limitUsd, period: "total" });
   return {
@@ -520,5 +520,209 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
         output_token_details: { text_tokens: 83, audio_tokens: 83 },
       }),
     ).toEqual({ inputTextTokens: 56, inputAudioTokens: 13, cachedInputTokens: 512, outputTextTokens: 131, outputAudioTokens: 83 });
+  });
+});
+
+// ─── gpt-live-transcribe 전사 세션 (2026-10-20): VAD 없이 말하는 도중 조각, 말 끝은 번역 세션 VAD → 서버가 전사 세션에 commit ───
+
+describe("RealtimeStreamEngine + gpt-live-transcribe (STREAM_STT_MODEL)", () => {
+  const live = { streamTranscribeModel: "gpt-live-transcribe" } as const;
+  type SttUpdate = { session: { audio: { input: { transcription: Record<string, unknown>; turn_detection: unknown } } } };
+
+  it("전사 세션 설정: turn_detection null · languages [원문 언어 ISO 639-1] · delay low · 용어집 keywords(≤50, 한 줄·<> 없음), 번역 세션은 그대로 server_vad", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url, 5, live);
+    const glossary: StreamGlossary = {
+      terms: [
+        { source: "비계", target: "giàn giáo" },
+        { source: "안전모", target: "mũ bảo hộ" },
+        { source: "비계", target: "giàn giáo" }, // 중복
+        { source: "두\n줄", target: "x" }, // 여러 줄
+        { source: "<태그>", target: "y" }, // 꺾쇠
+        { source: "  ", target: "z" }, // 빈 값
+      ],
+      phrases: [],
+    };
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: recorder().events, glossary });
+    const stt = server.stt()!;
+    const update = stt.received[0] as unknown as SttUpdate;
+    expect(update).toEqual({
+      type: "session.update",
+      session: {
+        type: "transcription",
+        audio: {
+          input: {
+            format: { type: "audio/pcm", rate: 24_000 },
+            transcription: { model: "gpt-live-transcribe", languages: ["ko"], delay: "low", prompt: expect.any(String), keywords: ["비계", "안전모"] },
+            turn_detection: null,
+          },
+        },
+      },
+    });
+    expect(update.session.audio.input.transcription).not.toHaveProperty("language");
+    // 번역 세션은 바뀌지 않는다 (server_vad, 전사 없음)
+    const conv = (server.received[0] as unknown as SttUpdate).session.audio.input;
+    expect(conv.turn_detection).toMatchObject({ type: "server_vad", create_response: true });
+    expect(conv).not.toHaveProperty("transcription");
+    connection.close();
+  });
+
+  it("transcriptionKeywords: 용어집이 없거나 비면 keywords 를 보내지 않고, 50개를 넘으면 앞 50개만", async () => {
+    expect(transcriptionKeywords(undefined)).toEqual([]);
+    const many: StreamGlossary = { terms: Array.from({ length: 70 }, (_, i) => ({ source: `용어${i}`, target: `t${i}` })), phrases: [] };
+    expect(transcriptionKeywords(many)).toHaveLength(50);
+    expect(transcriptionKeywords(many)[49]).toBe("용어49");
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url, 5, live);
+    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
+    const transcription = (server.stt()!.received[0] as unknown as SttUpdate).session.audio.input.transcription;
+    expect(transcription).not.toHaveProperty("keywords");
+    expect(transcription["languages"]).toEqual(["vi"]);
+    connection.close();
+  });
+
+  it("말하는 도중 조각이 (번역 턴이 생기기 전에) originalDelta 로 올라오고, 번역 세션 committed 때 전사 세션에 commit 을 정확히 1번 보내며, 완성본은 턴 시작 뒤 같은 턴 id 로, 사용량은 duration(초) 기준 $0.017/분", async () => {
+    const server = await fakeRealtime();
+    const traces: string[] = [];
+    const { engine: e, store } = engine(server.url, 5, { ...live, trace: (session, type) => traces.push(`${session}:${type}`) });
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    const sttCommits = () => stt.received.filter((r) => r.type === "input_audio_buffer.commit");
+
+    connection.append(Buffer.alloc(4800 * 30)); // 3초
+    await until(() => stt.received.some((r) => r.type === "input_audio_buffer.append"));
+    // 말하는 중: 전사 세션(VAD 없음)이 조각을 낸다. speech_started 는 없다. 번역 세션은 아직 아무 턴도 없다
+    stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_1", delta: "안전모를" });
+    stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_1", delta: " 쓰세요" });
+    await until(() => rec.log.filter((l) => l.type === "originalDelta").length === 2);
+    const turnId = rec.log[0]!.turnId!;
+    expect(rec.log).toEqual([
+      { type: "originalDelta", turnId, data: "안전모를" },
+      { type: "originalDelta", turnId, data: " 쓰세요" },
+    ]);
+    expect(sttCommits()).toHaveLength(0); // 말하는 동안은 commit 없음
+
+    // 번역 세션 VAD 가 말 끝을 정함 → 서버가 전사 세션에 commit 1번
+    server.send({ type: "input_audio_buffer.speech_started", audio_start_ms: 0 });
+    server.send({ type: "input_audio_buffer.speech_stopped", audio_end_ms: 2900 });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => sttCommits().length === 1);
+    expect(sttCommits()).toEqual([{ type: "input_audio_buffer.commit" }]);
+    // 번역 세션에는 수동 commit 을 보내지 않는다 (VAD 를 멈추므로)
+    expect(server.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(0);
+
+    // 전사 세션: commit 응답(committed) → 완성본(duration 사용량). 번역 응답보다 먼저 와도 original 은 턴 시작 뒤에
+    stt.send({ type: "input_audio_buffer.committed", item_id: "live_1", previous_item_id: null });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "안전모를 쓰세요.", usage: { type: "duration", seconds: 3.1 } });
+    await until(() => traces.includes("transcription:conversation.item.input_audio_transcription.completed"));
+    expect(rec.log.some((l) => l.type === "original")).toBe(false);
+    server.send({ type: "response.created", response: { id: "resp_1" } });
+    await until(() => rec.log.some((l) => l.type === "original"));
+    expect(rec.log.slice(2)).toEqual([
+      { type: "start", turnId },
+      { type: "original", turnId, data: "안전모를 쓰세요." },
+    ]);
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Hãy đội mũ bảo hộ." });
+    server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [{ id: "out_1" }] } });
+    await until(() => rec.ends.length === 1);
+    expect(rec.ends[0]).toEqual({ turnId, result: { status: "done", original: "안전모를 쓰세요.", translation: "Hãy đội mũ bảo hộ.", model: "gpt-realtime-2.1" } });
+
+    // 비용: stt 는 gpt-live-transcribe, 3.1초 → 52 "음성 토큰"(1분=1000) × $17/1M ≈ $0.000884 (= 3.1/60 × $0.017 반올림)
+    await until(() => store.records.length === 2);
+    const sttRecord = store.records.find((r) => r.kind === "stt")!;
+    expect(sttRecord).toMatchObject({ model: "gpt-live-transcribe", inputAudioTokens: 52 });
+    expect(sttRecord.outputTextTokens ?? 0).toBe(0);
+    expect(sttRecord.costUsd).toBeCloseTo((3.1 / 60) * 0.017, 4);
+    expect(transcribeEstimate("gpt-live-transcribe", 3)).toEqual({ inputAudioTokens: 59 });
+    expect(transcribeEstimate("gpt-4o-transcribe", 3)).toEqual({ inputAudioTokens: 140, outputTextTokens: 60 });
+    expect(traces).not.toContain("transcription:input_audio_buffer.speech_started");
+    expect(traces).toContain("transcription:conversation.item.input_audio_transcription.delta (first)");
+    expect(sttCommits()).toHaveLength(1); // 턴이 끝나도 commit 은 1번뿐
+    connection.close();
+  });
+
+  it("여러 턴: 번역 세션 committed 마다 전사 세션 commit 1번씩, 완성본은 순서대로 짝지어지고 (item_id 로) 턴마다 원문이 맞는다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e, store } = engine(server.url, 5, live);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    const sttCommits = () => stt.received.filter((r) => r.type === "input_audio_buffer.commit");
+    const turn = async (n: number) => {
+      stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: `live_${n}`, delta: `원문${n}` });
+      await until(() => rec.log.filter((l) => l.type === "originalDelta").length === n);
+      server.send({ type: "input_audio_buffer.committed", item_id: `item_${n}` });
+      await until(() => sttCommits().length === n);
+      server.send({ type: "response.created", response: { id: `resp_${n}` } });
+      server.send({ type: "response.output_audio_transcript.delta", response_id: `resp_${n}`, delta: `번역${n}` });
+      server.send({ type: "response.done", response: { id: `resp_${n}`, status: "completed", usage, output: [] } });
+      stt.send({ type: "input_audio_buffer.committed", item_id: `live_${n}` });
+    };
+    await turn(1);
+    await turn(2);
+    // 완성본이 뒤바뀌어 와도 item_id 로 제 턴에 붙는다
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_2", transcript: "둘째", usage: { type: "duration", seconds: 2 } });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "첫째", usage: { type: "duration", seconds: 1 } });
+    await until(() => rec.ends.length === 2);
+    const ids = rec.log.filter((l) => l.type === "start").map((l) => l.turnId);
+    expect(new Set(ids).size).toBe(2);
+    // 턴 끝은 완성본이 온 순서(2 → 1)지만, 원문·번역은 각자 제 턴에 붙는다
+    expect(rec.ends.map((x) => x.turnId)).toEqual([ids[1], ids[0]]);
+    expect(rec.ends.find((x) => x.turnId === ids[0])!.result).toEqual({ status: "done", original: "첫째", translation: "번역1", model: "gpt-realtime-2.1" });
+    expect(rec.ends.find((x) => x.turnId === ids[1])!.result).toEqual({ status: "done", original: "둘째", translation: "번역2", model: "gpt-realtime-2.1" });
+    expect(rec.log.filter((l) => l.type === "originalDelta").map((l) => [l.turnId, l.data])).toEqual([
+      [ids[0], "원문1"],
+      [ids[1], "원문2"],
+    ]);
+    expect(sttCommits()).toHaveLength(2);
+    await until(() => store.records.filter((r) => r.kind === "stt").length === 2);
+    expect(store.records.filter((r) => r.kind === "stt").map((r) => r.inputAudioTokens).sort()).toEqual([17, 34]);
+    connection.close();
+  });
+
+  it("STREAM_STT_MODEL=gpt-4o-transcribe 면 예전 그대로: 전사 세션은 server_vad + language, 번역 세션 committed 에 commit 을 보내지 않고 사용량은 tokens 형", async () => {
+    const server = await fakeRealtime();
+    const { engine: e, store } = engine(server.url, 5, { streamTranscribeModel: "gpt-4o-transcribe" });
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    expect((stt.received[0] as unknown as SttUpdate).session.audio.input).toEqual({
+      format: { type: "audio/pcm", rate: 24_000 },
+      transcription: { model: "gpt-4o-transcribe", language: "ko", prompt: expect.any(String) },
+      turn_detection: { type: "server_vad", threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 500 },
+    });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_v" });
+    server.send({ type: "response.created", response: { id: "resp_v" } });
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_v", delta: "번역" });
+    server.send({ type: "response.done", response: { id: "resp_v", status: "completed", usage, output: [] } });
+    stt.send({ type: "input_audio_buffer.speech_started", item_id: "stt_v" });
+    stt.send({ type: "input_audio_buffer.committed", item_id: "stt_v" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_v", transcript: "원문", usage: sttUsage });
+    await until(() => rec.ends.length === 1);
+    expect(rec.ends[0]!.result).toMatchObject({ status: "done", original: "원문" });
+    await until(() => store.records.length === 2);
+    expect(store.records.find((r) => r.kind === "stt")).toMatchObject({ model: "gpt-4o-transcribe", inputAudioTokens: 49, outputTextTokens: 23 });
+    expect(stt.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(0);
+    connection.close();
+  });
+
+  it("전사 세션을 못 열면(거부) 번역 세션 전사(STT_MODEL)로 되돌아가고 commit 도 보내지 않는다", async () => {
+    const server = await fakeRealtime({ rejectStt: true });
+    const { engine: e, store } = engine(server.url, 5, live);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const updates = () => server.received.filter((r) => r.type === "session.update") as unknown as SttUpdate[];
+    await until(() => updates().some((u) => u.session.audio?.input["transcription"] !== undefined));
+    expect(updates().at(-1)!.session.audio.input.transcription).toMatchObject({ model: "gpt-4o-mini-transcribe", language: "ko" });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_r" });
+    server.send({ type: "response.created", response: { id: "resp_r" } });
+    server.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "item_r", transcript: "원문", usage: sttUsage });
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_r", delta: "번역" });
+    server.send({ type: "response.done", response: { id: "resp_r", status: "completed", usage, output: [] } });
+    await until(() => rec.ends.length === 1);
+    await until(() => store.records.length === 2);
+    expect(store.records.find((r) => r.kind === "stt")).toMatchObject({ model: "gpt-4o-mini-transcribe" });
+    connection.close();
   });
 });
