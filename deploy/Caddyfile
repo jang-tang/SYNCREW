@@ -1,0 +1,16 @@
+# SYNCREW — https://syncrew.hyunshu.com (Cloudflare DNS only → EC2 탄력적 IP)
+# Caddy 가 Let's Encrypt 인증서를 자동 발급·갱신한다 (80·443 이 열려 있어야 함).
+syncrew.hyunshu.com {
+	# REST(/v1/*, /health, 음성 파일)와 Socket.IO 를 모두 서버로 넘긴다.
+	# 실시간 네임스페이스 /rt 는 Socket.IO 기본 경로 /socket.io/ 로 접속하며,
+	# reverse_proxy 가 웹소켓 업그레이드를 자동으로 처리한다.
+	reverse_proxy server:4000 {
+		# 서버를 재시작하는 동안 들어온 요청은 잠깐 기다렸다 넘긴다
+		lb_try_duration 10s
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
