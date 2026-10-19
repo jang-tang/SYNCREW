@@ -47,14 +47,25 @@ test("기다리는 내 말이 없는데 자막이 오면 새로 만든다, 이�
   assert.equal(list[0].translation, "x");
 });
 
-test("여러 말: 서버 턴은 오래된 대기부터 차례로 붙는다, 최근 2개만 남긴다", () => {
+test("여러 말: 서버 턴은 짝 없는 말 중 가장 최근 것에 붙고, 그보다 오래된 짝 없는 말(에코·잡음)은 지운다", () => {
+  // 2026-10-19 실기기: 에코로 생긴 a 뒤에 진짜 말 b → 서버 턴은 b 의 것. 예전엔 a 에 붙어 b 가 빈 채 남았다
   let list = endMine(startMine([], "a"));
   list = endMine(startMine(list, "b"));
-  list = mineText(list, "t1", "original", "첫째");
+  list = mineText(list, "t1", "original", "진짜 말");
+  assert.deepEqual(list.map((c) => [c.key, c.turnId, c.original]), [["b", "t1", "진짜 말"]]);
+  // 이미 붙은 말은 지우지 않고, 다음 턴은 그 뒤 새 말에 붙는다
+  list = endMine(startMine(list, "c"));
+  list = mineText(list, "t2", "original", "둘째");
+  assert.deepEqual(list.map((c) => [c.key, c.turnId]), [["b", "t1"], ["c", "t2"]]);
+  list = startMine(list, "d");
+  assert.deepEqual(list.map((c) => c.key), ["c", "d"]);
+});
+
+test("서버 턴이 붙을 때 이미 턴이 붙은 오래된 말은 남긴다 (짝 없는 것만 지움)", () => {
+  let list = mineEnd(mineText(endMine(startMine([], "a")), "t1", "original", "첫째"), "t1", "done");
+  list = endMine(startMine(list, "b"));
   list = mineText(list, "t2", "original", "둘째");
   assert.deepEqual(list.map((c) => [c.key, c.turnId]), [["a", "t1"], ["b", "t2"]]);
-  list = startMine(list, "c");
-  assert.deepEqual(list.map((c) => c.key), ["b", "c"]);
 });
 
 test("너무 짧은 소리(단말 VAD 가 버림)는 지운다", () => {
@@ -62,16 +73,25 @@ test("너무 짧은 소리(단말 VAD 가 버림)는 지운다", () => {
   assert.deepEqual(list.map((c) => c.key), ["a"]);
 });
 
-test("받아쓰는 중에 서버 응답이 끝내 없으면 실패(다시 말해 달라), 이미 서버 턴이 붙었으면 그대로", () => {
-  let list = endMine(startMine([], "a"));
-  list = expireMine(list, "a");
-  assert.equal(list[0].status, "failed");
-  let other = mineText(endMine(startMine([], "b")), "t1", "original", "네");
-  other = expireMine(other, "b");
-  assert.equal(other[0].status, "processing");
+test("시간이 지나도 서버 턴이 안 붙은 말은 조용히 지운다 — failed 가 되지 않고 이전 말로 돌아간다", () => {
+  let list = mineEnd(mineText(endMine(startMine([], "a")), "t1", "original", "첫째"), "t1", "done");
+  list = endMine(startMine(list, "b"));
+  list = expireMine(list, "b");
+  assert.deepEqual(list.map((c) => [c.key, c.status]), [["a", "done"]]);
+  assert.ok(list.every((c) => c.status !== "failed"));
+  // 기다리는 말이 하나뿐이면 빈 목록
+  assert.deepEqual(expireMine(endMine(startMine([], "x")), "x"), []);
 });
 
-test("턴 끝 failed 면 실패 표시", () => {
+test("시간이 지났어도 이미 서버 턴이 붙은 말은 그대로 (타이머 no-op)", () => {
+  let list = mineText(endMine(startMine([], "b")), "t1", "original", "네");
+  list = expireMine(list, "b");
+  assert.deepEqual(list.map((c) => [c.key, c.turnId, c.status]), [["b", "t1", "processing"]]);
+  // 다른 키의 타이머도 영향 없음
+  assert.deepEqual(expireMine(list, "zzz"), list);
+});
+
+test("서버가 턴 끝을 failed 로 알린 때만 실패 표시", () => {
   const list = mineEnd(mineText(endMine(startMine([], "a")), "t1", "original", "음"), "t1", "failed");
   assert.equal(list[0].status, "failed");
 });

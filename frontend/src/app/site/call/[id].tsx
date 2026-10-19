@@ -255,7 +255,7 @@ function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: s
   );
 }
 
-/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. 가장 최근 말만 (2026-10-19) */
+/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. 가장 최근 말만. 턴이 안 붙어 지워진 말은 목록에 없으므로 자연히 이전 말로 돌아간다. failed 는 서버가 알린 때만 (2026-10-19) */
 function MyCaptions({ captions }: { captions: MyCaption[] }) {
   const { t } = useT();
   const last = captions.at(-1);

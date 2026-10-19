@@ -136,7 +136,7 @@ export function useStreamingCall(options: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active, options.sessionId]);
 
-  /** 내 말 끝: 받아쓰는 중으로 바꾸고, 서버 응답이 끝내 없으면 실패로. 너무 짧아 버린 소리는 지운다 */
+  /** 내 말 끝: 받아쓰는 중으로 바꾸고, 서버 턴이 끝내 안 붙으면 조용히 지운다(에코·잡음, expireMine — 이미 붙었으면 no-op). 너무 짧아 버린 소리는 지운다 */
   const finishMine = (discarded: boolean) => {
     if (!live.current.interpret) return;
     if (discarded) return setMyCaptions(discardMine);
