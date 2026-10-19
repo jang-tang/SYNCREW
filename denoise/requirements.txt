@@ -1,0 +1,4 @@
+# 사이드카 실행용 (linux/arm64 휠 있음). 학습·평가용 무거운 의존성은 넣지 않는다
+onnxruntime==1.31.0
+numpy==2.5.4
+websockets==17.2
