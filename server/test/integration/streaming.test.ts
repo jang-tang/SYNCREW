@@ -183,6 +183,26 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(engine.connections.slice(-2).map((c) => `${c.sourceLang}→${c.targetLang}`)).toEqual(["ko→vi", "vi→ko"]);
   });
 
+  it("말한 사람에게도 자기 말의 원문·번역 자막(stream:mine:text)과 턴 끝(stream:mine:end)이 바로 간다 (2026-10-19 실기기: 내 말이 늦게 떠 여러 번 말함)", async () => {
+    const env = await setupSite(t, ["vi"]);
+    const session = await connectCall(env);
+    const streamId = streamIdOf(await open(env.managerSocket, session.id));
+    const texts: Payload<"stream:mine:text">[] = [];
+    const onText = (p: Payload<"stream:mine:text">) => texts.push(p);
+    env.managerSocket.on("stream:mine:text", onText);
+    const end = waitFor(env.managerSocket, "stream:mine:end");
+    const listenerEnd = waitFor(env.workerSockets[0]!, "stream:out:end");
+    speak(env.managerSocket, streamId, 1.0);
+    const mine = await end;
+    const theirs = await listenerEnd;
+    env.managerSocket.off("stream:mine:text", onText);
+
+    expect(mine).toMatchObject({ sessionId: session.id, turnId: theirs.turnId, status: "done" });
+    expect(texts.every((x) => x.sessionId === session.id && x.turnId === theirs.turnId)).toBe(true);
+    expect(texts.find((x) => x.kind === "original")?.text).toBe("[음성 ko] 1.0s");
+    expect(texts.filter((x) => x.kind === "translation").map((x) => x.text).join("")).toBe("[vi] [음성 ko] 1.0s");
+  });
+
   it("듣는 사람은 stream:out:end(messageId) 를 같은 문장의 message:new 보다 먼저 받는다 (앱의 중복 재생 방지 전제)", async () => {
     const env = await setupSite(t, ["vi"]);
     const session = await connectCall(env);

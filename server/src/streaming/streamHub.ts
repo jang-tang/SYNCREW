@@ -21,6 +21,8 @@ export type StreamEmitter = {
   toUser(userId: string, event: "stream:out:audio", payload: { turnId: string; seq: number; pcm: Buffer }): void;
   toUser(userId: string, event: "stream:out:text", payload: { turnId: string; kind: "original" | "translation"; text: string }): void;
   toUser(userId: string, event: "stream:out:end", payload: { turnId: string; status: "done" | "failed"; messageId: string | null }): void;
+  toUser(userId: string, event: "stream:mine:text", payload: { sessionId: string; turnId: string; kind: "original" | "translation"; text: string }): void;
+  toUser(userId: string, event: "stream:mine:end", payload: { sessionId: string; turnId: string; status: "done" | "failed" }): void;
   fallback(userId: string, payload: { sessionId: string; streamId: string; reason: StreamFallbackReason }): void;
 };
 
@@ -198,12 +200,14 @@ export class StreamHub {
           if (!turn || stream.closed) return;
           turn.translation += text;
           this.emit.toUser(stream.listenerId, "stream:out:text", { turnId, kind: "translation", text });
+          this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "translation", text });
         },
         original: (turnId, text) => {
           const turn = stream.turns.get(turnId);
           if (!turn || stream.closed) return;
           turn.original = text;
           this.emit.toUser(stream.listenerId, "stream:out:text", { turnId, kind: "original", text });
+          this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text });
         },
         turnEnd: (turnId, result) => void this.onTurnEnd(stream, turnId, result),
         closed: (reason) => void this.onEngineClosed(stream, reason),
@@ -311,12 +315,12 @@ export class StreamHub {
     const turn = stream.turns.get(turnId);
     stream.turns.delete(turnId);
     if (!turn || stream.closed) {
-      if (turn) this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "failed", messageId: null });
+      if (turn) this.endTurn(stream, turnId, "failed", null);
       return;
     }
     if (result.status === "failed") {
       this.ctx.logger.warn({ sessionId: stream.sessionId, turnId, code: result.code }, "스트리밍 턴 실패");
-      this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "failed", messageId: null });
+      this.endTurn(stream, turnId, "failed", null);
       return;
     }
     let saved: Awaited<ReturnType<typeof persistTurn>> | null = null;
@@ -346,7 +350,7 @@ export class StreamHub {
       this.ctx.logger.error({ err: error, sessionId: stream.sessionId, turnId }, "스트리밍 턴 기록 실패");
     }
     // 순서 중요: end(messageId) 를 먼저 보내고 기록 알림(message:new)을 보낸다 → 앱은 이미 들은 문장을 다시 재생하지 않는다
-    this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "done", messageId: saved?.messageId ?? null });
+    this.endTurn(stream, turnId, "done", saved?.messageId ?? null);
     await saved?.notify().catch((error: unknown) => this.ctx.logger.warn({ err: error, turnId }, "스트리밍 턴 기록 알림 실패"));
     const original = (result.original ?? turn.original)?.trim();
     if (original) {
@@ -355,13 +359,17 @@ export class StreamHub {
     }
   }
 
+  /** 통역 턴 끝: 듣는 사람(stream:out:end)과 말한 사람(stream:mine:end) 모두에게 */
+  private endTurn(stream: Stream, turnId: string, status: "done" | "failed", messageId: string | null): void {
+    this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status, messageId });
+    this.emit.toUser(stream.speakerId, "stream:mine:end", { sessionId: stream.sessionId, turnId, status });
+  }
+
   /** 엔진 연결이 예기치 않게 끝남: 진행 중 턴은 엔진이 실패로 닫았다. 다시 연결하거나 폴백 */
   private async onEngineClosed(stream: Stream, reason: "error" | "budget"): Promise<void> {
     if (stream.closed) return;
     stream.connection = null;
-    for (const turnId of stream.turns.keys()) {
-      this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "failed", messageId: null });
-    }
+    for (const turnId of stream.turns.keys()) this.endTurn(stream, turnId, "failed", null);
     stream.turns.clear();
     if (reason === "budget") return this.fallback(stream, "BUDGET_EXCEEDED");
     const now = Date.now();
@@ -403,10 +411,8 @@ export class StreamHub {
     this.streams.delete(stream.id);
     stream.connection?.close();
     stream.connection = null;
-    // 듣는 사람 화면에 진행 중 턴이 남지 않게 닫는다
-    for (const turnId of stream.turns.keys()) {
-      this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status: "failed", messageId: null });
-    }
+    // 듣는 사람·말한 사람 화면에 진행 중 턴이 남지 않게 닫는다
+    for (const turnId of stream.turns.keys()) this.endTurn(stream, turnId, "failed", null);
     stream.turns.clear();
   }
 

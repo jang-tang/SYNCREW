@@ -5,6 +5,7 @@ import { useMemo, useState, type ComponentProps } from "react";
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { SessionEndReason } from "@shared/api";
 import { useHandsFree } from "@/audio/useHandsFree";
+import type { MyCaption } from "@/audio/myCaptions";
 import { useStreamingCall, type Caption, type StreamMode } from "@/audio/useStreamingCall";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { DeviceChip, HeadsetNotice, InfoNotice, MicStatus } from "@/components/live/LiveParts";
@@ -176,6 +177,7 @@ export default function CallScreen() {
         <MicStatus state={mic.state} error={mic.error} level={mic.level} />
         {!streamingOn && <HeadsetNotice device={handsFree.device} />}
         {streaming.mode === "stream" && <LiveCaptions captions={streaming.captions} peerName={peer.displayName} />}
+        {streaming.mode === "stream" && <MyCaptions captions={streaming.myCaptions} />}
       </View>
       <FlatList
         inverted
@@ -253,6 +255,25 @@ function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: s
   );
 }
 
+/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 → 원문·번역)를 보여 준다. 가장 최근 말만 (2026-10-19) */
+function MyCaptions({ captions }: { captions: MyCaption[] }) {
+  const { t } = useT();
+  const last = captions.at(-1);
+  if (!last) return null;
+  const failed = last.status === "failed";
+  const pending = last.status === "speaking" ? t("stream.mine.speaking") : t("stream.mine.processing");
+  return (
+    <View style={[styles.caption, styles.mine]} accessibilityLiveRegion="polite">
+      <Text style={[font.caption, { color: colors.muted }]}>{t("stream.mine.me")}</Text>
+      <Text style={[font.bodyStrong, failed && { color: colors.danger }]}>
+        {failed && !last.original ? t("stream.mine.failed") : (last.original ?? pending)}
+      </Text>
+      {!failed && last.translation ? <Text style={[font.caption, { color: colors.inkSoft }]}>{last.translation}</Text> : null}
+      {failed && last.original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
+    </View>
+  );
+}
+
 function LiveIndicator() {
   const { t } = useT();
   return (
@@ -303,5 +324,6 @@ const styles = StyleSheet.create({
   ended: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
   modeChip: { alignSelf: "flex-start" },
   caption: { padding: spacing.md, borderRadius: 12, backgroundColor: colors.surfaceAlt, gap: 2 },
+  mine: { alignSelf: "flex-end", maxWidth: "90%", borderWidth: 1, borderColor: colors.border },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
 });

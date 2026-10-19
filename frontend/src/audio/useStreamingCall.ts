@@ -4,6 +4,7 @@ import type { StreamFallbackReason, StreamOpenError } from "@shared/realtime";
 import { STREAMING_ENABLED } from "@/config";
 import { services } from "@/services";
 import { createDuplexAudio } from "./duplex";
+import { discardMine, endMine, expireMine, mineEnd, mineText, startMine, type MyCaption } from "./myCaptions";
 import { debug, markStreamed } from "./streamed";
 import type { HandsFreeError, HandsFreeState } from "./useHandsFree";
 import { createVad } from "./vad";
@@ -18,6 +19,8 @@ import { createVad } from "./vad";
 const SAMPLE_RATE = 16_000;
 /** 말 시작 판단 전 소리도 보내기 위한 사전 버퍼 (100ms × 4) */
 const PREROLL_FRAMES = 4;
+/** 내 말이 받아쓰는 중인데 서버 응답이 없으면 이만큼 뒤 "다시 말해 주세요" */
+const MINE_TIMEOUT_MS = 8_000;
 /** 캡션으로 남겨 두는 최근 턴 수 */
 const MAX_CAPTIONS = 3;
 
@@ -49,10 +52,12 @@ export function useStreamingCall(options: {
   const [level, setLevel] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
+  const [myCaptions, setMyCaptions] = useState<MyCaption[]>([]);
+  const mineSeq = useRef(0);
 
   const callbacks = useRef(options);
   callbacks.current = options;
-  const live = useRef({ streamId: null as string | null, seq: 0, sending: false, preroll: [] as ArrayBuffer[] });
+  const live = useRef({ streamId: null as string | null, seq: 0, sending: false, preroll: [] as ArrayBuffer[], interpret: false });
   const turns = useRef(new Map<string, number>()); // turnId → sampleRate
   const fellBack = useRef(false);
   const vad = useRef(createVad({ endSilenceMs: 600 }));
@@ -100,6 +105,7 @@ export function useStreamingCall(options: {
         return;
       }
       l.streamId = result.streamId;
+      l.interpret = result.mode !== "relay"; // 같은 언어 직접 전달은 받아쓰기가 없어 내 말 자막을 띄우지 않는다
       l.seq = 0;
       l.sending = false;
       l.preroll = [];
@@ -130,6 +136,15 @@ export function useStreamingCall(options: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active, options.sessionId]);
 
+  /** 내 말 끝: 받아쓰는 중으로 바꾸고, 서버 응답이 끝내 없으면 실패로. 너무 짧아 버린 소리는 지운다 */
+  const finishMine = (discarded: boolean) => {
+    if (!live.current.interpret) return;
+    if (discarded) return setMyCaptions(discardMine);
+    const key = `m${mineSeq.current}`;
+    setMyCaptions(endMine);
+    setTimeout(() => setMyCaptions((list) => expireMine(list, key)), MINE_TIMEOUT_MS);
+  };
+
   // ─── 마이크 조각 → 단말 VAD 게이트 → 서버 ─────────────
 
   useEffect(() => {
@@ -139,7 +154,10 @@ export function useStreamingCall(options: {
       if (!l.streamId) return;
       const send = (pcm: ArrayBuffer) => services.realtime.sendStreamAudio(l.streamId!, l.seq++, pcm);
       if (callbacks.current.muted) {
-        if (l.sending) services.realtime.pauseStream(l.streamId);
+        if (l.sending) {
+          services.realtime.pauseStream(l.streamId);
+          finishMine(false);
+        }
         l.sending = false;
         l.preroll = [];
         setLevel(0);
@@ -153,6 +171,10 @@ export function useStreamingCall(options: {
         l.preroll = [];
         send(frame.pcm);
         setState("speaking");
+        if (l.interpret) {
+          const key = `m${++mineSeq.current}`;
+          setMyCaptions((list) => startMine(list, key));
+        }
         return;
       }
       if (l.sending) send(frame.pcm);
@@ -162,7 +184,10 @@ export function useStreamingCall(options: {
       }
       if (event) {
         // 말 끝(뒤 0.6초까지 보냄)·너무 짧음·최대 길이: 서버에 말 끝을 알린다
-        if (l.sending) services.realtime.pauseStream(l.streamId);
+        if (l.sending) {
+          services.realtime.pauseStream(l.streamId);
+          finishMine(event.type === "discard");
+        }
         l.sending = false;
         setState("listening");
       }
@@ -210,6 +235,15 @@ export function useStreamingCall(options: {
         if (p.messageId) markStreamed(p.messageId);
         update(p.turnId, (c) => ({ ...c, status: p.status === "done" ? "done" : "failed" }));
       }),
+      // 내 말의 받아쓰기·번역 (말한 사람에게, 2026-10-19)
+      realtime.on("stream:mine:text", (p) => {
+        if (p.sessionId !== callbacks.current.sessionId) return;
+        setMyCaptions((list) => mineText(list, p.turnId, p.kind, p.text));
+      }),
+      realtime.on("stream:mine:end", (p) => {
+        if (p.sessionId !== callbacks.current.sessionId) return;
+        setMyCaptions((list) => mineEnd(list, p.turnId, p.status));
+      }),
       realtime.on("stream:fallback", (p) => {
         if (p.streamId !== live.current.streamId) return;
         live.current.streamId = null;
@@ -225,5 +259,5 @@ export function useStreamingCall(options: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duplex]);
 
-  return { mode, fallback, state, error, level, playing, captions };
+  return { mode, fallback, state, error, level, playing, captions, myCaptions };
 }

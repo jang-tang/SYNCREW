@@ -55,6 +55,10 @@ export type ServerToClientEvents = {
   "stream:out:text": (payload: { turnId: string; kind: "original" | "translation"; text: string }) => void;
   /** 턴 끝. done 이면 기록(messageId)이 저장되고 message:new 도 따로 온다. failed 면 이 턴 통역 실패 */
   "stream:out:end": (payload: { turnId: string; status: "done" | "failed"; messageId: string | null }) => void;
+  /** 내 말(말한 사람에게): 원문 전사(완성본)·번역 자막 조각 — 말한 사람 화면에 바로 보여 준다 (기록 알림보다 먼저, 2026-10-19) */
+  "stream:mine:text": (payload: { sessionId: string; turnId: string; kind: "original" | "translation"; text: string }) => void;
+  /** 내 말의 턴 끝 (말한 사람에게). failed 면 이 말은 통역되지 않았다 → 다시 말하도록 안내 */
+  "stream:mine:end": (payload: { sessionId: string; turnId: string; status: "done" | "failed" }) => void;
   /** 스트리밍을 계속할 수 없음 → 앱은 발화 단위 방식으로 바꾼다 (말한 사람에게) */
   "stream:fallback": (payload: Envelope & { sessionId: string; streamId: string; reason: StreamFallbackReason }) => void;
 };
