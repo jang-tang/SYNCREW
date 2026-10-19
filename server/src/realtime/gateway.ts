@@ -42,6 +42,7 @@ const streamOpenInput = z.object({
   format: z.object({ encoding: z.literal("pcm16"), sampleRate: z.union([z.literal(16000), z.literal(24000)]), channels: z.literal(1) }),
 });
 const streamIdInput = z.object({ streamId: z.string().regex(UUID) });
+const streamPlayingInput = z.object({ streamId: z.string().regex(UUID), playing: z.boolean() });
 /** 100ms 조각 기준 여유 있게 (24kHz 0.5초) */
 const MAX_FRAME_BYTES = 24_000;
 
@@ -235,6 +236,11 @@ export function attachRealtime(
     socket.on("stream:pause", (payload) => {
       const parsed = streamIdInput.safeParse(payload);
       if (parsed.success) streams.pause(userId, parsed.data.streamId);
+    });
+
+    socket.on("stream:playing", (payload) => {
+      const parsed = streamPlayingInput.safeParse(payload);
+      if (parsed.success) streams.playing(userId, parsed.data.streamId, parsed.data.playing);
     });
 
     socket.on("stream:close", (payload, ack) => {

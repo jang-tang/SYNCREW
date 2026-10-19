@@ -467,6 +467,64 @@ describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기�
     }
   });
 
+  it("앱이 stream:playing 을 보내면 그 신호만 쓴다: playing=true 동안(+꼬리) 내 조각은 무음, playing=false 뒤 꼬리가 지나면 통역된다. 서버 추정과 어긋나도 앱 신호가 이긴다", async () => {
+    const { app: t, engine } = await createApp({ chunkIntervalMs: 100 }, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const [workerSocket] = env.workerSockets;
+      const managerStream = streamIdOf(await open(env.managerSocket, session.id));
+      const managerEngine = engine.connections.at(-1)!;
+
+      // 앱: 재생 시작 (서버는 아무 턴도 보내지 않은 상태 — 서버 추정으로는 재생 중이 아님)
+      env.managerSocket.emit("stream:playing", { streamId: managerStream, playing: true });
+      await sleep(50);
+      const noTurn = noEvent(workerSocket!, "stream:out:start", 1500);
+      const appendedBefore = managerEngine.appendedBytes;
+      let seq = speak(env.managerSocket, managerStream, 0.5);
+      await noTurn;
+      expect(managerEngine.appendedBytes - appendedBefore).toBeGreaterThanOrEqual(seq * 2400 * 2 - 2); // 같은 길이 무음이 들어갔다
+      expect(t.context.streams!.stats(managerStream)).toEqual({ echoDropped: seq, inputGaps: 0 });
+
+      // 앱: 재생 끝 → 꼬리(300ms) 안의 조각은 아직 무음
+      env.managerSocket.emit("stream:playing", { streamId: managerStream, playing: false });
+      await sleep(50);
+      for (let i = 0; i < 2; i++) env.managerSocket.emit("stream:audio", { streamId: managerStream, seq: seq++, pcm: speechFrame() as never });
+      await sleep(100);
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(seq);
+
+      // 꼬리가 지나면 통역된다 (대조군)
+      await sleep(300);
+      const first = collectTurn(workerSocket!);
+      seq = speak(env.managerSocket, managerStream, 0.5, seq);
+      expect((await first).end.status).toBe("done");
+      const droppedSoFar = t.context.streams!.stats(managerStream)!.echoDropped;
+      expect(droppedSoFar).toBeLessThan(seq);
+
+      // 서버가 관리자에게 턴을 보내는 중(서버 추정으로는 재생 중)이어도 앱이 playing=false 라 하면 조각은 정상으로 들어간다
+      const workerStream = streamIdOf(await open(workerSocket!, session.id));
+      await sleep(350); // 구성원은 stream:playing 을 안 보내므로 방금 받은 턴의 서버 추정 꼬리(300ms)가 지나야 말할 수 있다
+      const playing = waitFor(env.managerSocket, "stream:out:start");
+      const played = waitFor(env.managerSocket, "stream:out:end");
+      speak(workerSocket!, workerStream, 1.0);
+      await playing;
+      const second = collectTurn(workerSocket!);
+      seq = speak(env.managerSocket, managerStream, 0.5, seq);
+      expect((await second).end.status).toBe("done");
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(droppedSoFar); // 더 버리지 않음
+      await played;
+
+      // 다른 사람이 내 스트림의 재생 상태를 바꿀 수는 없다
+      workerSocket!.emit("stream:playing", { streamId: managerStream, playing: true });
+      await sleep(50);
+      const third = collectTurn(workerSocket!);
+      speak(env.managerSocket, managerStream, 0.5, seq);
+      expect((await third).end.status).toBe("done");
+    } finally {
+      await t.close();
+    }
+  });
+
   it("같은 언어 직접 전달(relay)도 같다: 상대 소리를 전달 중이면 내 조각은 그냥 버린다(무음도 안 보냄), 끝나면 전달된다", async () => {
     const { app: t } = await createApp({}, { maxStreams: 100 });
     try {

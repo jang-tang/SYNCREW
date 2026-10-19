@@ -36,6 +36,7 @@ export function createMockRealtime(): RealtimeService {
     },
     sendStreamAudio() {},
     pauseStream() {},
+    reportStreamPlaying() {},
     closeStream() {},
   };
 }

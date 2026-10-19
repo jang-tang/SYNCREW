@@ -16,8 +16,10 @@ import { DEFAULT_STREAM_FILTER_OPTIONS, SafeStreamFilter, type StreamFilterOptio
 //   엔진 출력 → 상대에게 stream:out:start/audio/text/end, 턴이 끝나면 기록 저장(persistTurn) + 직전 턴 텍스트 문맥 갱신
 //   엔진이 끊기면 진행 중 턴 실패 → 다시 연결. 짧은 시간에 반복되거나 다시 못 열면 stream:fallback (P6)
 //   반이중 메아리 차단 (2026-10-19 실기기: 스피커로 들은 통역이 마이크로 다시 들어가 내 다음 말에 섞임):
-//     서버가 X 에게 턴을 보내는 동안(stream:out:start ~ stream:out:end + echoGuardMs) X 가 보낸 조각은 버린다 — 통역 스트림은
-//     같은 길이의 무음으로 바꿔 엔진에 넣고(서버 VAD 가 재생 전에 하던 말을 끝낼 수 있게), 같은 언어 직접 전달은 그냥 버린다
+//     X 의 단말이 재생 중(+ 꼬리 echoGuardMs)인 동안 X 가 보낸 조각은 버린다 — 통역 스트림은
+//     같은 길이의 무음으로 바꿔 엔진에 넣고(서버 VAD 가 재생 전에 하던 말을 끝낼 수 있게), 같은 언어 직접 전달은 그냥 버린다.
+//     "재생 중" 판단: 앱이 stream:playing 을 보낸 스트림은 그 신호(실제 재생 시작/끝)만 쓰고, 한 번도 안 보낸 스트림(옛 앱)은
+//     서버 추정(stream:out:start ~ stream:out:end)을 쓴다 — 서버 추정은 폰의 실제 재생(네트워크 + 지터 버퍼)보다 이르다
 
 export type StreamEmitter = {
   toUser(userId: string, event: "stream:out:start", payload: StreamTurnStart): void;
@@ -86,8 +88,12 @@ type Stream = {
   closed: boolean;
   lastSeq: number;
   gaps: number;
-  /** 메아리 차단으로 버린 조각 수 */
+  /** 메아리 차단으로 버린 조각 수 (앱 신호·서버 추정 모두) */
   echoDropped: number;
+  /** 앱이 알린 내 단말 재생 상태 (stream:playing). null = 한 번도 안 알림 → 서버 추정을 쓴다 */
+  appPlaying: boolean | null;
+  /** 앱이 재생 끝을 알린 뒤 꼬리 echoGuardMs 가 끝나는 시각 */
+  appGuardUntil: number;
   /** 아직 턴이 되지 않은 입력 음성 (기록용) */
   pendingInput: Buffer[];
   pendingBytes: number;
@@ -166,6 +172,8 @@ export class StreamHub {
       lastSeq: -1,
       gaps: 0,
       echoDropped: 0,
+      appPlaying: null,
+      appGuardUntil: 0,
       pendingInput: [],
       pendingBytes: 0,
       turns: new Map(),
@@ -251,10 +259,10 @@ export class StreamHub {
     if (!stream || stream.speakerId !== userId || stream.closed || seq <= stream.lastSeq) return;
     if (seq !== stream.lastSeq + 1 && stream.lastSeq >= 0) stream.gaps += seq - stream.lastSeq - 1;
     stream.lastSeq = seq;
-    // 반이중 메아리 차단: 이 사람에게 상대 턴을 재생 중(+ 꼬리 echoGuardMs)이면 조각을 버린다 (스피커 소리가 마이크로 되돌아온 것).
+    // 반이중 메아리 차단: 이 사람의 단말이 상대 턴을 재생 중(+ 꼬리 echoGuardMs)이면 조각을 버린다 (스피커 소리가 마이크로 되돌아온 것).
     // 통역 스트림은 버리는 대신 같은 길이의 무음을 (필터를 거치지 않고, 순서는 유지해) 엔진에 넣는다 — 그래야 재생 전에 말하던 턴의
     // 말 끝 무음이 서버 VAD 에 닿아 턴이 끝난다. 그냥 버리면 그 말이 끝나지 않고 다음 말과 붙어 모두 사라진다 (2026-10-19 실제 OpenAI 확인)
-    if (this.isPlayingTo(userId)) {
+    if (this.isEchoing(stream)) {
       stream.echoDropped += 1;
       if (!stream.relay) stream.filter.after(() => this.ingest(stream, Buffer.alloc(pcm.length)));
       return;
@@ -269,8 +277,23 @@ export class StreamHub {
     return stream ? { echoDropped: stream.echoDropped, inputGaps: stream.gaps } : null;
   }
 
-  // ─── 메아리 차단 (반이중) ───────────────────────────
+  /** 앱이 알린 내 단말의 실제 재생 시작/끝 (stream:playing). 이 뒤로 이 스트림은 서버 추정 대신 이 신호만 쓴다 */
+  playing(userId: string, streamId: string, playing: boolean): void {
+    const stream = this.streams.get(streamId);
+    if (!stream || stream.speakerId !== userId || stream.closed) return;
+    if (stream.appPlaying === true && !playing) stream.appGuardUntil = Date.now() + this.options.echoGuardMs;
+    stream.appPlaying = playing;
+  }
+
+  /** 이 스트림의 조각을 메아리로 봐야 하는가: 앱 신호가 있으면 그것(재생 중 또는 꼬리), 없으면 서버 추정 */
+  private isEchoing(stream: Stream): boolean {
+    if (stream.appPlaying !== null) return stream.appPlaying || Date.now() < stream.appGuardUntil;
+    return this.isPlayingTo(stream.speakerId);
+  }
+
+  // ─── 메아리 차단 (반이중, 서버 추정) ─────────────────
   // stream:out:start 를 보낼 때 playbackStarted, stream:out:end 를 보낼 때 playbackEnded. 모든 start/end 는 이 두 곳을 거친다.
+  // 앱이 stream:playing 을 보내는 스트림에서는 참고하지 않는다 (isEchoing).
 
   private playbackStarted(userId: string, turnId: string): void {
     const entry = this.playback.get(userId) ?? { turns: new Set<string>(), guardUntil: 0 };

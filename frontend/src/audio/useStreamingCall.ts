@@ -5,6 +5,7 @@ import { STREAMING_ENABLED } from "@/config";
 import { services } from "@/services";
 import { createDuplexAudio } from "./duplex";
 import { discardMine, endMine, expireMine, mineEnd, mineText, startMine, type MyCaption } from "./myCaptions";
+import { createPlayingReporter } from "./playingSignal";
 import { debug, markStreamed } from "./streamed";
 import type { HandsFreeError, HandsFreeState } from "./useHandsFree";
 import { createVad } from "./vad";
@@ -12,6 +13,7 @@ import { createVad } from "./vad";
 // 스트리밍 통역 통화 (docs/streaming-plan.md 5절, 서버 계약 docs/realtime-protocol.md 10절)
 // - 말하는 동안 100ms PCM 조각을 보낸다. 단말 VAD 로 말소리 구간만 보내고(앞 0.4초 사전 버퍼, 말 멎은 뒤 0.6초까지), 끝나면 stream:pause
 // - 상대 통역은 조각이 오는 대로 재생하고(이중 오디오), 원문·번역 자막을 실시간으로 보여 준다
+// - 재생이 실제로 시작/끝나면 stream:playing 으로 서버에 알린다 → 서버가 그동안 내 마이크 조각(스피커 메아리)을 무음으로 바꾼다 (2026-10-19)
 // - 스트림을 열 수 없거나(stream:open 실패, 이 기기에 이중 오디오 없음) 서버가 폴백을 알리면 mode = "utterance"
 //   → 통화 화면은 기존 핸즈프리(발화 단위) 방식을 쓴다
 // - 스트림으로 들은 문장은 기록 알림(message:new)이 와도 다시 재생하지 않는다 (audio/streamed.ts)
@@ -23,6 +25,8 @@ const PREROLL_FRAMES = 4;
 const MINE_TIMEOUT_MS = 8_000;
 /** 캡션으로 남겨 두는 최근 턴 수 */
 const MAX_CAPTIONS = 3;
+/** 재생 끝 신호 떨림 제거: 이 시간 안에 다시 시작하면 끝→시작을 보내지 않는다 (턴 사이 짧은 끊김) */
+const PLAYING_DEBOUNCE_MS = 200;
 
 export type StreamMode = "off" | "connecting" | "stream" | "relay" | "utterance";
 
@@ -58,6 +62,14 @@ export function useStreamingCall(options: {
   const callbacks = useRef(options);
   callbacks.current = options;
   const live = useRef({ streamId: null as string | null, seq: 0, sending: false, preroll: [] as ArrayBuffer[], interpret: false });
+  const playingReporter = useRef(
+    createPlayingReporter(
+      (now) => {
+        if (live.current.streamId) services.realtime.reportStreamPlaying(live.current.streamId, now);
+      },
+      { debounceMs: PLAYING_DEBOUNCE_MS },
+    ),
+  );
   const turns = useRef(new Map<string, number>()); // turnId → sampleRate
   const fellBack = useRef(false);
   const vad = useRef(createVad({ endSilenceMs: 600 }));
@@ -129,6 +141,7 @@ export function useStreamingCall(options: {
       if (l.streamId) services.realtime.closeStream(l.streamId);
       l.streamId = null;
       l.sending = false;
+      playingReporter.current.reset();
       void duplex.stop();
       setLevel(0);
       setPlaying(false);
@@ -247,11 +260,15 @@ export function useStreamingCall(options: {
       realtime.on("stream:fallback", (p) => {
         if (p.streamId !== live.current.streamId) return;
         live.current.streamId = null;
+        playingReporter.current.reset();
         void duplex.stop();
         goUtterance(p.reason, true);
       }),
     ];
-    const offPlayback = duplex.onPlayback(({ playing: now }) => setPlaying(now));
+    const offPlayback = duplex.onPlayback(({ playing: now }) => {
+      setPlaying(now);
+      playingReporter.current.update(now);
+    });
     return () => {
       offs.forEach((off) => off());
       offPlayback();

@@ -120,6 +120,11 @@ export type ClientToServerEvents = {
    * 서버는 이 이벤트로 턴을 확정하지 않는다 (2026-10-19: 수동 commit 이 OpenAI VAD 를 멈추는 것을 실측). 같은 언어 직접 전달은 턴을 닫는다
    */
   "stream:pause": (payload: { streamId: string }) => void;
+  /**
+   * 내 단말의 통역 재생이 실제로 시작/끝남 (2026-10-19, 메아리 차단용). 서버는 playing=true 인 동안(+ 꼬리 echoGuardMs) 내 조각을
+   * 무음으로 바꾼다. 이 이벤트를 한 번이라도 보낸 스트림은 서버의 재생 추정(stream:out:start~end) 대신 이 신호만 쓴다. ack 없음
+   */
+  "stream:playing": (payload: { streamId: string; playing: boolean }) => void;
   "stream:close": (payload: { streamId: string }, ack: (result: AckResult) => void) => void;
 };
 
