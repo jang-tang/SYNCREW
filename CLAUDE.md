@@ -50,7 +50,7 @@
 3. **S4 1:1 통화(휴대폰 2대) → S6 실기기 튜닝** (지연 P50 ≤ 2.0초·P90 ≤ 3.0초, 무음 300–400ms·추론 minimal 실험, 헤드셋, 비용 약 $3–6 → 서버 한도 상향 전 금액 안내)
 4. 실기기에서만 확인 가능: 비밀번호 재설정 메일 링크 → 앱 열림, 사람 목소리로 받아쓰기("비계→기계" 재확인), 작업조·관리자 지정 화면의 네이티브 표시, 소리 품질·체감 지연
 5. 다른 팀원 몫: 실제 노이즈 필터 구현(서버 `STREAM_AUDIO_FILTER`·`AUDIO_PREPROCESSOR` 에 등록), 현장 용어 데이터 보강(거푸집·안전모·안전고리 등, 중국어·러시아어·우즈베크어 번역)
-6. 나중에: UI 문구 원어민 검수, 업무용 메일 서비스(지금 개인 Gmail SMTP), 우즈베크어 통역 품질(보류), 용어집 지시문(보류), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
+6. 나중에: UI 문구 원어민 검수, 업무용 메일 서비스(지금 개인 Gmail SMTP), 우즈베크어 통역 품질(보류), ~~용어집 지시문(보류)~~(2026-10-19 스트리밍에도 적용, `docs/streaming-plan.md` 4-2절), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ### 지켜야 할 사용자 결정 (요약, 상세는 `docs/streaming-plan.md` 0-1·0-2절)
 - Phase·단계마다 멈추고 승인. 커밋·푸시는 요청할 때만
@@ -65,7 +65,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**221개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**31개**).
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**229개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**31개**).
 4. **실기기 준비 여부를 먼저 확인**한다 (`docs/HANDOFF.md` 5·7절). 준비 전이면 준비 절차를 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 약 $0.34 사용). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -129,7 +129,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 221개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·노이즈 필터 사이드카·작업조·역할 포함)
+cd server && npm run typecheck && npm test       # 테스트 229개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)

@@ -181,6 +181,8 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(r.start).toMatchObject({ fromUserId: worker!.id, lang: "ko" });
     expect(r.end.status).toBe("done");
     expect(engine.connections.slice(-2).map((c) => `${c.sourceLang}→${c.targetLang}`)).toEqual(["ko→vi", "vi→ko"]);
+    // 언어 쌍 용어집이 엔진 세션에 미리 들어간다 (2026-10-19)
+    expect(engine.connections.slice(-2).map((c) => c.glossaryTerms > 0)).toEqual([true, true]);
   });
 
   it("말한 사람에게도 자기 말의 원문·번역 자막(stream:mine:text)과 턴 끝(stream:mine:end)이 바로 간다 (2026-10-19 실기기: 내 말이 늦게 떠 여러 번 말함)", async () => {
@@ -390,6 +392,110 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(second).not.toBe(first);
     expect(firstRecord.closed).toBe(true);
     expect(engine.connections.at(-1)!.closed).toBe(false);
+  });
+});
+
+describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기기: 스피커 통역 소리가 마이크로 되돌아옴)", () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it("상대 통역을 재생 중(+꼬리 300ms)일 때 보낸 내 조각은 버려져 턴이 생기지 않고(echoDropped), 꼬리가 지나면 정상으로 턴이 된다", async () => {
+    // 가짜 엔진이 100ms 마다 조각을 보내 재생이 1초쯤 이어지게 한다
+    const { app: t, engine } = await createApp({ chunkIntervalMs: 100 }, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const [workerSocket] = env.workerSockets;
+      const managerStream = streamIdOf(await open(env.managerSocket, session.id));
+      const managerEngine = engine.connections.at(-1)!;
+      const workerStream = streamIdOf(await open(workerSocket!, session.id));
+
+      // 구성원이 1초 말함 → 관리자에게 통역 재생 시작
+      const playing = waitFor(env.managerSocket, "stream:out:start");
+      const played = waitFor(env.managerSocket, "stream:out:end");
+      speak(workerSocket!, workerStream, 1.0);
+      await playing;
+      const appendedBefore = managerEngine.appendedBytes;
+      // 재생 중에 관리자가 말함(실기기에서는 스피커 소리가 마이크로 들어온 것) → 버려진다
+      const noTurn = noEvent(workerSocket!, "stream:out:start", 1800);
+      const sent = speak(env.managerSocket, managerStream, 0.5);
+      const end = await played;
+      expect(end.status).toBe("done");
+      // 꼬리(300ms) 안에 보낸 조각도 버려진다
+      for (let i = 0; i < 3; i++) env.managerSocket.emit("stream:audio", { streamId: managerStream, seq: sent + i, pcm: speechFrame() as never });
+      await noTurn;
+      expect(managerEngine.appendedBytes).toBe(appendedBefore);
+      expect(t.context.streams!.stats(managerStream)).toEqual({ echoDropped: sent + 3, inputGaps: 0 });
+
+      // 대조군: 꼬리가 지난 뒤 같은 조각은 통역된다
+      await sleep(350);
+      const turn = collectTurn(workerSocket!);
+      speak(env.managerSocket, managerStream, 0.5, sent + 3);
+      const got = await turn;
+      expect(got.end.status).toBe("done");
+      expect(got.text.find((x) => x.kind === "original")?.text).toBe("[음성 ko] 0.5s");
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(sent + 3); // 더 버리지 않음
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("echoGuardMs: 0 이고 재생 중이 아니면 하던 대로 — 아무것도 버리지 않고, 상대 턴이 끝난 직후 말해도 바로 통역된다", async () => {
+    const { app: t } = await createApp({}, { maxStreams: 100, echoGuardMs: 0 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const [workerSocket] = env.workerSockets;
+      const managerStream = streamIdOf(await open(env.managerSocket, session.id));
+      const first = collectTurn(workerSocket!);
+      let seq = speak(env.managerSocket, managerStream, 0.5);
+      expect((await first).end.status).toBe("done");
+      expect(t.context.streams!.stats(managerStream)).toEqual({ echoDropped: 0, inputGaps: 0 });
+
+      // 상대 턴이 끝난 직후(꼬리 0) 말하면 바로 턴이 된다
+      const workerStream = streamIdOf(await open(workerSocket!, session.id));
+      const played = waitFor(env.managerSocket, "stream:out:end");
+      speak(workerSocket!, workerStream, 0.3);
+      await played;
+      const second = collectTurn(workerSocket!);
+      seq = speak(env.managerSocket, managerStream, 0.4, seq);
+      expect((await second).end.status).toBe("done");
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(0);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("같은 언어 직접 전달(relay)도 같다: 상대 소리를 전달 중이면 내 조각은 버린다, 끝나면 전달된다", async () => {
+    const { app: t } = await createApp({}, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["ko"]);
+      const session = await connectCall(env);
+      const [workerSocket] = env.workerSockets;
+      const managerStream = streamIdOf(await open(env.managerSocket, session.id));
+      const workerStream = streamIdOf(await open(workerSocket!, session.id));
+      // 구성원 소리가 관리자에게 전달되는 중 (pause 전까지 턴이 열려 있다)
+      const playing = waitFor(env.managerSocket, "stream:out:start");
+      workerSocket!.emit("stream:audio", { streamId: workerStream, seq: 0, pcm: speechFrame() as never });
+      await playing;
+      const noTurn = noEvent(workerSocket!, "stream:out:start", 500);
+      for (let i = 0; i < 3; i++) env.managerSocket.emit("stream:audio", { streamId: managerStream, seq: i, pcm: speechFrame() as never });
+      await noTurn;
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(3);
+
+      // 대조군: 전달이 끝나고(pause) 꼬리가 지나면 관리자 소리가 전달된다
+      const played = waitFor(env.managerSocket, "stream:out:end");
+      workerSocket!.emit("stream:pause", { streamId: workerStream });
+      await played;
+      await sleep(350);
+      const turn = collectTurn(workerSocket!);
+      for (let i = 3; i < 6; i++) env.managerSocket.emit("stream:audio", { streamId: managerStream, seq: i, pcm: speechFrame() as never });
+      env.managerSocket.emit("stream:pause", { streamId: managerStream });
+      const got = await turn;
+      expect(got.audio.map((a) => a.seq)).toEqual([0, 1, 2]);
+      expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(3);
+    } finally {
+      await t.close();
+    }
   });
 });
 

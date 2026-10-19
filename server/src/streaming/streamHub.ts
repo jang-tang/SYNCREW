@@ -15,6 +15,8 @@ import { DEFAULT_STREAM_FILTER_OPTIONS, SafeStreamFilter, type StreamFilterOptio
 //   stream:audio → 표본률 변환 → 엔진. 엔진이 말 끝을 감지하면 턴 시작
 //   엔진 출력 → 상대에게 stream:out:start/audio/text/end, 턴이 끝나면 기록 저장(persistTurn) + 직전 턴 텍스트 문맥 갱신
 //   엔진이 끊기면 진행 중 턴 실패 → 다시 연결. 짧은 시간에 반복되거나 다시 못 열면 stream:fallback (P6)
+//   반이중 메아리 차단 (2026-10-19 실기기: 스피커로 들은 통역이 마이크로 다시 들어가 내 다음 말에 섞임):
+//     서버가 X 에게 턴을 보내는 동안(stream:out:start ~ stream:out:end + echoGuardMs) X 가 보낸 조각은 버린다 (필터·엔진에 넣지 않음)
 
 export type StreamEmitter = {
   toUser(userId: string, event: "stream:out:start", payload: StreamTurnStart): void;
@@ -38,9 +40,22 @@ export type StreamHubOptions = {
   relayIdleMs: number;
   /** 서버 노이즈 필터(조각 단위) 안전 규칙 */
   filter: StreamFilterOptions;
+  /** 메아리 차단: 상대 턴 재생이 끝난 뒤에도 이 시간 동안은 내 조각을 버린다 (스피커 → 마이크 잔향·재생 지연) */
+  echoGuardMs: number;
 };
 
-export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = { enabled: true, maxStreams: 4, failureWindowMs: 60_000, maxTurnSeconds: 35, relayIdleMs: 1_000, filter: DEFAULT_STREAM_FILTER_OPTIONS };
+export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
+  enabled: true,
+  maxStreams: 4,
+  failureWindowMs: 60_000,
+  maxTurnSeconds: 35,
+  relayIdleMs: 1_000,
+  filter: DEFAULT_STREAM_FILTER_OPTIONS,
+  echoGuardMs: 300,
+};
+
+/** 사용자 1명에게 재생 중인 턴들과, 마지막 턴이 끝난 뒤 차단이 풀리는 시각 */
+type Playback = { turns: Set<string>; guardUntil: number };
 
 type TurnState = {
   id: string;
@@ -70,6 +85,8 @@ type Stream = {
   closed: boolean;
   lastSeq: number;
   gaps: number;
+  /** 메아리 차단으로 버린 조각 수 */
+  echoDropped: number;
   /** 아직 턴이 되지 않은 입력 음성 (기록용) */
   pendingInput: Buffer[];
   pendingBytes: number;
@@ -87,6 +104,8 @@ type Stream = {
 
 export class StreamHub {
   private readonly streams = new Map<string, Stream>();
+  /** 듣는 사람(userId)별 재생 상태 — 메아리 차단 판단용 */
+  private readonly playback = new Map<string, Playback>();
   readonly options: StreamHubOptions;
 
   constructor(
@@ -145,6 +164,7 @@ export class StreamHub {
       closed: false,
       lastSeq: -1,
       gaps: 0,
+      echoDropped: 0,
       pendingInput: [],
       pendingBytes: 0,
       turns: new Map(),
@@ -192,6 +212,8 @@ export class StreamHub {
     return this.engine!.open({
       sourceLang: stream.sourceLang,
       targetLang: stream.targetLang,
+      // 언어 쌍 기준 현장 용어집을 세션 지시문에 미리 넣는다 (2026-10-19, 발화 단위 방식과 같은 데이터셋)
+      glossary: this.ctx.domain.streamGlossary(stream.sourceLang, stream.targetLang),
       events: {
         turnStart: (turnId) => this.onTurnStart(stream, turnId),
         audio: (turnId, pcm) => this.onAudio(stream, turnId, pcm),
@@ -228,8 +250,48 @@ export class StreamHub {
     if (!stream || stream.speakerId !== userId || stream.closed || seq <= stream.lastSeq) return;
     if (seq !== stream.lastSeq + 1 && stream.lastSeq >= 0) stream.gaps += seq - stream.lastSeq - 1;
     stream.lastSeq = seq;
+    // 반이중 메아리 차단: 이 사람에게 상대 턴을 재생 중(+ 꼬리 echoGuardMs)이면 조각을 버린다 (스피커 소리가 마이크로 되돌아온 것)
+    if (this.isPlayingTo(userId)) {
+      stream.echoDropped += 1;
+      return;
+    }
     // 서버 노이즈 필터 → (같은 언어) 그대로 전달 / (통역) 표본률 변환 후 엔진
     stream.filter.push(pcm, (frame) => this.ingest(stream, frame));
+  }
+
+  /** 스트림의 입력 통계 (시험·진단용) */
+  stats(streamId: string): { echoDropped: number; inputGaps: number } | null {
+    const stream = this.streams.get(streamId);
+    return stream ? { echoDropped: stream.echoDropped, inputGaps: stream.gaps } : null;
+  }
+
+  // ─── 메아리 차단 (반이중) ───────────────────────────
+  // stream:out:start 를 보낼 때 playbackStarted, stream:out:end 를 보낼 때 playbackEnded. 모든 start/end 는 이 두 곳을 거친다.
+
+  private playbackStarted(userId: string, turnId: string): void {
+    const entry = this.playback.get(userId) ?? { turns: new Set<string>(), guardUntil: 0 };
+    entry.turns.add(turnId);
+    this.playback.set(userId, entry);
+  }
+
+  private playbackEnded(userId: string, turnId: string): void {
+    const entry = this.playback.get(userId);
+    if (!entry) return;
+    entry.turns.delete(turnId);
+    if (entry.turns.size === 0) {
+      entry.guardUntil = Date.now() + this.options.echoGuardMs;
+      if (this.options.echoGuardMs <= 0) this.playback.delete(userId);
+    }
+  }
+
+  /** 이 사람에게 턴을 재생 중이거나, 마지막 턴이 끝난 지 echoGuardMs 가 안 됐는가 */
+  private isPlayingTo(userId: string): boolean {
+    const entry = this.playback.get(userId);
+    if (!entry) return false;
+    if (entry.turns.size > 0) return true;
+    if (Date.now() < entry.guardUntil) return true;
+    this.playback.delete(userId);
+    return false;
   }
 
   private ingest(stream: Stream, pcm: Buffer): void {
@@ -263,6 +325,7 @@ export class StreamHub {
   private relayAudio(stream: Stream, pcm: Buffer): void {
     if (!stream.relayTurn) {
       stream.relayTurn = { id: randomUUID(), seq: 0 };
+      this.playbackStarted(stream.listenerId, stream.relayTurn.id);
       this.emit.toUser(stream.listenerId, "stream:out:start", {
         sessionId: stream.sessionId,
         turnId: stream.relayTurn.id,
@@ -282,7 +345,9 @@ export class StreamHub {
     stream.relayTimer = null;
     const turn = stream.relayTurn;
     stream.relayTurn = null;
-    if (turn) this.emit.toUser(stream.listenerId, "stream:out:end", { turnId: turn.id, status: "done", messageId: null });
+    if (!turn) return;
+    this.emit.toUser(stream.listenerId, "stream:out:end", { turnId: turn.id, status: "done", messageId: null });
+    this.playbackEnded(stream.listenerId, turn.id);
   }
 
   close(userId: string, streamId: string): boolean {
@@ -300,6 +365,7 @@ export class StreamHub {
     stream.pendingInput = [];
     stream.pendingBytes = 0;
     stream.turns.set(turnId, { id: turnId, seq: 0, output: [], input, translation: "", original: null, startedAt: Date.now(), firstAudioAt: null });
+    this.playbackStarted(stream.listenerId, turnId);
     this.emit.toUser(stream.listenerId, "stream:out:start", {
       sessionId: stream.sessionId,
       turnId,
@@ -350,6 +416,7 @@ export class StreamHub {
           firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.startedAt : -1,
           totalMs: Date.now() - turn.startedAt,
           inputGaps: stream.gaps,
+          echoDropped: stream.echoDropped,
         },
       });
     } catch (error) {
@@ -368,6 +435,7 @@ export class StreamHub {
   /** 통역 턴 끝: 듣는 사람(stream:out:end)과 말한 사람(stream:mine:end) 모두에게 */
   private endTurn(stream: Stream, turnId: string, status: "done" | "failed", messageId: string | null): void {
     this.emit.toUser(stream.listenerId, "stream:out:end", { turnId, status, messageId });
+    this.playbackEnded(stream.listenerId, turnId);
     this.emit.toUser(stream.speakerId, "stream:mine:end", { sessionId: stream.sessionId, turnId, status });
   }
 
@@ -410,10 +478,11 @@ export class StreamHub {
     if (stream.relay) this.endRelayTurn(stream);
     stream.closed = true;
     stream.filter.close();
-    if (this.ctx.streamAudioFilter.name !== "passthrough") {
-      // 필터가 실제로 쓰였는지 확인용 (filtered = 필터 결과를 쓴 조각, failed = 원본을 쓴 조각)
-      this.ctx.logger.info({ sessionId: stream.sessionId, streamId: stream.id, filter: this.ctx.streamAudioFilter.name, ...stream.filter.stats }, "스트리밍 노이즈 필터 결과");
-    }
+    // 입력 통계: 필터가 실제로 쓰였는지 (filtered = 필터 결과를 쓴 조각, failed = 원본을 쓴 조각), 메아리 차단으로 버린 조각(echoDropped), 빠진 순번(gaps)
+    this.ctx.logger.info(
+      { sessionId: stream.sessionId, streamId: stream.id, relay: stream.relay, filter: this.ctx.streamAudioFilter.name, ...stream.filter.stats, echoDropped: stream.echoDropped, gaps: stream.gaps },
+      "스트리밍 노이즈 필터·메아리 차단 결과",
+    );
     this.streams.delete(stream.id);
     stream.connection?.close();
     stream.connection = null;
