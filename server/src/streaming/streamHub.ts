@@ -21,7 +21,7 @@ export type StreamEmitter = {
   toUser(userId: string, event: "stream:out:audio", payload: { turnId: string; seq: number; pcm: Buffer }): void;
   toUser(userId: string, event: "stream:out:text", payload: { turnId: string; kind: "original" | "translation"; text: string }): void;
   toUser(userId: string, event: "stream:out:end", payload: { turnId: string; status: "done" | "failed"; messageId: string | null }): void;
-  toUser(userId: string, event: "stream:mine:text", payload: { sessionId: string; turnId: string; kind: "original" | "translation"; text: string }): void;
+  toUser(userId: string, event: "stream:mine:text", payload: { sessionId: string; turnId: string; kind: "original" | "original_partial" | "translation"; text: string }): void;
   toUser(userId: string, event: "stream:mine:end", payload: { sessionId: string; turnId: string; status: "done" | "failed" }): void;
   fallback(userId: string, payload: { sessionId: string; streamId: string; reason: StreamFallbackReason }): void;
 };
@@ -202,6 +202,11 @@ export class StreamHub {
           this.emit.toUser(stream.listenerId, "stream:out:text", { turnId, kind: "translation", text });
           this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "translation", text });
         },
+        originalDelta: (turnId, text) => {
+          // 받아쓰는 중 글자는 말한 사람에게만 (듣는 사람은 완성본만)
+          if (!stream.turns.has(turnId) || stream.closed) return;
+          this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original_partial", text });
+        },
         original: (turnId, text) => {
           const turn = stream.turns.get(turnId);
           if (!turn || stream.closed) return;
@@ -242,11 +247,12 @@ export class StreamHub {
   pause(userId: string, streamId: string): void {
     const stream = this.streams.get(streamId);
     if (!stream || stream.speakerId !== userId || stream.closed) return;
-    // 필터 처리 중인 조각이 모두 들어간 뒤에 말 끝을 알린다
+    // stream:pause = 단말이 보내기를 멈췄다는 뜻. 통역 스트림의 말 끝은 엔진(서버 VAD)만 정하므로 엔진에 아무것도 보내지 않는다
+    // (수동 commit 은 OpenAI 세션의 VAD 를 멈춰 뒤의 말이 모두 사라졌다 — 2026-10-19 실측). 같은 언어 직접 전달만 턴을 닫는다
+    if (!stream.relay) return;
+    // 필터 처리 중인 조각이 모두 들어간 뒤에 턴을 닫는다
     stream.filter.after(() => {
-      if (stream.closed) return;
-      if (stream.relay) this.endRelayTurn(stream);
-      else stream.connection?.commit();
+      if (!stream.closed) this.endRelayTurn(stream);
     });
   }
 

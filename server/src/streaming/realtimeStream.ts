@@ -15,8 +15,11 @@ import {
 // OpenAI Realtime 스트리밍 엔진 (gpt-realtime-2.1, GA 인터페이스 — 2026-10-13 S0 측정 스크립트로 실제 확인한 설정).
 //   - 화자 1명 × 대상 언어 1개당 WebSocket 세션 1개를 통화 내내 연다
 //   - server_vad(무음 500ms, 앞 300ms) + create_response, interrupt_response=false (이어 말해도 앞 번역을 끊지 않음)
-//   - 단말이 말 끝(stream:pause)을 알려 수동 commit 하면 create_response 가 붙지 않으므로 response.create 를 직접 보낸다
-//     (앞 응답이 진행 중이면 끝난 뒤에. 2026-10-19 실측: 무음 0.3초 뒤 commit → 전사만 오고 번역 응답 없음)
+//   - **말 끝은 서버 VAD 만 정한다.** 단말은 말이 멎은 뒤 ≥0.6초 무음까지 보내고, stream:pause 는 "보내기 중단" 뜻일 뿐이다.
+//     수동 input_audio_buffer.commit 은 보내지 않는다 — 2026-10-19 실제 API 실측: 수동 commit 을 한 번 보내면 그 세션의
+//     서버 VAD 가 다시는 speech_started 를 내지 않아 뒤의 말이 모두 조용히 사라진다. 수동 commit 없이 무음 ≥0.5초면
+//     speech_stopped → committed → response.created 가 저절로 이어지고 여러 턴이 모두 된다 (말 끝 뒤 약 10ms 에 응답 시작)
+//   - 입력 전사 조각(...transcription.delta)은 originalDelta 로, 완성본은 original 로 올린다
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done 사용량으로 기록 (BudgetGuard)
@@ -123,17 +126,6 @@ class RealtimeConnection implements StreamConnection {
   private readonly awaitingResponse: Turn[] = [];
   private readonly responseToTurn = new Map<string, Turn>();
   private bytesSinceCommit = 0;
-  private speaking = false;
-  /** 만들어졌지만 아직 끝나지 않은 응답 수 */
-  private activeResponses = 0;
-  /** 보냈지만 아직 response.created 가 오지 않은 response.create */
-  private createInFlight = false;
-  /** 앞 응답이 끝나기를 기다리는 수동 commit 의 response.create 수 */
-  private pendingCreates = 0;
-  /** 단말 말 끝으로 commit 을 보냈고 아직 확정(committed)되지 않았다 */
-  private manualCommit = false;
-  /** 이번 말에서 엔진 VAD 가 말 끝을 감지했다 → 확정되면 자동 응답이 붙는다 */
-  private vadStopped = false;
   private context: ContextLine[] = [];
   private closedByUs = false;
   private failed = false;
@@ -218,20 +210,7 @@ class RealtimeConnection implements StreamConnection {
   }
 
   commit(): void {
-    // 엔진 VAD 가 이미 확정했으면(말하는 중이 아니면) 보내지 않는다 — 빈 버퍼 확정은 오류가 된다
-    if (!this.speaking) return;
-    this.send({ type: "input_audio_buffer.commit" });
-    // 수동 commit 에는 server_vad 의 자동 응답이 붙지 않는다 → 확정(committed)되면 response.create.
-    // VAD 가 같은 순간 먼저 확정했으면(speech_stopped) 자동 응답이 있으므로 보내지 않는다 (2026-10-19 경쟁 실측)
-    this.manualCommit = true;
-  }
-
-  /** 진행 중인 응답이 없을 때 기다리던 response.create 를 하나 보낸다 (한 번에 응답 1개) */
-  private flushCreates(): void {
-    if (this.pendingCreates === 0 || this.activeResponses > 0 || this.createInFlight) return;
-    this.pendingCreates -= 1;
-    this.createInFlight = true;
-    this.send({ type: "response.create" });
+    // 아무것도 보내지 않는다. 말 끝은 서버 VAD 만 정한다 — 수동 input_audio_buffer.commit 은 그 세션의 VAD 를 멈춘다 (2026-10-19 실측)
   }
 
   setContext(lines: ContextLine[]): void {
@@ -251,28 +230,11 @@ class RealtimeConnection implements StreamConnection {
   private handle(event: ServerEvent | null): void {
     if (!event || this.failed) return;
     switch (event.type) {
-      case "input_audio_buffer.speech_started":
-        this.speaking = true;
-        this.vadStopped = false;
-        break;
-      case "input_audio_buffer.speech_stopped":
-        this.vadStopped = true;
-        break;
-      case "input_audio_buffer.committed": {
-        this.speaking = false;
-        const needsCreate = this.manualCommit && !this.vadStopped;
-        this.manualCommit = false;
-        this.vadStopped = false;
+      case "input_audio_buffer.committed":
+        // 서버 VAD 가 말 끝을 정해 확정함 → 턴 시작 (create_response 로 응답이 저절로 붙는다)
         if (event.item_id) void this.newTurn(event.item_id);
-        if (needsCreate) {
-          this.pendingCreates += 1;
-          this.flushCreates();
-        }
         break;
-      }
       case "response.created": {
-        this.activeResponses += 1;
-        this.createInFlight = false;
         const turn = this.awaitingResponse.shift();
         if (!turn || !event.response?.id) break;
         turn.responseId = event.response.id;
@@ -303,6 +265,12 @@ class RealtimeConnection implements StreamConnection {
         if (turn && event.transcript) turn.translation = event.transcript;
         break;
       }
+      case "conversation.item.input_audio_transcription.delta": {
+        // 원문 전사 조각 (말한 사람 화면에 받아쓰는 중 글자를 바로 보여 주기 위해)
+        const turn = event.item_id ? this.turns.get(event.item_id) : undefined;
+        if (turn && !turn.cancelled && event.delta) this.events.originalDelta(turn.id, event.delta);
+        break;
+      }
       case "conversation.item.input_audio_transcription.completed":
       case "conversation.item.input_audio_transcription.failed": {
         const turn = event.item_id ? this.turns.get(event.item_id) : undefined;
@@ -316,8 +284,6 @@ class RealtimeConnection implements StreamConnection {
         break;
       }
       case "response.done": {
-        this.activeResponses = Math.max(0, this.activeResponses - 1);
-        this.flushCreates();
         const turn = this.turnOf(event.response?.id);
         if (!turn) break;
         turn.responseDone = true;
@@ -335,14 +301,6 @@ class RealtimeConnection implements StreamConnection {
       }
       case "error":
         this.options.log?.("Realtime 스트림 오류 이벤트", { code: event.error?.code, message: event.error?.message });
-        if (event.error?.code === "input_audio_buffer_commit_empty") {
-          // VAD 가 이미 확정한 버퍼 — 그 확정에 자동 응답이 붙는다
-          this.manualCommit = false;
-        } else if (event.error?.code === "conversation_already_has_active_response" && this.createInFlight) {
-          // 보낸 response.create 가 거절됨 → 멈추지 말고 진행 중인 응답이 끝난 뒤 다시 보낸다
-          this.createInFlight = false;
-          this.pendingCreates += 1;
-        }
         break;
     }
   }

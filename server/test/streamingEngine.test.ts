@@ -111,6 +111,7 @@ function recorder() {
     turnStart: (turnId) => log.push({ type: "start", turnId }),
     audio: (turnId, pcm) => log.push({ type: "audio", turnId, data: pcm.length }),
     translationDelta: (turnId, text) => log.push({ type: "delta", turnId, data: text }),
+    originalDelta: (turnId, text) => log.push({ type: "originalDelta", turnId, data: text }),
     original: (turnId, text) => log.push({ type: "original", turnId, data: text }),
     turnEnd: (turnId, result) => ends.push({ turnId, result }),
     closed: (reason) => (closed = reason),
@@ -222,91 +223,36 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     connection.close();
   });
 
-  it("단말 commit 은 말하는 중일 때만 보낸다 (엔진 VAD 가 이미 확정했으면 빈 버퍼 오류를 피함)", async () => {
-    const server = await fakeRealtime();
-    const { engine: e } = engine(server.url);
-    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: recorder().events });
-    connection.commit();
-    server.send({ type: "input_audio_buffer.speech_started" });
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    connection.commit();
-    await until(() => server.received.some((r) => r.type === "input_audio_buffer.commit"));
-    expect(server.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(1);
-    connection.close();
-  });
-
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const creates = (server: { received: { type: string }[] }) => server.received.filter((r) => r.type === "response.create").length;
 
-  it("단말 commit 이 확정(committed)되면 response.create 를 보낸다 (server_vad 자동 응답은 수동 commit 에 붙지 않음, 2026-10-19 실측)", async () => {
-    const server = await fakeRealtime();
-    const { engine: e } = engine(server.url);
-    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
-    server.send({ type: "input_audio_buffer.speech_started" });
-    await sleep(50);
-    connection.commit();
-    await until(() => server.received.some((r) => r.type === "input_audio_buffer.commit"));
-    await sleep(30);
-    expect(creates(server)).toBe(0); // 확정 전에는 보내지 않는다
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_m" });
-    await until(() => creates(server) === 1);
-    connection.close();
-  });
-
-  it("VAD 가 먼저 말 끝을 감지했으면(speech_stopped) 단말 commit 이 겹쳐도 응답을 따로 만들지 않는다 (2026-10-19 경쟁 실측)", async () => {
+  it("단말 말 끝(commit)에 아무것도 보내지 않는다 — 말 끝은 서버 VAD 만 정한다 (2026-10-19 실측: 수동 commit 뒤 VAD 가 멈춤)", async () => {
     const server = await fakeRealtime();
     const { engine: e } = engine(server.url);
     const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: recorder().events });
     server.send({ type: "input_audio_buffer.speech_started" });
     await sleep(50);
-    connection.commit(); // 단말의 말 끝 알림이 VAD 확정과 거의 동시에
-    server.send({ type: "input_audio_buffer.speech_stopped" });
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_vad" });
-    server.send({ type: "error", error: { code: "input_audio_buffer_commit_empty", message: "buffer too small" } });
-    await sleep(80);
-    expect(creates(server)).toBe(0); // VAD 의 자동 응답이 있으므로 보내지 않는다
+    connection.commit();
+    connection.setContext([{ original: "a", translation: "b" }]); // 대조군: 그 뒤 보낸 것은 도착한다
+    await until(() => server.received.filter((r) => r.type === "session.update").length === 2);
+    expect(server.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(0);
+    expect(server.received.filter((r) => r.type === "response.create")).toHaveLength(0);
     connection.close();
   });
 
-  it("앞 응답이 진행 중이면 단말 commit 의 response.create 는 그 응답이 끝난 뒤 보낸다", async () => {
+  it("원문 전사 조각(...transcription.delta)은 originalDelta 로 그 턴에 붙여 올린다", async () => {
     const server = await fakeRealtime();
     const { engine: e } = engine(server.url);
-    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_a" });
-    server.send({ type: "response.created", response: { id: "resp_a" } });
-    server.send({ type: "input_audio_buffer.speech_started" });
-    await sleep(50);
-    connection.commit();
-    await until(() => server.received.some((r) => r.type === "input_audio_buffer.commit"));
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_b" });
-    await sleep(50);
-    expect(creates(server)).toBe(0);
-    server.send({ type: "response.done", response: { id: "resp_a", status: "completed", output: [] } });
-    await until(() => creates(server) === 1);
-    connection.close();
-  });
-
-  it("response.create 가 거절(conversation_already_has_active_response)되면 멈추지 않고 앞 응답이 끝난 뒤 다시 보낸다", async () => {
-    const server = await fakeRealtime();
-    const { engine: e } = engine(server.url);
-    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
-    server.send({ type: "input_audio_buffer.speech_started" });
-    await sleep(50);
-    connection.commit();
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_m" });
-    await until(() => creates(server) === 1);
-    server.send({ type: "error", error: { code: "conversation_already_has_active_response", message: "active response" } });
-    await sleep(30);
-    server.send({ type: "response.done", response: { id: "resp_other", status: "completed", output: [] } });
-    await until(() => creates(server) === 2);
-    // 그 뒤의 단말 commit 도 계속 응답을 만든다 (멈춤 없음)
-    server.send({ type: "response.created", response: { id: "resp_m" } });
-    server.send({ type: "response.done", response: { id: "resp_m", status: "completed", output: [] } });
-    server.send({ type: "input_audio_buffer.speech_started" });
-    await sleep(50);
-    connection.commit();
-    server.send({ type: "input_audio_buffer.committed", item_id: "item_n" });
-    await until(() => creates(server) === 3);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_d" });
+    server.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "item_d", delta: "안전모" });
+    server.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "item_other", delta: "모르는 항목" });
+    server.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "item_d", delta: " 쓰세요" });
+    await until(() => rec.log.filter((l) => l.type === "originalDelta").length === 2);
+    expect(rec.log).toEqual([
+      { type: "originalDelta", turnId: "item_d", data: "안전모" },
+      { type: "originalDelta", turnId: "item_d", data: " 쓰세요" },
+    ]);
     connection.close();
   });
 

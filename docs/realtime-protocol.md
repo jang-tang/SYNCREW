@@ -107,12 +107,14 @@ POST 메시지 → 202
 |---|---|---|
 | 앱 → 서버 | `stream:open` (ack) | `{sessionId, format: {encoding: "pcm16", sampleRate: 16000\|24000, channels: 1}}` → `{ok: true, streamId, outputSampleRate, mode: "interpret"\|"relay"}` 또는 `{ok: false, code}`. interpret = OpenAI 통역(출력 24kHz), relay = 같은 언어라 받은 음성을 그대로 전달(출력 = 보낸 표본률) |
 | 앱 → 서버 | `stream:audio` | `{streamId, seq, pcm}` — PCM16 mono 약 100ms, 바이너리(ArrayBuffer). ack 없음. 최대 24,000바이트 |
-| 앱 → 서버 | `stream:pause` | `{streamId}` — 단말이 말 끝을 판단(뒤 여유까지 보낸 뒤). 서버가 그 턴을 바로 확정 |
+| 앱 → 서버 | `stream:pause` | `{streamId}` — 단말이 **보내기를 멈췄다**는 뜻 (말이 멎은 뒤 ≥0.6초 무음까지 보낸 뒤). **통역 스트림의 턴은 이 이벤트로 확정하지 않는다** — 말 끝은 서버 VAD(무음 0.5초)만 정한다 (2026-10-19 실측: 수동 commit 을 한 번 보내면 OpenAI 세션의 VAD 가 멈춰 뒤의 말이 모두 사라짐). 같은 언어 직접 전달은 턴을 닫는다 |
 | 앱 → 서버 | `stream:close` (ack) | `{streamId}` |
 | 서버 → 듣는 사람 | `stream:out:start` | `{sessionId, turnId, fromUserId, lang, sampleRate}` |
 | 서버 → 듣는 사람 | `stream:out:audio` | `{turnId, seq, pcm}` — 번역 음성 조각 (PCM16 24kHz), seq 는 턴마다 0부터 |
 | 서버 → 듣는 사람 | `stream:out:text` | `{turnId, kind: "original"\|"translation", text}` — translation 은 조각(delta), original 은 원문 전사 완성본 |
 | 서버 → 듣는 사람 | `stream:out:end` | `{turnId, status: "done"\|"failed", messageId}` — done 이면 기록 저장됨 |
+| 서버 → 말한 사람 | `stream:mine:text` | `{sessionId, turnId, kind: "original"\|"original_partial"\|"translation", text}` — 내 말 자막 (2026-10-19). `original_partial` 은 받아쓰는 중 원문 조각(delta, 이어 붙임), `original` 은 완성본(붙인 조각을 통째로 바꿈), `translation` 은 번역 자막 조각. `original_partial` 은 말한 사람에게만 가고 듣는 사람(`stream:out:text`)은 완성본만 받는다 |
+| 서버 → 말한 사람 | `stream:mine:end` | `{sessionId, turnId, status: "done"\|"failed"}` — 내 말의 턴 끝. failed 면 통역되지 않음 → 다시 말하도록 안내 |
 | 서버 → 말한 사람 | `stream:fallback` | `{sessionId, streamId, reason: "ENGINE_FAILED"\|"BUDGET_EXCEEDED"}` + 봉투 (통화 종료 시에는 보내지 않음) → 발화 단위 방식으로 전환 |
 
 - `stream:open` 오류 코드: `NOT_FOUND`(세션 없음·비참여자), `CONFLICT`(진행 중 아님), `UNSUPPORTED`(일괄 지시·`STREAMING=off`), `BUSY`(OpenAI 엔진 연결 상한 `STREAM_MAX_SESSIONS`, 직접 전달은 세지 않음), `BUDGET_EXCEEDED`, `ENGINE_UNAVAILABLE`(키 없음·엔진 열기 실패 — 통역 통화만), `VALIDATION_ERROR`. **앱은 ok 가 아니면 발화 단위 방식으로 통화한다.**
@@ -122,6 +124,7 @@ POST 메시지 → 202
 - 서버는 듣는 사람이 스트리밍 중인지와 상관없이 `stream:out:*` 를 보낸다. **앱은 자기 스트림이 열려 있을 때만 스트림 턴을 받는다** — 문장 단위(폴백)로 통화 중이면 무시하고 기록 알림(`message:new`)으로 재생한다 (2026-10-17 수정, live e2e `E2E_MIXED`). 같은 언어 직접 전달은 기록이 없어 이 경우 들리지 않는다(남은 한계).
 - 실패한 턴(엔진 끊김·번역 실패)은 기록하지 않고 `stream:out:end`(failed) 만 보낸다 (사용자 결정 2026-10-13).
 - **같은 언어 통화(relay, 사용자 결정 2026-10-13)**: OpenAI 를 거치지 않고 받은 조각을 그대로 상대에게 `stream:out:audio` 로 보낸다(표본률 변환도 없음). 조각이 오기 시작하면 `stream:out:start`, `stream:pause` 또는 1초 동안 조각이 없으면 `stream:out:end`(done, messageId null). 자막(`stream:out:text`)·기록·비용 없음.
+- **말 끝 판단 (2026-10-19 결정)**: 통역 스트림의 말 끝은 **OpenAI 서버 VAD 만** 정한다. 단말은 말이 멎은 뒤 ≥0.6초 무음까지 보내 서버 VAD(0.5초)가 턴을 끝내게 하고, `stream:pause` 는 보내기 중단 알림일 뿐이다. 서버는 `input_audio_buffer.commit`·`response.create` 를 보내지 않는다 (실측: 수동 commit 뒤 그 세션의 VAD 가 `speech_started` 를 다시 내지 않아 2번째 말부터 모두 사라짐).
 - 음성 조각 이벤트는 빈도가 높아 봉투(eventId·at)를 붙이지 않는다. `stream:fallback` 만 봉투가 있다.
 
 ## 11. 확장

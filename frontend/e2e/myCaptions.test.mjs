@@ -6,7 +6,7 @@ import { discardMine, endMine, expireMine, mineEnd, mineText, startMine } from "
 
 test("말 시작 → 듣는 중, 말 끝 → 받아쓰는 중", () => {
   let list = startMine([], "a");
-  assert.deepEqual(list, [{ key: "a", turnId: null, original: null, translation: "", status: "speaking" }]);
+  assert.deepEqual(list, [{ key: "a", turnId: null, original: null, partial: "", translation: "", status: "speaking" }]);
   list = endMine(list);
   assert.equal(list[0].status, "processing");
 });
@@ -16,9 +16,20 @@ test("서버 자막이 오면 기다리던 내 말에 붙고(원문·번역 조�
   list = mineText(list, "t1", "original", "안전모 쓰세요");
   list = mineText(list, "t1", "translation", "Hãy đội ");
   list = mineText(list, "t1", "translation", "mũ bảo hộ");
-  assert.deepEqual(list[0], { key: "a", turnId: "t1", original: "안전모 쓰세요", translation: "Hãy đội mũ bảo hộ", status: "processing" });
+  assert.deepEqual(list[0], { key: "a", turnId: "t1", original: "안전모 쓰세요", partial: "", translation: "Hãy đội mũ bảo hộ", status: "processing" });
   list = mineEnd(list, "t1", "done");
   assert.equal(list[0].status, "done");
+});
+
+test("받아쓰는 중 조각(original_partial)은 이어 붙고, 완성본(original)이 오면 그것으로 바뀐다", () => {
+  let list = endMine(startMine([], "a"));
+  list = mineText(list, "t1", "original_partial", "안전");
+  list = mineText(list, "t1", "original_partial", "모 쓰");
+  assert.equal(list[0].partial, "안전모 쓰");
+  assert.equal(list[0].original, null); // 화면은 original ?? partial 로 보여 준다
+  list = mineText(list, "t1", "original", "안전모 쓰세요.");
+  assert.equal(list[0].original, "안전모 쓰세요.");
+  assert.equal(list[0].turnId, "t1");
 });
 
 test("서버가 먼저 확정한 턴(단말 말 끝 전에)도 말하는 중인 내 말에 붙는다", () => {

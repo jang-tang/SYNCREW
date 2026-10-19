@@ -255,21 +255,23 @@ function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: s
   );
 }
 
-/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 → 원문·번역)를 보여 준다. 가장 최근 말만 (2026-10-19) */
+/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. 가장 최근 말만 (2026-10-19) */
 function MyCaptions({ captions }: { captions: MyCaption[] }) {
   const { t } = useT();
   const last = captions.at(-1);
   if (!last) return null;
   const failed = last.status === "failed";
+  // 완성본 원문 → 받아쓰는 중 조각 → 둘 다 없으면 상태 문구
+  const original = last.original ?? (last.partial || null);
   const pending = last.status === "speaking" ? t("stream.mine.speaking") : t("stream.mine.processing");
   return (
     <View style={[styles.caption, styles.mine]} accessibilityLiveRegion="polite">
       <Text style={[font.caption, { color: colors.muted }]}>{t("stream.mine.me")}</Text>
       <Text style={[font.bodyStrong, failed && { color: colors.danger }]}>
-        {failed && !last.original ? t("stream.mine.failed") : (last.original ?? pending)}
+        {failed && !original ? t("stream.mine.failed") : (original ?? pending)}
       </Text>
       {!failed && last.translation ? <Text style={[font.caption, { color: colors.inkSoft }]}>{last.translation}</Text> : null}
-      {failed && last.original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
+      {failed && original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
     </View>
   );
 }

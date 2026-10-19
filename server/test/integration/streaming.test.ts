@@ -201,6 +201,25 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(texts.every((x) => x.sessionId === session.id && x.turnId === theirs.turnId)).toBe(true);
     expect(texts.find((x) => x.kind === "original")?.text).toBe("[음성 ko] 1.0s");
     expect(texts.filter((x) => x.kind === "translation").map((x) => x.text).join("")).toBe("[vi] [음성 ko] 1.0s");
+    // 받아쓰는 중 조각(original_partial)이 완성본(original)보다 먼저, 말한 사람에게만 온다
+    const partialAt = texts.findIndex((x) => x.kind === "original_partial");
+    const originalAt = texts.findIndex((x) => x.kind === "original");
+    expect(partialAt).toBeGreaterThanOrEqual(0);
+    expect(partialAt).toBeLessThan(originalAt);
+    expect("[음성 ko] 1.0s".startsWith(texts[partialAt]!.text)).toBe(true);
+  });
+
+  it("듣는 사람은 받아쓰는 중 조각(original_partial)을 받지 않고 완성본만 받는다", async () => {
+    const env = await setupSite(t, ["vi"]);
+    const session = await connectCall(env);
+    const streamId = streamIdOf(await open(env.managerSocket, session.id));
+    const mine = waitFor(env.managerSocket, "stream:mine:text", (x) => x.kind === "original_partial"); // 대조군: 말한 사람은 받음
+    const turn = collectTurn(env.workerSockets[0]!);
+    speak(env.managerSocket, streamId, 0.5);
+    const got = await turn;
+    await mine;
+    expect(got.text.map((x) => x.kind)).not.toContain("original_partial");
+    expect(got.text.filter((x) => x.kind === "original")).toHaveLength(1);
   });
 
   it("듣는 사람은 stream:out:end(messageId) 를 같은 문장의 message:new 보다 먼저 받는다 (앱의 중복 재생 방지 전제)", async () => {
@@ -238,15 +257,20 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(record.contexts.at(-1)![1]!.translation).toBe("[zh] [음성 ko] 0.5s");
   });
 
-  it("단말이 말 끝을 알리면(stream:pause) 엔진 무음 판단을 기다리지 않고 턴을 확정한다", async () => {
+  it("stream:pause 는 턴을 확정하지 않는다 — 말 끝은 엔진(서버 VAD) 무음 판단만 (2026-10-19: 수동 commit 이 OpenAI VAD 를 멈춤)", async () => {
     const env = await setupSite(t, ["ru"]);
     const session = await connectCall(env);
     const streamId = streamIdOf(await open(env.managerSocket, session.id));
-    const turn = collectTurn(env.workerSockets[0]!);
-    speak(env.managerSocket, streamId, 0.6, 0, 0);
+    const listener = env.workerSockets[0]!;
+    const quiet = noEvent(listener, "stream:out:start", 700);
+    const seq = speak(env.managerSocket, streamId, 0.6, 0, 0); // 뒤 무음 없이
     env.managerSocket.emit("stream:pause", { streamId });
+    await quiet;
+    expect(engine.connections.at(-1)!.commits).toBe(0);
+    // 대조군: 뒤 무음(≥ 엔진 500ms)이 오면 그제야 턴이 확정된다
+    const turn = collectTurn(listener);
+    speak(env.managerSocket, streamId, 0, seq);
     expect((await turn).end.status).toBe("done");
-    expect(engine.connections.at(-1)!.commits).toBe(1);
   });
 
   it("권한: 비참여자 NOT_FOUND, 울리는 중 CONFLICT, 일괄 지시 UNSUPPORTED, 형식 오류 VALIDATION_ERROR", async () => {

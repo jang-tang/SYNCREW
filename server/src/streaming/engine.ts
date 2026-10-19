@@ -13,12 +13,14 @@ export type TurnEnd =
   | { status: "failed"; code: "ENGINE_CLOSED" | "BUDGET_EXCEEDED" | "TRANSLATION_FAILED" | "EMPTY" };
 
 export type StreamEngineEvents = {
-  /** 엔진이 말 끝을 감지(또는 commit)해 번역을 시작함 */
+  /** 엔진(서버 VAD)이 말 끝을 감지해 번역을 시작함 */
   turnStart(turnId: string): void;
   /** 번역 음성 조각 (PCM16, 엔진 sampleRate) */
   audio(turnId: string, pcm: Buffer): void;
   /** 번역 자막 조각 */
   translationDelta(turnId: string, text: string): void;
+  /** 원문 전사 조각 (받아쓰는 중 글자, 이어 붙인다. 완성본 original 이 오면 그것으로 바꾼다) */
+  originalDelta(turnId: string, text: string): void;
   /** 원문 전사 (완성본, 번역보다 늦게 올 수 있다) */
   original(turnId: string, text: string): void;
   turnEnd(turnId: string, result: TurnEnd): void;
@@ -29,7 +31,10 @@ export type StreamEngineEvents = {
 export interface StreamConnection {
   /** 입력 음성 조각 (PCM16, 엔진 sampleRate) */
   append(pcm: Buffer): void;
-  /** 단말이 말 끝을 알림: 말하는 중이던 턴을 바로 확정한다 (엔진 VAD 가 이미 확정했으면 무시) */
+  /**
+   * 단말이 보내기를 멈춤(stream:pause). 말 끝은 엔진(서버 VAD)만 정하므로 OpenAI 구현은 아무것도 보내지 않는다
+   * (수동 commit 은 그 세션의 VAD 를 멈춘다 — 2026-10-19 실측). 가짜 엔진은 횟수만 센다
+   */
   commit(): void;
   /** 다음 턴부터 쓸 텍스트 문맥 */
   setContext(lines: ContextLine[]): void;

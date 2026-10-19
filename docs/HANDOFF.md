@@ -61,6 +61,13 @@
 | S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
+#### 스트리밍 말 끝 판단 변경 — 2026-10-19 (브랜치 `fix/stream-commit-race`)
+- **증상**: 실기기(iPhone, LTE) 스트리밍 통화에서 2번째 말부터 번역이 안 됨 (7~8번 말해 5번만 기록). 같은 날 앞 커밋(`72e34d1`)은 `response.create` 경쟁을 고쳤지만 근본 원인이 아니었다
+- **근본 원인 (실제 OpenAI API 탐침으로 실측)**: 서버가 `stream:pause` 를 수동 `input_audio_buffer.commit` 으로 바꿔 보냈는데, **수동 commit 을 한 번 보내면 그 세션의 서버 VAD 가 다시는 `speech_started` 를 내지 않는다** → 뒤의 말이 모두 조용히 사라짐. 수동 commit 없이 뒤 무음 ≥0.5초만 보내면 VAD 가 `speech_stopped → committed → response.created` 로 턴마다 알아서 끝내고(말 끝 뒤 약 10ms 에 응답 시작) 여러 턴이 모두 된다
+- **결정: 말 끝은 서버 VAD 만 정한다.** 단말은 말이 멎은 뒤 ≥0.6초 무음까지 보내고, `stream:pause` 는 "보내기 중단" 뜻만 갖는다 (통역 스트림은 엔진에 아무것도 보내지 않고, 같은 언어 직접 전달만 턴을 닫는다). 서버는 `input_audio_buffer.commit`·`response.create` 를 보내지 않는다 — `server/src/streaming/realtimeStream.ts` 의 수동 commit·응답 경쟁 코드를 모두 지움
+- **덧붙임**: 원문 전사 조각(`conversation.item.input_audio_transcription.delta`)을 `stream:mine:text` `kind: "original_partial"` 로 말한 사람에게 보내 받아쓰는 중 글자가 바로 뜬다(완성본 `original` 이 오면 바꿈). 듣는 사람은 완성본만. `scripts/call-peer.ts` 뒤 무음 0.3 → 0.8초
+- 문서: `docs/realtime-protocol.md` 10절, `docs/streaming-plan.md` D4. 시험: 서버 221 (수동 commit 시험 5개 삭제, 새 시험 3개), 앱 단위 31
+
 #### 실기기 없이 마무리 (2) — 2026-10-17
 - **S3 네이티브 코드 재점검** (Swift 482줄·Kotlin 554줄·JS 어댑터·`useStreamingCall`·`useHandsFree` 를 처음부터 읽음): 실기기 전에 고쳐야 할 결함은 찾지 못했다. 확인한 것 — Android: 통신 모드 진입·복원, Android 12+ `setCommunicationDevice`(블루투스 SCO > 유선 > 스피커, 수화기 제외), 장치 붙음·빠짐 재선택, 녹음·재생 논블로킹 스레드와 정지 순서, 시작 실패 시 정리, AEC/NS/AGC. iOS: playAndRecord+voiceChat+HFP, voice processing 실패 시 계속, 경로 변경·엔진 설정 변경·중단·미디어 서비스 재시작 시 재구성, 재생 세대 번호로 이전 콜백 무시, 권한 요청. JS: 스트림 열기 실패·마이크 실패 → 문장 단위, 들은 문장 재생 안 함
   - 실기기에서 눈여겨볼 점(결함은 아님): ① Android 블루투스 SCO 는 켜지는 데 시간이 걸려 통화 첫 0.5–1초는 휴대폰 마이크로 녹음될 수 있다 ② 재생 오류가 계속되면 `onError` 가 20ms 마다 반복될 수 있다(로그가 많아짐) ③ iOS 녹음 탭 크기는 iOS 가 정해 첫 조각까지 약 100ms 더 걸릴 수 있다 ④ 오디오 포커스(다른 앱 음악 멈춤)는 요청하지 않는다
