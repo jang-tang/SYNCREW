@@ -1,5 +1,5 @@
 import type { Lang } from "../../shared/languages";
-import type { Dataset, LexiconEntry, PhraseEntry } from "../dataset/types";
+import { riskRank, type Dataset, type LexiconEntry, type PhraseEntry } from "../dataset/types";
 import { isWordChar, matchKey, prepareText, sentenceKey, usesWordBoundaries } from "./textMatching";
 
 /** 어떤 형태로 용어가 감지됐는지 */
@@ -51,6 +51,49 @@ export type DomainProcessorOptions = {
 
 const DEFAULT_OPTIONS: DomainProcessorOptions = { minSurfaceLength: 2, maxContextTerms: 12 };
 
+/**
+ * 스트리밍 통역용 미리 넣는 용어집 (언어 쌍 기준, 2026-10-19).
+ * 스트리밍은 번역 전에 텍스트가 없어 원문으로 용어를 고를 수 없으므로, 언어 쌍마다 고정된 묶음을 세션 지시문에 미리 넣는다.
+ * 묶음은 결정적(같은 입력 → 같은 순서)이어야 OpenAI 프롬프트 캐시가 맞는다.
+ */
+export type StreamGlossary = {
+  /** 용어: 원문 언어 표현 → 대상 언어 표현 (의미·규칙은 글자 수를 아끼려 넣지 않는다) */
+  terms: ContextTerm[];
+  /** 검증 문장 (긴급 문장 우선): 턴이 그 문장과 같으면 그대로 쓰도록 */
+  phrases: { source: string; target: string }[];
+};
+
+export type StreamGlossaryOptions = {
+  /** 용어 최대 수 */
+  maxTerms: number;
+  /** 검증 문장 최대 수 */
+  maxPhrases: number;
+};
+
+/**
+ * 상한 (docs/streaming-plan.md 4-2절): 용어 110개 + 검증 문장 12개 → ko↔vi 지시문 약 3,900자 (STREAM_INSTRUCTIONS_MAX_CHARS 4,500 안).
+ * 턴마다 입력 텍스트 토큰으로 들어가지만 지시문 앞부분이 바뀌지 않아 2번째 턴부터는 캐시 단가(1/10)로 계산된다.
+ * 110개인 이유 (ko→vi 데이터 기준): critical 64개 + high 중 안전·PPE·긴급·건설 안전 은어 분야 40개가 모두 들어가는 크기.
+ * 60개로 자르면 critical 만 남아 안전모·장갑 같은 PPE 용어가 빠진다.
+ */
+export const DEFAULT_STREAM_GLOSSARY_OPTIONS: StreamGlossaryOptions = { maxTerms: 110, maxPhrases: 12 };
+
+/** 안전 분야 (데이터셋 domain 값: safety, ppe, safety_emergency, construction_safety_slang 등) */
+const SAFETY_DOMAIN = /safety|ppe|emergency/i;
+
+/** 용어 우선순위 묶음 (낮을수록 먼저): critical → high+안전 분야 → high+핵심 → high → normal+핵심 → normal */
+function glossaryGroup(entry: LexiconEntry): number {
+  if (entry.risk === "critical") return 0;
+  const base = riskRank(entry.risk) * 3;
+  if (entry.domain && SAFETY_DOMAIN.test(entry.domain)) return base - 2;
+  return base - (entry.core ? 1 : 0);
+}
+
+/** 결정적 문자열 비교 (로케일 무관, 코드 포인트 순서) */
+function compareCodePoints(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 type Surface = { key: string; entry: LexiconEntry; kind: HitKind };
 
 /** 용어·문장의 언어별 표현. 원어는 표준 표현, 나머지는 번역 값. */
@@ -68,6 +111,8 @@ export class DomainProcessor {
   /** 언어별 → 첫 글자별 → 길이 내림차순 표현 목록 */
   private readonly surfaces = new Map<Lang, Map<string, Surface[]>>();
   private readonly phrases = new Map<Lang, Map<string, PhraseEntry>>();
+  /** 언어 쌍별 스트리밍 용어집 (데이터셋이 바뀌지 않으므로 한 번 만들면 그대로) */
+  private readonly streamGlossaries = new Map<string, StreamGlossary>();
 
   constructor(
     readonly dataset: Dataset,
@@ -208,6 +253,45 @@ export class DomainProcessor {
       if (source && target) context.phrase = { source, target };
     }
     return context;
+  }
+
+  /**
+   * 스트리밍 통역 세션에 미리 넣을 용어집 (언어 쌍 기준, 결정적 순서).
+   * 용어: 원문·대상 언어 표현이 모두 있는 항목만. 묶음(glossaryGroup: critical → high+안전 분야 → high+핵심 → high → …) → 원문 표현 코드 포인트 순.
+   * 문장: 데이터셋 순서(긴급 문장이 앞) 그대로 원문·대상 표현이 모두 있는 것.
+   */
+  streamGlossary(sourceLang: Lang, targetLang: Lang, options: Partial<StreamGlossaryOptions> = {}): StreamGlossary {
+    const { maxTerms, maxPhrases } = { ...DEFAULT_STREAM_GLOSSARY_OPTIONS, ...options };
+    const key = `${sourceLang}→${targetLang}:${maxTerms}:${maxPhrases}`;
+    const cached = this.streamGlossaries.get(key);
+    if (cached) return cached;
+
+    const glossary: StreamGlossary = { terms: [], phrases: [] };
+    if (sourceLang !== targetLang) {
+      // 같은 원문 표현이 여러 항목에 있으면(예: vi→ko 에서 "giàn giáo" 는 비계·아시바 둘 다) 묶음이 앞서는 것, 같으면 은어(rule 있음)보다 표준 용어를 쓴다
+      const bySource = new Map<string, { source: string; target: string; group: number; slang: boolean }>();
+      for (const entry of this.dataset.lexicon) {
+        const forms = formsOf(entry.lang, entry.canonical, entry.translations);
+        const source = forms[sourceLang];
+        const target = forms[targetLang];
+        if (!source || !target) continue;
+        const candidate = { source, target, group: glossaryGroup(entry), slang: Boolean(entry.rule) };
+        const existing = bySource.get(source);
+        if (!existing || candidate.group < existing.group || (candidate.group === existing.group && existing.slang && !candidate.slang)) bySource.set(source, candidate);
+      }
+      const candidates = [...bySource.values()].sort((a, b) => a.group - b.group || compareCodePoints(a.source, b.source));
+      glossary.terms = candidates.slice(0, maxTerms).map(({ source, target }) => ({ source, target }));
+
+      for (const phrase of this.dataset.phrases) {
+        if (glossary.phrases.length >= maxPhrases) break;
+        const forms = formsOf(phrase.lang, phrase.text, phrase.translations);
+        const source = forms[sourceLang];
+        const target = forms[targetLang];
+        if (source && target) glossary.phrases.push({ source, target });
+      }
+    }
+    this.streamGlossaries.set(key, glossary);
+    return glossary;
   }
 
   stats() {

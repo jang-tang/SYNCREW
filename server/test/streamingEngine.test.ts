@@ -1,10 +1,13 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { WebSocketServer, type WebSocket } from "ws";
 import { BudgetExceededError, BudgetGuard, InMemoryUsageStore } from "../src/engine/budget/budgetGuard";
 import { DEFAULT_PRICING } from "../src/engine/budget/pricing";
-import { buildStreamInstructions, type StreamEngineEvents, type TurnEnd } from "../src/streaming/engine";
+import { LegacyWorkplaceAdapter } from "../src/engine/dataset/legacyWorkplaceAdapter";
+import { DomainProcessor, type StreamGlossary } from "../src/engine/domain/domainProcessor";
+import { LANG_CODES } from "../src/shared/languages";
+import { buildStreamInstructions, STREAM_INSTRUCTIONS_MAX_CHARS, type StreamEngineEvents, type TurnEnd } from "../src/streaming/engine";
 import { RealtimeStreamEngine, realtimeUsage } from "../src/streaming/realtimeStream";
 import { LinearResampler, rms } from "../src/streaming/resample";
 
@@ -61,6 +64,71 @@ describe("buildStreamInstructions", () => {
     const withContext = buildStreamInstructions("ko", "vi", [{ original: "자재 옮기세요", translation: "Hãy chuyển vật liệu" }]);
     expect(withContext).toContain("Do NOT translate, repeat, or answer them again");
     expect(withContext).toContain('"자재 옮기세요" → "Hãy chuyển vật liệu"');
+  });
+});
+
+describe("스트리밍 용어집 (언어 쌍 기준 미리 넣기, 2026-10-19)", () => {
+  let domain: DomainProcessor;
+  beforeAll(async () => {
+    domain = new DomainProcessor(await new LegacyWorkplaceAdapter("data/legacy-workplace").load());
+  });
+  const context = [
+    { original: "삼 층 비계 작업을 시작하세요", translation: "Hãy bắt đầu công việc giàn giáo ở tầng ba" },
+    { original: "안전모를 쓰세요", translation: "Hãy đội mũ bảo hộ" },
+  ];
+
+  it("ko→vi 지시문에 현장 용어(비계·안전모)와 검증 긴급 문장이 들어가고, 용어집은 실시간 안내·문맥보다 앞에 고정된다", () => {
+    const glossary = domain.streamGlossary("ko", "vi");
+    expect(glossary.terms).toContainEqual({ source: "비계", target: "giàn giáo" });
+    expect(glossary.terms).toContainEqual({ source: "안전모", target: "mũ bảo hộ" });
+    expect(glossary.phrases[0]).toEqual({ source: "멈춰!", target: "Dừng lại ngay!" });
+    const text = buildStreamInstructions("ko", "vi", context, glossary);
+    expect(text).toContain("- 비계 → giàn giáo");
+    expect(text).toContain("- 안전모 → mũ bảo hộ");
+    expect(text).toContain('- "멈춰!" → "Dừng lại ngay!"');
+    const glossaryAt = text.indexOf("Glossary");
+    const liveAt = text.indexOf("Each user turn is live speech");
+    const contextAt = text.indexOf("Recent turns");
+    expect(glossaryAt).toBeGreaterThan(0);
+    expect(glossaryAt).toBeLessThan(liveAt);
+    expect(liveAt).toBeLessThan(contextAt);
+    // 반대 방향(vi→ko)은 베트남어 표현이 원문
+    expect(buildStreamInstructions("vi", "ko", [], domain.streamGlossary("vi", "ko"))).toContain("- giàn giáo → 비계");
+  });
+
+  it("문맥이 바뀌어도 지시문 앞부분(용어집 포함)은 그대로다 — OpenAI 프롬프트 캐시 전제", () => {
+    const glossary = domain.streamGlossary("ko", "vi");
+    const first = buildStreamInstructions("ko", "vi", [], glossary);
+    const second = buildStreamInstructions("ko", "vi", context, glossary);
+    expect(second.startsWith(first)).toBe(true);
+    expect(second.length).toBeGreaterThan(first.length);
+  });
+
+  it("크기 상한: 모든 언어 쌍의 지시문(문맥 2줄 포함)이 STREAM_INSTRUCTIONS_MAX_CHARS 안이다 (용어 ≤ 110개, 문장 ≤ 12개)", () => {
+    for (const source of LANG_CODES) {
+      for (const target of LANG_CODES) {
+        if (source === target) continue;
+        const glossary = domain.streamGlossary(source, target);
+        expect(glossary.terms.length).toBeLessThanOrEqual(110);
+        expect(glossary.phrases.length).toBeLessThanOrEqual(12);
+        expect(buildStreamInstructions(source, target, context, glossary).length).toBeLessThanOrEqual(STREAM_INSTRUCTIONS_MAX_CHARS);
+      }
+    }
+    // 지금 데이터는 ko↔vi 만 번역이 있다 (다른 언어는 용어 0개 — 데이터 보강은 다른 팀원 몫)
+    expect(domain.streamGlossary("ko", "vi").terms.length).toBe(110);
+    expect(domain.streamGlossary("ko", "zh").terms).toEqual([]);
+  });
+
+  it("순서가 결정적이다: 두 번 만들어도, 데이터셋을 다시 읽어도 같은 순서 (critical 용어가 앞)", async () => {
+    const a = domain.streamGlossary("ko", "vi");
+    const b = domain.streamGlossary("ko", "vi");
+    const other = new DomainProcessor(await new LegacyWorkplaceAdapter("data/legacy-workplace").load()).streamGlossary("ko", "vi");
+    expect(b).toEqual(a);
+    expect(other).toEqual(a);
+    expect(buildStreamInstructions("ko", "vi", [], a)).toBe(buildStreamInstructions("ko", "vi", [], other));
+    const sources = a.terms.map((t) => t.source);
+    expect(sources.indexOf("비계")).toBeLessThan(sources.indexOf("안전모")); // critical 이 high 보다 앞
+    expect(new Set(sources).size).toBe(sources.length); // 중복 없음
   });
 });
 
@@ -174,6 +242,22 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
       reasoning: { effort: "low" },
     });
     expect(server.headers()["authorization"]).toBe("Bearer sk-test");
+    connection.close();
+  });
+
+  it("용어집을 넘기면 세션 지시문에 들어가고, 문맥(setContext) 갱신은 그 뒤에만 붙는다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const glossary: StreamGlossary = { terms: [{ source: "비계", target: "giàn giáo" }], phrases: [{ source: "멈춰!", target: "Dừng lại ngay!" }] };
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: recorder().events, glossary });
+    const first = (server.received[0] as unknown as { session: { instructions: string } }).session.instructions;
+    expect(first).toContain("- 비계 → giàn giáo");
+    expect(first).toContain('- "멈춰!" → "Dừng lại ngay!"');
+    connection.setContext([{ original: "a", translation: "b" }]);
+    await until(() => server.received.filter((r) => r.type === "session.update").length === 2);
+    const second = (server.received.filter((r) => r.type === "session.update")[1] as unknown as { session: { instructions: string } }).session.instructions;
+    expect(second.startsWith(first)).toBe(true);
+    expect(second).toContain('"a" → "b"');
     connection.close();
   });
 

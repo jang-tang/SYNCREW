@@ -3,6 +3,7 @@ import type { Lang } from "../shared/languages";
 import { BudgetExceededError, type BudgetGuard, type Reservation } from "../engine/budget/budgetGuard";
 import type { UsageTokens } from "../engine/budget/pricing";
 import { STT_PROMPT } from "../messaging/pipeline";
+import type { StreamGlossary } from "../engine/domain/domainProcessor";
 import {
   buildStreamInstructions,
   type ContextLine,
@@ -22,6 +23,7 @@ import {
 //   - 입력 전사 조각(...transcription.delta)은 originalDelta 로, 완성본은 original 로 올린다
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
+//   - 언어 쌍 용어집(glossary)은 세션을 열 때 지시문 앞쪽에 고정 (2026-10-19, buildStreamInstructions)
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done 사용량으로 기록 (BudgetGuard)
 // 이벤트 이름·필드: docs/s0-report.md 1절, server/scripts/stream-measure.ts.
 
@@ -87,12 +89,12 @@ export class RealtimeStreamEngine implements StreamEngine {
 
   constructor(private readonly options: RealtimeStreamOptions) {}
 
-  async open({ sourceLang, targetLang, events }: StreamOpenOptions): Promise<StreamConnection> {
+  async open({ sourceLang, targetLang, events, glossary }: StreamOpenOptions): Promise<StreamConnection> {
     const status = await this.options.budget.status();
     if (status.remainingUsd < MIN_REMAINING_USD) {
       throw new BudgetExceededError(status.limitUsd, status.spentUsd, MIN_REMAINING_USD);
     }
-    const connection = new RealtimeConnection(this.options, sourceLang, targetLang, events);
+    const connection = new RealtimeConnection(this.options, sourceLang, targetLang, events, glossary);
     await connection.ready;
     return connection;
   }
@@ -135,6 +137,7 @@ class RealtimeConnection implements StreamConnection {
     private readonly sourceLang: Lang,
     private readonly targetLang: Lang,
     private readonly events: StreamEngineEvents,
+    private readonly glossary?: StreamGlossary,
   ) {
     this.ws = new WebSocket(`${options.url ?? URL_BASE}?model=${encodeURIComponent(options.model)}`, {
       headers: { Authorization: `Bearer ${options.apiKey}` },
@@ -170,7 +173,7 @@ class RealtimeConnection implements StreamConnection {
   }
 
   private sessionUpdate(full: boolean): object {
-    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context);
+    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary);
     if (!full) return { type: "session.update", session: { type: "realtime", instructions } };
     const { options } = this;
     return {
@@ -332,7 +335,7 @@ class RealtimeConnection implements StreamConnection {
     this.turns.set(itemId, turn);
     this.awaitingResponse.push(turn);
     const { budget, model, transcribeModel } = this.options;
-    const instructionsChars = buildStreamInstructions(this.sourceLang, this.targetLang, this.context).length;
+    const instructionsChars = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary).length;
     let ok = true;
     turn.reserved = (async () => {
       try {

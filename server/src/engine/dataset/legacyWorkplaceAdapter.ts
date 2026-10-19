@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { isLang, type Lang } from "../../shared/languages";
-import type { Dataset, DatasetAdapter, LexiconEntry, PhraseEntry } from "./types";
+import { riskRank, toRiskLevel, type Dataset, type DatasetAdapter, type LexiconEntry, type PhraseEntry } from "./types";
 
 // 기존 저장소(workplace-translation-mvp) 데이터 형식. 필요한 필드만 선언한다.
-type SeedTerm = { id: string; ko: string; plain_ko?: string; aliases?: string[] };
+type SeedTerm = { id: string; ko: string; plain_ko?: string; aliases?: string[]; risk_level?: string; domain?: string };
 type PackTerm = SeedTerm & { manufacturing_context?: string; translations?: Record<string, string> };
 type SlangTerm = {
   id: string;
@@ -14,8 +14,10 @@ type SlangTerm = {
   plain_ko?: string;
   translation_rule?: string;
   translations?: Record<string, string>;
+  risk_level?: string;
+  domain?: string;
 };
-type ViTerm = { id: string; ko: string; vi: string; plain_ko?: string };
+type ViTerm = { id: string; ko: string; vi: string; plain_ko?: string; risk_level?: string; priority?: string; domain?: string };
 type ViSentence = { id: string; ko: string; vi: string };
 type ViSlang = {
   id: string;
@@ -47,7 +49,7 @@ function pickSupported(translations: Record<string, string> | undefined): Partia
 
 /**
  * 같은 표준 표현(canonical)을 가진 항목을 하나로 합친다.
- * 변형·오인식 목록은 합집합, 번역·의미·규칙은 먼저 읽은 값을 유지한다.
+ * 변형·오인식 목록은 합집합, 번역·의미·규칙·분야는 먼저 읽은 값을 유지하고, 위험도는 더 높은 쪽, 핵심 표시는 하나라도 있으면 쓴다.
  */
 class LexiconBuilder {
   private readonly byKey = new Map<string, LexiconEntry>();
@@ -66,6 +68,9 @@ class LexiconBuilder {
     existing.translations = { ...entry.translations, ...existing.translations };
     existing.meaning ??= entry.meaning;
     existing.rule ??= entry.rule;
+    existing.domain ??= entry.domain;
+    if (entry.risk && riskRank(entry.risk) < riskRank(existing.risk)) existing.risk = entry.risk;
+    if (entry.core) existing.core = true;
   }
 
   build(): LexiconEntry[] {
@@ -115,6 +120,8 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
         translations: pickSupported(term.translations),
         meaning: term.plain_ko,
         rule: term.translation_rule,
+        risk: toRiskLevel(term.risk_level),
+        domain: term.domain,
       });
     }
     for (const term of manufacturing.terms) {
@@ -127,6 +134,8 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
         translations: pickSupported(term.translations),
         meaning: term.plain_ko,
         rule: term.manufacturing_context,
+        risk: toRiskLevel(term.risk_level),
+        domain: term.domain,
       });
     }
     for (const term of vietnamese.slang_variants) {
@@ -149,6 +158,9 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
         asrCorrections: [],
         translations: { vi: term.vi },
         meaning: term.plain_ko !== term.ko ? term.plain_ko : undefined,
+        risk: toRiskLevel(term.risk_level),
+        domain: term.domain,
+        ...(term.priority === "core" ? { core: true } : {}),
       });
     }
     // 번역 값은 없지만 용어 감지와 의미 전달에 쓰인다.
@@ -161,6 +173,8 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
         asrCorrections: [],
         translations: {},
         meaning: term.plain_ko,
+        risk: toRiskLevel(term.risk_level),
+        domain: term.domain,
       });
     }
 

@@ -41,6 +41,8 @@ export type FakeConnectionRecord = {
   appendedBytes: number;
   commits: number;
   contexts: ContextLine[][];
+  /** 열 때 받은 언어 쌍 용어집 크기 (용어 수) */
+  glossaryTerms: number;
   closed: boolean;
 };
 
@@ -62,7 +64,7 @@ export class FakeStreamEngine implements StreamEngine {
 
   constructor(private readonly options: FakeStreamOptions = {}) {}
 
-  async open({ sourceLang, targetLang, events }: StreamOpenOptions): Promise<StreamConnection> {
+  async open({ sourceLang, targetLang, events, glossary }: StreamOpenOptions): Promise<StreamConnection> {
     this.opens += 1;
     if (this.options.failOpen?.(this.opens)) throw new Error("fake stream open failure");
     const record: FakeConnectionRecord = {
@@ -72,6 +74,7 @@ export class FakeStreamEngine implements StreamEngine {
       appendedBytes: 0,
       commits: 0,
       contexts: [],
+      glossaryTerms: glossary?.terms.length ?? 0,
       closed: false,
     };
     this.connections.push(record);
