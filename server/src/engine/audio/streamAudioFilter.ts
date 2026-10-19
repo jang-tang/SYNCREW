@@ -46,6 +46,8 @@ export class SafeStreamFilter {
   private failures = 0;
   private disabled: boolean;
   private session: StreamFilterSession | null = null;
+  /** 이 스트림에서 필터에 넘긴 조각 수와 결과 (스트림을 닫을 때 기록) */
+  readonly stats = { frames: 0, filtered: 0, failed: 0, disabled: false };
 
   constructor(
     filter: StreamAudioFilter,
@@ -59,6 +61,7 @@ export class SafeStreamFilter {
         this.session = filter.open(context);
       } catch (error) {
         this.disabled = true;
+        this.stats.disabled = true;
         onFailure("error", error);
       }
     }
@@ -71,18 +74,21 @@ export class SafeStreamFilter {
       this.chain = this.chain.then(() => deliver(frame));
       return;
     }
-    this.chain = this.chain.then(async () => deliver(await this.run(frame)));
+    // 기다리는 동안 필터가 꺼졌으면(연속 실패) 원본 그대로 — 닫힌 세션을 다시 부르지 않는다
+    this.chain = this.chain.then(async () => deliver(this.disabled || !this.session ? frame : await this.run(frame)));
   }
 
   private async run(frame: Buffer): Promise<Buffer> {
     const samples = new Int16Array(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength));
     let timer: NodeJS.Timeout | undefined;
+    this.stats.frames += 1;
     try {
       const timeout = new Promise<"timeout">((resolve) => (timer = setTimeout(() => resolve("timeout"), this.options.frameBudgetMs)));
       const outcome = await Promise.race([Promise.resolve(this.session!.process(samples)), timeout]);
       if (outcome === "timeout") return this.fail(frame, "timeout");
       if (!(outcome instanceof Int16Array) || outcome.length !== samples.length) return this.fail(frame, "invalid_output");
       this.failures = 0;
+      this.stats.filtered += 1;
       return Buffer.from(outcome.buffer, outcome.byteOffset, outcome.byteLength);
     } catch (error) {
       return this.fail(frame, "error", error);
@@ -93,9 +99,11 @@ export class SafeStreamFilter {
 
   private fail(frame: Buffer, reason: "error" | "timeout" | "invalid_output", error?: unknown): Buffer {
     this.failures += 1;
+    this.stats.failed += 1;
     this.onFailure(reason, error);
     if (this.failures >= this.options.maxConsecutiveFailures) {
       this.disabled = true;
+      this.stats.disabled = true;
       this.close();
       this.onFailure("disabled");
     }

@@ -9,11 +9,13 @@
 //         연속 5번 실패하면 그 통화에서 필터를 끈다 (통역은 계속된다)
 //   발화 단위 방식(녹음 전체)은 별도 플러그인 src/plugins/audioPreprocessor.ts 를 쓴다
 // ─────────────────────────────────────────────────────────────
+import { SidecarStreamFilter } from "../engine/audio/sidecarStreamFilter";
 import { PassthroughStreamFilter, type StreamAudioFilter } from "../engine/audio/streamAudioFilter";
 
 const STREAM_FILTERS: Record<string, () => StreamAudioFilter> = {
   passthrough: () => new PassthroughStreamFilter(),
-  // "dl-noise-filter-stream": () => new DeepLearningStreamFilter(),
+  // 노이즈 필터 사이드카 컨테이너 (docs/denoise-sidecar.md). 주소는 .env DENOISE_URL
+  sidecar: () => new SidecarStreamFilter(process.env.DENOISE_URL || "ws://denoise:8765"),
 };
 
 export function createStreamAudioFilter(name: string): StreamAudioFilter {
