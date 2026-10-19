@@ -130,6 +130,10 @@ class RealtimeConnection implements StreamConnection {
   private createInFlight = false;
   /** 앞 응답이 끝나기를 기다리는 수동 commit 의 response.create 수 */
   private pendingCreates = 0;
+  /** 단말 말 끝으로 commit 을 보냈고 아직 확정(committed)되지 않았다 */
+  private manualCommit = false;
+  /** 이번 말에서 엔진 VAD 가 말 끝을 감지했다 → 확정되면 자동 응답이 붙는다 */
+  private vadStopped = false;
   private context: ContextLine[] = [];
   private closedByUs = false;
   private failed = false;
@@ -217,9 +221,9 @@ class RealtimeConnection implements StreamConnection {
     // 엔진 VAD 가 이미 확정했으면(말하는 중이 아니면) 보내지 않는다 — 빈 버퍼 확정은 오류가 된다
     if (!this.speaking) return;
     this.send({ type: "input_audio_buffer.commit" });
-    // 수동 commit 에는 server_vad 의 자동 응답이 붙지 않는다
-    this.pendingCreates += 1;
-    this.flushCreates();
+    // 수동 commit 에는 server_vad 의 자동 응답이 붙지 않는다 → 확정(committed)되면 response.create.
+    // VAD 가 같은 순간 먼저 확정했으면(speech_stopped) 자동 응답이 있으므로 보내지 않는다 (2026-10-19 경쟁 실측)
+    this.manualCommit = true;
   }
 
   /** 진행 중인 응답이 없을 때 기다리던 response.create 를 하나 보낸다 (한 번에 응답 1개) */
@@ -249,11 +253,23 @@ class RealtimeConnection implements StreamConnection {
     switch (event.type) {
       case "input_audio_buffer.speech_started":
         this.speaking = true;
+        this.vadStopped = false;
         break;
-      case "input_audio_buffer.committed":
+      case "input_audio_buffer.speech_stopped":
+        this.vadStopped = true;
+        break;
+      case "input_audio_buffer.committed": {
         this.speaking = false;
+        const needsCreate = this.manualCommit && !this.vadStopped;
+        this.manualCommit = false;
+        this.vadStopped = false;
         if (event.item_id) void this.newTurn(event.item_id);
+        if (needsCreate) {
+          this.pendingCreates += 1;
+          this.flushCreates();
+        }
         break;
+      }
       case "response.created": {
         this.activeResponses += 1;
         this.createInFlight = false;
@@ -319,6 +335,14 @@ class RealtimeConnection implements StreamConnection {
       }
       case "error":
         this.options.log?.("Realtime 스트림 오류 이벤트", { code: event.error?.code, message: event.error?.message });
+        if (event.error?.code === "input_audio_buffer_commit_empty") {
+          // VAD 가 이미 확정한 버퍼 — 그 확정에 자동 응답이 붙는다
+          this.manualCommit = false;
+        } else if (event.error?.code === "conversation_already_has_active_response" && this.createInFlight) {
+          // 보낸 response.create 가 거절됨 → 멈추지 말고 진행 중인 응답이 끝난 뒤 다시 보낸다
+          this.createInFlight = false;
+          this.pendingCreates += 1;
+        }
         break;
     }
   }
