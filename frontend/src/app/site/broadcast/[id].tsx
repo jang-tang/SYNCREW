@@ -1,12 +1,12 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { memo, useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View, type ListRenderItem } from "react-native";
 import type { LiveSession, MessageView, Profile } from "@shared/api";
 import { useAudioRouteProbe } from "@/audio/useAudioRouteProbe";
 import { useHandsFree } from "@/audio/useHandsFree";
-import { MessageBubble } from "@/components/chat/MessageBubble";
+import { MessageBubble, NO_RETRY } from "@/components/chat/MessageBubble";
 import { DeviceChip, HeadsetNotice, InfoNotice, MicStatus } from "@/components/live/LiveParts";
 import { Avatar } from "@/components/ui/Avatar";
 import { LangBadge } from "@/components/ui/Badge";
@@ -32,6 +32,11 @@ function KeepAwakeNative() {
   return null;
 }
 const KeepAwake = Platform.OS === "web" ? () => null : KeepAwakeNative;
+
+const keyOf = (item: MessageView) => item.id;
+const LIST_CONTENT = { paddingVertical: spacing.md, flexGrow: 1 };
+/** 관리자 목록의 지시 1건 (memo: 새 지시가 와도 이전 항목은 다시 그리지 않는다) */
+const renderSpoken: ListRenderItem<MessageView> = ({ item }) => <SpokenItem message={item} />;
 
 export default function BroadcastScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -97,12 +102,15 @@ function SpeakerConsole({ session, me }: { session: LiveSession; me: Profile }) 
       <StackHeader title={t("bc.title")} right={<LiveBadge />} />
       <FlatList
         data={list}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyOf}
         contentContainerStyle={styles.content}
+        initialNumToRender={8}
+        maxToRenderPerBatch={6}
+        windowSize={5}
         ListHeaderComponent={
           <View style={{ gap: spacing.md }}>
             {!online && <InfoNotice text={t("call.reconnecting")} />}
-            <MicStatus state={handsFree.state} error={handsFree.error} level={handsFree.level} />
+            <MicStatus state={handsFree.state} error={handsFree.error} />
             <HeadsetNotice device={handsFree.device} />
             <SectionTitle title={t("bc.listeners")} right={<Text style={styles.count}>{t("bc.connected", { a: connected, b: listeners.length })}</Text>} />
             <Card padded={false}>
@@ -125,7 +133,7 @@ function SpeakerConsole({ session, me }: { session: LiveSession; me: Profile }) 
             {list.length === 0 && <Text style={styles.empty}>{t("live.empty")}</Text>}
           </View>
         }
-        renderItem={({ item }) => <SpokenItem message={item} />}
+        renderItem={renderSpoken}
       />
       <View style={styles.controls}>
         {services.mode === "mock" && (
@@ -160,7 +168,7 @@ function SpeakerConsole({ session, me }: { session: LiveSession; me: Profile }) 
 }
 
 /** 관리자가 말한 지시 1건: 원문, 언어별 통역 상태. 누르면 구성원별 전달 상태 */
-function SpokenItem({ message }: { message: MessageView }) {
+const SpokenItem = memo(function SpokenItem({ message }: { message: MessageView }) {
   const { t, lang } = useT();
   const pending = message.status === "queued" || message.status === "processing";
   return (
@@ -187,7 +195,7 @@ function SpokenItem({ message }: { message: MessageView }) {
       </View>
     </Card>
   );
-}
+});
 
 // ─── 구성원 ─────────────────────────────────────────
 
@@ -198,6 +206,10 @@ function ListenerView({ session, me }: { session: LiveSession; me: Profile }) {
   const active = session.status === "active";
   const device = useAudioRouteProbe(active, (next) => void services.realtime.reportDevice(next).catch(() => undefined));
   const list = useMemo(() => [...(messages.data ?? [])].sort((a, b) => b.seq - a.seq), [messages.data]);
+  const renderItem = useCallback<ListRenderItem<MessageView>>(
+    ({ item }) => <MessageBubble message={item} me={me} showSender onRetry={NO_RETRY} />,
+    [me],
+  );
 
   return (
     <Screen edges={["top", "bottom"]}>
@@ -223,9 +235,12 @@ function ListenerView({ session, me }: { session: LiveSession; me: Profile }) {
       <FlatList
         inverted
         data={list}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingVertical: spacing.md, flexGrow: 1 }}
-        renderItem={({ item }) => <MessageBubble message={item} me={me} showSender onRetry={() => undefined} />}
+        keyExtractor={keyOf}
+        contentContainerStyle={LIST_CONTENT}
+        initialNumToRender={8}
+        maxToRenderPerBatch={6}
+        windowSize={5}
+        renderItem={renderItem}
       />
     </Screen>
   );

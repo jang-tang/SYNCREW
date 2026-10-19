@@ -1,13 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState, type ComponentProps } from "react";
-import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import type { SessionEndReason } from "@shared/api";
+import { memo, useCallback, useMemo, useState, type ComponentProps } from "react";
+import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, type ListRenderItem } from "react-native";
+import type { MessageView, SessionEndReason } from "@shared/api";
 import { useHandsFree } from "@/audio/useHandsFree";
 import type { MyCaption } from "@/audio/myCaptions";
 import { useStreamingCall, type Caption, type StreamMode } from "@/audio/useStreamingCall";
-import { MessageBubble } from "@/components/chat/MessageBubble";
+import { MessageBubble, NO_RETRY } from "@/components/chat/MessageBubble";
 import { DeviceChip, HeadsetNotice, InfoNotice, MicStatus } from "@/components/live/LiveParts";
 import { Avatar } from "@/components/ui/Avatar";
 import { LangBadge } from "@/components/ui/Badge";
@@ -28,9 +28,14 @@ import { colors, font, spacing } from "@/theme";
  */
 const WEB_EMPTY_FLIP = Platform.OS === "web" ? { transform: [{ scaleY: -1 as const }] } : {};
 
+/** 목록 키 (렌더마다 새 함수를 만들지 않게 모듈 수준) */
+const keyOf = (item: MessageView) => item.id;
+
 // 1:1 실시간 통역 통화 (docs/live-interpretation.md 3절)
 // 울림(건 사람: 부르는 중 / 받는 사람: 받기·거절) → 통화 중(핸즈프리: 말하면 자동 통역, 받은 통역 자동 재생) → 종료
 // 통화 중에는 먼저 스트리밍 통역(말하는 동안 전송, docs/streaming-plan.md)을 시도하고, 안 되면 발화 단위 방식으로 한다.
+// 저사양 폰 (2026-10-20): 마이크 음량은 음량 막대만 구독하고(audio/micLevel), 자막 조각은 100ms 로 모으며,
+// 자막·말풍선·상태 부품은 memo 로 감싸 통화 중 화면 전체가 다시 그려지는 횟수를 줄였다 (docs/perf-app-2026-10-20.md).
 
 const END_TEXT: Record<SessionEndReason, StringKey> = {
   hangup: "call.ended.hangup",
@@ -89,6 +94,11 @@ export default function CallScreen() {
   const mic = streamingOn ? streaming : handsFree;
 
   const list = useMemo(() => [...(messages.data ?? [])].sort((a, b) => b.seq - a.seq), [messages.data]);
+  const profile = me.data;
+  const renderItem = useCallback<ListRenderItem<MessageView>>(
+    ({ item }) => <MessageBubble message={item} me={profile!} showSender={false} onRetry={NO_RETRY} />,
+    [profile],
+  );
   const onError = (error: unknown) => toast(errorMessage(error), "error");
   const act = (kind: "accept" | "decline" | "end") => action.mutate({ sessionId: id, action: kind }, { onError });
   const close = () => (router.canGoBack() ? router.back() : router.replace("/site"));
@@ -174,7 +184,7 @@ export default function CallScreen() {
         {!online && <InfoNotice text={t("call.reconnecting")} />}
         {online && !peer.online && <InfoNotice text={t("call.peerOffline")} />}
         <ModeChip mode={streaming.mode} />
-        <MicStatus state={mic.state} error={mic.error} level={mic.level} />
+        <MicStatus state={mic.state} error={mic.error} />
         {!streamingOn && <HeadsetNotice device={handsFree.device} />}
         {streaming.mode === "stream" && <LiveCaptions captions={streaming.captions} peerName={peer.displayName} />}
         {streaming.mode === "stream" && <MyCaptions captions={streaming.myCaptions} />}
@@ -182,15 +192,19 @@ export default function CallScreen() {
       <FlatList
         inverted
         data={list}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingVertical: spacing.md, flexGrow: 1 }}
+        keyExtractor={keyOf}
+        contentContainerStyle={styles.listContent}
+        // 통화 중 화면에는 최근 말풍선 몇 개만 보인다 → 그리는 창을 작게 (기본 windowSize 21 = 화면 10배)
+        initialNumToRender={8}
+        maxToRenderPerBatch={6}
+        windowSize={5}
         ListEmptyComponent={
           <View style={{ ...WEB_EMPTY_FLIP, padding: spacing.xl, gap: spacing.sm }}>
             <Text style={[font.body, { color: colors.inkSoft, textAlign: "center" }]}>{t("live.empty")}</Text>
             <Text style={[font.caption, { color: colors.muted, textAlign: "center" }]}>{t("live.notice")}</Text>
           </View>
         }
-        renderItem={({ item }) => <MessageBubble message={item} me={me.data!} showSender={false} onRetry={() => undefined} />}
+        renderItem={renderItem}
       />
       <View style={styles.controls}>
         {services.mode === "mock" && (
@@ -226,7 +240,7 @@ const MODE_TEXT: Partial<Record<StreamMode, StringKey>> = {
 };
 
 /** 지금 통역 방식 (실시간 스트리밍 / 같은 언어 직접 전달 / 문장 단위) */
-function ModeChip({ mode }: { mode: StreamMode }) {
+const ModeChip = memo(function ModeChip({ mode }: { mode: StreamMode }) {
   const { t } = useT();
   const key = MODE_TEXT[mode];
   if (!key) return null;
@@ -237,10 +251,10 @@ function ModeChip({ mode }: { mode: StreamMode }) {
       <Text style={[font.caption, { color: tone, fontWeight: "700" }]}>{t(key)}</Text>
     </View>
   );
-}
+});
 
-/** 상대 말의 실시간 자막: 번역(크게) + 원문(작게). 가장 최근 턴만 */
-function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: string }) {
+/** 상대 말의 실시간 자막: 번역(크게) + 원문(작게). 가장 최근 턴만. captions 배열이 바뀔 때만 다시 그린다 (memo) */
+const LiveCaptions = memo(function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: string }) {
   const { t } = useT();
   const last = captions.at(-1);
   if (!last) return null;
@@ -253,10 +267,10 @@ function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: s
       {last.original && <Text style={[font.caption, { color: colors.inkSoft }]}>{last.original}</Text>}
     </View>
   );
-}
+});
 
 /** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. 가장 최근 말만. 턴이 안 붙어 지워진 말은 목록에 없으므로 자연히 이전 말로 돌아간다. failed 는 서버가 알린 때만 (2026-10-19) */
-function MyCaptions({ captions }: { captions: MyCaption[] }) {
+const MyCaptions = memo(function MyCaptions({ captions }: { captions: MyCaption[] }) {
   const { t } = useT();
   const last = captions.at(-1);
   if (!last) return null;
@@ -274,7 +288,7 @@ function MyCaptions({ captions }: { captions: MyCaption[] }) {
       {failed && original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
     </View>
   );
-}
+});
 
 function LiveIndicator() {
   const { t } = useT();
@@ -317,6 +331,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.xs + 2 },
   sub: { ...font.caption, color: colors.muted },
   status: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
+  listContent: { paddingVertical: spacing.md, flexGrow: 1 },
   controls: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   controlRow: { flexDirection: "row", justifyContent: "space-evenly" },
   round: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center" },

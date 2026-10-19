@@ -3,7 +3,9 @@ import type { DeviceStatus } from "@shared/api";
 import type { StreamFallbackReason, StreamOpenError } from "@shared/realtime";
 import { STREAMING_ENABLED } from "@/config";
 import { services } from "@/services";
+import { createBatchedUpdater } from "./batchedState";
 import { createDuplexAudio } from "./duplex";
+import { setMicLevel, setMicLevelDb } from "./micLevel";
 import { discardMine, endMine, expireMine, mineEnd, mineText, startMine, type MyCaption } from "./myCaptions";
 import { createPlayingReporter } from "./playingSignal";
 import { debug, markStreamed } from "./streamed";
@@ -17,6 +19,8 @@ import { createVad } from "./vad";
 // - 스트림을 열 수 없거나(stream:open 실패, 이 기기에 이중 오디오 없음) 서버가 폴백을 알리면 mode = "utterance"
 //   → 통화 화면은 기존 핸즈프리(발화 단위) 방식을 쓴다
 // - 스트림으로 들은 문장은 기록 알림(message:new)이 와도 다시 재생하지 않는다 (audio/streamed.ts)
+// - 저사양 폰 (2026-10-20): 마이크 음량은 React 상태가 아니라 audio/micLevel 저장소에 쓰고(음량 막대만 구독),
+//   자막 글자 조각은 CAPTION_BATCH_MS 안에 모아 한 번에 setState 한다 → 통화 화면이 조각마다 다시 그려지지 않는다
 
 const SAMPLE_RATE = 16_000;
 /** 말 시작 판단 전 소리도 보내기 위한 사전 버퍼 (100ms × 4) */
@@ -27,6 +31,8 @@ const MINE_TIMEOUT_MS = 8_000;
 const MAX_CAPTIONS = 3;
 /** 재생 끝 신호 떨림 제거: 이 시간 안에 다시 시작하면 끝→시작을 보내지 않는다 (턴 사이 짧은 끊김) */
 const PLAYING_DEBOUNCE_MS = 200;
+/** 자막 글자 조각을 이만큼 모아서 한 번에 그린다 (사람 눈에는 차이 없고 다시 그리기는 수십 분의 1) */
+const CAPTION_BATCH_MS = 100;
 
 export type StreamMode = "off" | "connecting" | "stream" | "relay" | "utterance";
 
@@ -53,11 +59,17 @@ export function useStreamingCall(options: {
   const [fallback, setFallback] = useState<StreamFallback | null>(null);
   const [state, setState] = useState<HandsFreeState>("off");
   const [error, setError] = useState<HandsFreeError | null>(null);
-  const [level, setLevel] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [myCaptions, setMyCaptions] = useState<MyCaption[]>([]);
   const mineSeq = useRef(0);
+  // 글자 조각 갱신 모으기. 순서가 중요한 갱신(턴 시작·끝·내 말 시작)은 flush 뒤 바로 setState
+  const captionBatch = useRef(createBatchedUpdater<Caption[]>(setCaptions, CAPTION_BATCH_MS));
+  const mineBatch = useRef(createBatchedUpdater<MyCaption[]>(setMyCaptions, CAPTION_BATCH_MS));
+  const updateMine = (reducer: (list: MyCaption[]) => MyCaption[]) => {
+    mineBatch.current.flush();
+    setMyCaptions(reducer);
+  };
 
   const callbacks = useRef(options);
   callbacks.current = options;
@@ -143,7 +155,7 @@ export function useStreamingCall(options: {
       l.sending = false;
       playingReporter.current.reset();
       void duplex.stop();
-      setLevel(0);
+      setMicLevel(0);
       setPlaying(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,20 +164,21 @@ export function useStreamingCall(options: {
   /** 내 말 끝: 받아쓰는 중으로 바꾸고, 서버 턴이 끝내 안 붙으면 조용히 지운다(에코·잡음, expireMine — 이미 붙었으면 no-op). 너무 짧아 버린 소리는 지운다 */
   const finishMine = (discarded: boolean) => {
     if (!live.current.interpret) return;
-    if (discarded) return setMyCaptions(discardMine);
+    if (discarded) return updateMine(discardMine);
     const key = `m${mineSeq.current}`;
-    setMyCaptions(endMine);
-    setTimeout(() => setMyCaptions((list) => expireMine(list, key)), MINE_TIMEOUT_MS);
+    updateMine(endMine);
+    setTimeout(() => updateMine((list) => expireMine(list, key)), MINE_TIMEOUT_MS);
   };
 
   // ─── 마이크 조각 → 단말 VAD 게이트 → 서버 ─────────────
 
   useEffect(() => {
     if (!duplex) return;
+    const l = live.current;
+    // 조각마다 새 함수를 만들지 않는다 (100ms 마다 호출)
+    const send = (pcm: ArrayBuffer) => services.realtime.sendStreamAudio(l.streamId!, l.seq++, pcm);
     return duplex.onFrame((frame) => {
-      const l = live.current;
       if (!l.streamId) return;
-      const send = (pcm: ArrayBuffer) => services.realtime.sendStreamAudio(l.streamId!, l.seq++, pcm);
       if (callbacks.current.muted) {
         if (l.sending) {
           services.realtime.pauseStream(l.streamId);
@@ -173,10 +186,10 @@ export function useStreamingCall(options: {
         }
         l.sending = false;
         l.preroll = [];
-        setLevel(0);
+        setMicLevel(0);
         return;
       }
-      setLevel(Math.max(0, Math.min(1, (frame.levelDb + 60) / 60)));
+      setMicLevelDb(frame.levelDb);
       const event = vad.current.push(frame.levelDb, frame.timestamp);
       if (event?.type === "speechStart") {
         l.sending = true;
@@ -186,7 +199,7 @@ export function useStreamingCall(options: {
         setState("speaking");
         if (l.interpret) {
           const key = `m${++mineSeq.current}`;
-          setMyCaptions((list) => startMine(list, key));
+          updateMine((list) => startMine(list, key));
         }
         return;
       }
@@ -217,8 +230,10 @@ export function useStreamingCall(options: {
     if (!duplex) return;
     const { realtime } = services;
     const mineTurn = (turnId: string) => turns.current.has(turnId);
-    const update = (turnId: string, change: (c: Caption) => Caption) =>
-      setCaptions((list) => list.map((c) => (c.turnId === turnId ? change(c) : c)));
+    const batch = captionBatch.current;
+    const mine = mineBatch.current;
+    const change = (turnId: string, apply: (c: Caption) => Caption) => (list: Caption[]) =>
+      list.map((c) => (c.turnId === turnId ? apply(c) : c));
 
     const offs = [
       realtime.on("stream:out:start", (p) => {
@@ -228,6 +243,7 @@ export function useStreamingCall(options: {
         if (!live.current.streamId) return;
         turns.current.set(p.turnId, p.sampleRate);
         debug.streamTurns += 1;
+        batch.flush();
         setCaptions((list) => [...list, { turnId: p.turnId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS));
       }),
       realtime.on("stream:out:audio", (p) => {
@@ -238,7 +254,7 @@ export function useStreamingCall(options: {
       }),
       realtime.on("stream:out:text", (p) => {
         if (!mineTurn(p.turnId)) return;
-        update(p.turnId, (c) => (p.kind === "original" ? { ...c, original: p.text } : { ...c, translation: c.translation + p.text }));
+        batch.queue(change(p.turnId, (c) => (p.kind === "original" ? { ...c, original: p.text } : { ...c, translation: c.translation + p.text })));
       }),
       realtime.on("stream:out:end", (p) => {
         if (!mineTurn(p.turnId)) return;
@@ -246,15 +262,17 @@ export function useStreamingCall(options: {
         duplex.endStream(p.turnId);
         // 다음에 올 같은 문장의 기록 알림(message:new)은 재생하지 않는다
         if (p.messageId) markStreamed(p.messageId);
-        update(p.turnId, (c) => ({ ...c, status: p.status === "done" ? "done" : "failed" }));
+        batch.flush();
+        setCaptions(change(p.turnId, (c) => ({ ...c, status: p.status === "done" ? "done" : "failed" })));
       }),
       // 내 말의 받아쓰기·번역 (말한 사람에게, 2026-10-19)
       realtime.on("stream:mine:text", (p) => {
         if (p.sessionId !== callbacks.current.sessionId) return;
-        setMyCaptions((list) => mineText(list, p.turnId, p.kind, p.text));
+        mine.queue((list) => mineText(list, p.turnId, p.kind, p.text));
       }),
       realtime.on("stream:mine:end", (p) => {
         if (p.sessionId !== callbacks.current.sessionId) return;
+        mine.flush();
         setMyCaptions((list) => mineEnd(list, p.turnId, p.status));
       }),
       realtime.on("stream:fallback", (p) => {
@@ -272,9 +290,11 @@ export function useStreamingCall(options: {
     return () => {
       offs.forEach((off) => off());
       offPlayback();
+      batch.clear();
+      mine.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duplex]);
 
-  return { mode, fallback, state, error, level, playing, captions, myCaptions };
+  return { mode, fallback, state, error, playing, captions, myCaptions };
 }
