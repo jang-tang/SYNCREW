@@ -462,6 +462,20 @@ describe("스트리밍 통역 — 서버 노이즈 필터 (조각 단위, 2026-1
     return { filter, record };
   }
 
+  it("엔진을 열지 못하면(ENGINE_UNAVAILABLE) 이미 연 필터를 닫는다 (사이드카 연결이 남지 않음)", async () => {
+    const { filter, record } = testFilter("invert");
+    const { app: t } = await createApp({ failOpen: () => true }, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      expect(await open(env.managerSocket, session.id)).toEqual({ ok: false, code: "ENGINE_UNAVAILABLE" });
+      expect(record.contexts).toHaveLength(1);
+      expect(record.closed).toBe(1);
+    } finally {
+      await t.close();
+    }
+  });
+
   it("모든 조각이 필터를 거친다 (언어·16kHz 정보 전달, 같은 길이), 통화가 끝나면 필터를 닫는다", async () => {
     const { filter, record } = testFilter("invert");
     const { app: t } = await createApp({}, {}, filter);
@@ -616,6 +630,13 @@ describe("스트리밍 통역 — 노이즈 필터 사이드카 연결 (가짜 �
 //   DENOISE_TEST_URL=ws://127.0.0.1:8765 TEST_LOG_LEVEL=info npx vitest run test/integration/streaming.test.ts -t "실제 사이드카"
 describe.runIf(process.env.DENOISE_TEST_URL)("스트리밍 통역 — 실제 사이드카 (DENOISE_TEST_URL)", () => {
   // GTCRN 은 시험용 순음(220Hz)을 잡음으로 지우므로 말이 감지되지 않을 수 있다 → 턴은 DENOISE_TEST_EXPECT_TURN=1(identity 모델)일 때만 요구
+  const savedDenoiseUrl = process.env.DENOISE_URL;
+  afterAll(() => {
+    // 같은 워커의 다른 시험이 실제 사이드카 주소를 쓰지 않게 되돌린다
+    if (savedDenoiseUrl === undefined) delete process.env.DENOISE_URL;
+    else process.env.DENOISE_URL = savedDenoiseUrl;
+  });
+
   it("가짜 엔진 통화의 조각이 실제 사이드카를 시간 안에 거쳐 바뀌어 나온다", async () => {
     process.env.DENOISE_URL = process.env.DENOISE_TEST_URL;
     const sidecar = createStreamAudioFilter("sidecar"); // 플러그인 등록 경로 그대로

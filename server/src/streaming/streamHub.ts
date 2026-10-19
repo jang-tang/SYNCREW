@@ -168,6 +168,7 @@ export class StreamHub {
     try {
       stream.connection = await this.connect(stream);
     } catch (error) {
+      stream.filter.close(); // 이미 연 필터(사이드카 연결)를 남기지 않는다
       this.streams.delete(stream.id);
       if (error instanceof BudgetExceededError) return { ok: false, code: "BUDGET_EXCEEDED" };
       this.ctx.logger.warn({ err: error, sessionId }, "스트리밍 엔진 열기 실패");

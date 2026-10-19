@@ -105,6 +105,20 @@ describe("SidecarStreamFilter (노이즈 필터 사이드카 연결)", () => {
   });
 });
 
+describe("SafeStreamFilter 닫기", () => {
+  it("응답을 기다리는 조각이 있을 때 스트림을 닫으면 실패로 세지 않는다 (닫힌 스트림의 거짓 경고 없음)", async () => {
+    const fake = await sidecar({ delayMs: 30 });
+    const failures: string[] = [];
+    const safe = new SafeStreamFilter(new SidecarStreamFilter(fake.url), CONTEXT, DEFAULT_STREAM_FILTER_OPTIONS, (reason) => failures.push(reason));
+    safe.push(frameBuffer(1), () => {});
+    await sleep(15); // 첫 조각이 사이드카 응답을 기다리는 중
+    safe.close();
+    await sleep(60);
+    expect(failures).toEqual([]);
+    expect(safe.stats.failed).toBe(0);
+  });
+});
+
 describe("SidecarStreamFilter + SafeStreamFilter (서버 안전 장치와 함께)", () => {
   it("모든 조각이 사이드카를 거쳐 순서대로 전달된다", async () => {
     const fake = await sidecar();

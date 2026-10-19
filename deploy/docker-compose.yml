@@ -45,7 +45,7 @@ services:
     logging: *logging
 
   # 노이즈 필터 사이드카 (GTCRN, ../denoise). `docker compose --profile denoise up -d --build` 일 때만 뜬다.
-  # 서버 쪽 연결 코드('sidecar' 필터)는 별도 PR. 규격: docs/denoise-sidecar.md (ws://denoise:8765)
+  # 서버가 쓰려면 deploy/.env 의 STREAM_AUDIO_FILTER=sidecar (render-env.sh 로 설정). 규격: docs/denoise-sidecar.md (ws://denoise:8765)
   denoise:
     profiles: ["denoise"]
     build:

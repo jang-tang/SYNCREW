@@ -46,6 +46,8 @@ export class SafeStreamFilter {
   private failures = 0;
   private disabled: boolean;
   private session: StreamFilterSession | null = null;
+  /** 스트림을 닫았다 — 그 뒤에 끝나는 조각은 실패로 세지 않는다 (닫으면서 기다리던 조각이 거절되므로) */
+  private closed = false;
   /** 이 스트림에서 필터에 넘긴 조각 수와 결과 (스트림을 닫을 때 기록) */
   readonly stats = { frames: 0, filtered: 0, failed: 0, disabled: false };
 
@@ -98,6 +100,7 @@ export class SafeStreamFilter {
   }
 
   private fail(frame: Buffer, reason: "error" | "timeout" | "invalid_output", error?: unknown): Buffer {
+    if (this.closed) return frame;
     this.failures += 1;
     this.stats.failed += 1;
     this.onFailure(reason, error);
@@ -116,6 +119,7 @@ export class SafeStreamFilter {
   }
 
   close(): void {
+    this.closed = true;
     try {
       this.session?.close?.();
     } catch {
