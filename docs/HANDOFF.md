@@ -62,7 +62,8 @@
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
 #### 반이중 메아리 차단 + 스트리밍 용어집 — 2026-10-19 (브랜치 `fix/stream-commit-race`, 실기기 발견 2건)
-- **메아리**: iPhone 스피커로 들은 통역이 마이크로 되돌아와 내 다음 턴에 섞였다 → 서버가 X 에게 턴을 보내는 동안 + 꼬리 300ms(`StreamHubOptions.echoGuardMs`) 동안 X 의 조각을 버린다(relay 도 같음). 버린 수는 스트림 닫힐 때 로그 `echoDropped`·기록 `timings.echoDropped`. 반이중이라 상대 턴 중 끼어들기는 안 된다 — 단말 AEC 가 1순위, 꼬리 길이는 실기기에서 조정
+- **메아리**: iPhone 스피커로 들은 통역이 마이크로 되돌아와 내 다음 턴에 섞였다 → 서버가 X 에게 턴을 보내는 동안 + 꼬리 300ms(`StreamHubOptions.echoGuardMs`) 동안 X 의 조각을 버린다 — 통역 스트림은 **같은 길이 무음으로 바꿔** 엔진에 넣는다(그냥 버리면 말 끝 무음이 사라져 OpenAI VAD 가 턴을 못 끝냄 — 실제 확인에서 발견), relay 는 그냥 버림. 버린 수는 스트림 닫힐 때 로그 `echoDropped`·기록 `timings.echoDropped`. 반이중이라 상대 턴 중 끼어들기는 안 된다 — 단말 AEC 가 1순위, 꼬리 길이는 실기기에서 조정
+- **실제 OpenAI 확인**: `call-peer.ts` 2개로 4턴 모두 done, ko→vi 에서 비계 → giàn giáo·안전모 → mũ bảo hộ, 2번째 턴부터 지시문 캐시 적중(cached 1,408). 비용 $0.061 (DB 기록 누적 $0.147)
 - **용어집**: 스트리밍은 `terms: []` 였다 → 언어 쌍 기준 용어 ≤110개 + 검증 문장 ≤12개(약 3,900자, 결정적 순서)를 세션 지시문 앞쪽에 고정. 지금 데이터는 ko↔vi 만 번역이 있다
 - 문서: `docs/streaming-plan.md` 4-2절, `docs/realtime-protocol.md` 10절. 시험: 서버 **229** (+8)
 

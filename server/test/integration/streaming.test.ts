@@ -398,7 +398,7 @@ describe("스트리밍 통역 — 기본 흐름", () => {
 describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기기: 스피커 통역 소리가 마이크로 되돌아옴)", () => {
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  it("상대 통역을 재생 중(+꼬리 300ms)일 때 보낸 내 조각은 버려져 턴이 생기지 않고(echoDropped), 꼬리가 지나면 정상으로 턴이 된다", async () => {
+  it("상대 통역을 재생 중(+꼬리 300ms)일 때 보낸 내 조각은 무음으로 바뀌어 턴이 생기지 않고(echoDropped), 꼬리가 지나면 정상으로 턴이 된다", async () => {
     // 가짜 엔진이 100ms 마다 조각을 보내 재생이 1초쯤 이어지게 한다
     const { app: t, engine } = await createApp({ chunkIntervalMs: 100 }, { maxStreams: 100 });
     try {
@@ -415,15 +415,17 @@ describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기�
       speak(workerSocket!, workerStream, 1.0);
       await playing;
       const appendedBefore = managerEngine.appendedBytes;
-      // 재생 중에 관리자가 말함(실기기에서는 스피커 소리가 마이크로 들어온 것) → 버려진다
+      // 재생 중에 관리자가 말함(실기기에서는 스피커 소리가 마이크로 들어온 것) → 말소리는 무음으로 바뀌어 엔진에 들어가고 턴은 생기지 않는다
       const noTurn = noEvent(workerSocket!, "stream:out:start", 1800);
       const sent = speak(env.managerSocket, managerStream, 0.5);
       const end = await played;
       expect(end.status).toBe("done");
-      // 꼬리(300ms) 안에 보낸 조각도 버려진다
+      // 꼬리(300ms) 안에 보낸 조각도 같다
       for (let i = 0; i < 3; i++) env.managerSocket.emit("stream:audio", { streamId: managerStream, seq: sent + i, pcm: speechFrame() as never });
       await noTurn;
-      expect(managerEngine.appendedBytes).toBe(appendedBefore);
+      // 엔진에는 같은 길이의 무음이 들어갔다 (16k → 24k: 조각당 2,400표본, 첫 조각은 2,399) — 타임라인이 끊기지 않아 서버 VAD 가 앞 말을 끝낼 수 있다
+      expect(managerEngine.appendedBytes - appendedBefore).toBeGreaterThanOrEqual((sent + 3) * 2400 * 2 - 2);
+      expect(managerEngine.appendedBytes - appendedBefore).toBeLessThanOrEqual((sent + 3) * 2400 * 2);
       expect(t.context.streams!.stats(managerStream)).toEqual({ echoDropped: sent + 3, inputGaps: 0 });
 
       // 대조군: 꼬리가 지난 뒤 같은 조각은 통역된다
@@ -465,7 +467,7 @@ describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기�
     }
   });
 
-  it("같은 언어 직접 전달(relay)도 같다: 상대 소리를 전달 중이면 내 조각은 버린다, 끝나면 전달된다", async () => {
+  it("같은 언어 직접 전달(relay)도 같다: 상대 소리를 전달 중이면 내 조각은 그냥 버린다(무음도 안 보냄), 끝나면 전달된다", async () => {
     const { app: t } = await createApp({}, { maxStreams: 100 });
     try {
       const env = await setupSite(t, ["ko"]);
