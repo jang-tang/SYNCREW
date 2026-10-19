@@ -15,6 +15,8 @@ import {
 // OpenAI Realtime 스트리밍 엔진 (gpt-realtime-2.1, GA 인터페이스 — 2026-10-13 S0 측정 스크립트로 실제 확인한 설정).
 //   - 화자 1명 × 대상 언어 1개당 WebSocket 세션 1개를 통화 내내 연다
 //   - server_vad(무음 500ms, 앞 300ms) + create_response, interrupt_response=false (이어 말해도 앞 번역을 끊지 않음)
+//   - 단말이 말 끝(stream:pause)을 알려 수동 commit 하면 create_response 가 붙지 않으므로 response.create 를 직접 보낸다
+//     (앞 응답이 진행 중이면 끝난 뒤에. 2026-10-19 실측: 무음 0.3초 뒤 commit → 전사만 오고 번역 응답 없음)
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done 사용량으로 기록 (BudgetGuard)
@@ -122,6 +124,12 @@ class RealtimeConnection implements StreamConnection {
   private readonly responseToTurn = new Map<string, Turn>();
   private bytesSinceCommit = 0;
   private speaking = false;
+  /** 만들어졌지만 아직 끝나지 않은 응답 수 */
+  private activeResponses = 0;
+  /** 보냈지만 아직 response.created 가 오지 않은 response.create */
+  private createInFlight = false;
+  /** 앞 응답이 끝나기를 기다리는 수동 commit 의 response.create 수 */
+  private pendingCreates = 0;
   private context: ContextLine[] = [];
   private closedByUs = false;
   private failed = false;
@@ -207,7 +215,19 @@ class RealtimeConnection implements StreamConnection {
 
   commit(): void {
     // 엔진 VAD 가 이미 확정했으면(말하는 중이 아니면) 보내지 않는다 — 빈 버퍼 확정은 오류가 된다
-    if (this.speaking) this.send({ type: "input_audio_buffer.commit" });
+    if (!this.speaking) return;
+    this.send({ type: "input_audio_buffer.commit" });
+    // 수동 commit 에는 server_vad 의 자동 응답이 붙지 않는다
+    this.pendingCreates += 1;
+    this.flushCreates();
+  }
+
+  /** 진행 중인 응답이 없을 때 기다리던 response.create 를 하나 보낸다 (한 번에 응답 1개) */
+  private flushCreates(): void {
+    if (this.pendingCreates === 0 || this.activeResponses > 0 || this.createInFlight) return;
+    this.pendingCreates -= 1;
+    this.createInFlight = true;
+    this.send({ type: "response.create" });
   }
 
   setContext(lines: ContextLine[]): void {
@@ -235,6 +255,8 @@ class RealtimeConnection implements StreamConnection {
         if (event.item_id) void this.newTurn(event.item_id);
         break;
       case "response.created": {
+        this.activeResponses += 1;
+        this.createInFlight = false;
         const turn = this.awaitingResponse.shift();
         if (!turn || !event.response?.id) break;
         turn.responseId = event.response.id;
@@ -278,6 +300,8 @@ class RealtimeConnection implements StreamConnection {
         break;
       }
       case "response.done": {
+        this.activeResponses = Math.max(0, this.activeResponses - 1);
+        this.flushCreates();
         const turn = this.turnOf(event.response?.id);
         if (!turn) break;
         turn.responseDone = true;

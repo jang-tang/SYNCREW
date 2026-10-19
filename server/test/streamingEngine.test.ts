@@ -235,6 +235,37 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     connection.close();
   });
 
+  it("단말 commit 뒤에는 response.create 를 보낸다 (server_vad 자동 응답은 수동 commit 에 붙지 않음, 2026-10-19 실측)", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
+    server.send({ type: "input_audio_buffer.speech_started" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    connection.commit();
+    await until(() => server.received.some((r) => r.type === "response.create"));
+    const types = server.received.map((r) => r.type).filter((t) => t === "input_audio_buffer.commit" || t === "response.create");
+    expect(types).toEqual(["input_audio_buffer.commit", "response.create"]);
+    connection.close();
+  });
+
+  it("앞 응답이 진행 중이면 단말 commit 의 response.create 는 그 응답이 끝난 뒤 보낸다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_a" });
+    server.send({ type: "response.created", response: { id: "resp_a" } });
+    server.send({ type: "input_audio_buffer.speech_started" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    connection.commit();
+    await until(() => server.received.some((r) => r.type === "input_audio_buffer.commit"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(server.received.some((r) => r.type === "response.create")).toBe(false);
+    server.send({ type: "response.done", response: { id: "resp_a", status: "completed", output: [] } });
+    await until(() => server.received.some((r) => r.type === "response.create"));
+    expect(server.received.filter((r) => r.type === "response.create")).toHaveLength(1);
+    connection.close();
+  });
+
   it("응답 도중 연결이 끊기면 진행 중 턴은 실패(ENGINE_CLOSED), closed('error'), 예약은 풀린다", async () => {
     const server = await fakeRealtime();
     const { engine: e, budget } = engine(server.url);
