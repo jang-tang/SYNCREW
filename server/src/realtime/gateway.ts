@@ -73,7 +73,11 @@ export function attachRealtime(
 ): RealtimeGateway {
   const { prisma, logger, presence, devices } = context;
   // 네이티브 앱은 CORS 와 무관하지만, 웹(e2e·개발) 접속을 위해 허용한다. 로컬 호스팅 전제.
-  const io = new Server(server, { serveClient: false, cors: { origin: true } });
+  // ping: 휴대폰 LTE 가 조용히 끊기면(터널·기지국 이동) 서버와 앱 모두 pingInterval + pingTimeout 뒤에야 알아챈다.
+  //   기본 25s + 20s = 45초 동안 말이 죽은 연결로 들어가므로 10s + 10s = 20초로 줄인다 (ping 1개는 수 바이트, RTT 150ms 의 60배 여유).
+  //   앱(engine.io-client)도 핸드셰이크로 같은 값을 받아 서버 침묵을 같은 시간 안에 알아챈다. 측정: docs/perf-network-2026-10-20.md
+  // perMessageDeflate: Socket.IO 4 기본값이 꺼짐(PCM 압축은 CPU 낭비) — 명시해 둔다
+  const io = new Server(server, { serveClient: false, cors: { origin: true }, pingInterval: 10_000, pingTimeout: 10_000, perMessageDeflate: false });
   const nsp: RtNamespace = io.of(REALTIME_NAMESPACE);
 
   const emit = <E extends ServerEventName>(target: string | string[], event: E, payload: Omit<ServerEventPayload<E>, "eventId" | "at">) => {
