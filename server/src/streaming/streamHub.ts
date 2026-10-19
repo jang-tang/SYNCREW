@@ -168,6 +168,7 @@ export class StreamHub {
     try {
       stream.connection = await this.connect(stream);
     } catch (error) {
+      stream.filter.close(); // 이미 연 필터(사이드카 연결)를 남기지 않는다
       this.streams.delete(stream.id);
       if (error instanceof BudgetExceededError) return { ok: false, code: "BUDGET_EXCEEDED" };
       this.ctx.logger.warn({ err: error, sessionId }, "스트리밍 엔진 열기 실패");
@@ -395,6 +396,10 @@ export class StreamHub {
     if (stream.relay) this.endRelayTurn(stream);
     stream.closed = true;
     stream.filter.close();
+    if (this.ctx.streamAudioFilter.name !== "passthrough") {
+      // 필터가 실제로 쓰였는지 확인용 (filtered = 필터 결과를 쓴 조각, failed = 원본을 쓴 조각)
+      this.ctx.logger.info({ sessionId: stream.sessionId, streamId: stream.id, filter: this.ctx.streamAudioFilter.name, ...stream.filter.stats }, "스트리밍 노이즈 필터 결과");
+    }
     this.streams.delete(stream.id);
     stream.connection?.close();
     stream.connection = null;

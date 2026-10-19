@@ -61,7 +61,8 @@ export async function createTestApp(options: TestAppOptions = {}) {
   });
   const issuer = await createTokenIssuer();
   const recorder = recordEvents();
-  const context: AppContext = await createContext(env, createLogger("silent"), {
+  // 서버 로그를 보려면 TEST_LOG_LEVEL=info (기본 silent)
+  const context: AppContext = await createContext(env, createLogger(process.env.TEST_LOG_LEVEL || "silent"), {
     verifier: issuer.verifier,
     events: recorder.events,
     limits: { joinPerMinute: 100, messagesPerMinute: 1000, ...limits },

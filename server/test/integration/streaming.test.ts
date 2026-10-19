@@ -4,8 +4,11 @@ import type { LiveSession, MessageView } from "../../src/shared/api";
 import type { ServerToClientEvents, StreamOpenResult } from "../../src/shared/realtime";
 import { FakeStreamEngine, type FakeStreamOptions } from "../../src/streaming/fakeStream";
 import type { StreamHubOptions } from "../../src/streaming/streamHub";
-import type { StreamAudioFilter, StreamFilterContext } from "../../src/engine/audio/streamAudioFilter";
+import { DEFAULT_STREAM_FILTER_OPTIONS, type StreamAudioFilter, type StreamFilterContext } from "../../src/engine/audio/streamAudioFilter";
 import { createRealtimeTestApp, nextEvent, noEvent, type RtClient } from "../helpers/testApp";
+import { SidecarStreamFilter } from "../../src/engine/audio/sidecarStreamFilter";
+import { createStreamAudioFilter } from "../../src/plugins/streamAudioFilter";
+import { startFakeSidecar, unusedUrl, type FakeSidecarOptions } from "../helpers/fakeSidecar";
 
 // Phase 7 S1: 1:1 통화 스트리밍 통역 — 서버 경로 (가짜 스트리밍 엔진, 실제 Postgres·Socket.IO, 비용 0)
 // docs/streaming-plan.md 3·4·8절. "받지 않아야 함" 확인은 같은 상황에서 받는 대조군과 함께 쓴다.
@@ -459,6 +462,20 @@ describe("스트리밍 통역 — 서버 노이즈 필터 (조각 단위, 2026-1
     return { filter, record };
   }
 
+  it("엔진을 열지 못하면(ENGINE_UNAVAILABLE) 이미 연 필터를 닫는다 (사이드카 연결이 남지 않음)", async () => {
+    const { filter, record } = testFilter("invert");
+    const { app: t } = await createApp({ failOpen: () => true }, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      expect(await open(env.managerSocket, session.id)).toEqual({ ok: false, code: "ENGINE_UNAVAILABLE" });
+      expect(record.contexts).toHaveLength(1);
+      expect(record.closed).toBe(1);
+    } finally {
+      await t.close();
+    }
+  });
+
   it("모든 조각이 필터를 거친다 (언어·16kHz 정보 전달, 같은 길이), 통화가 끝나면 필터를 닫는다", async () => {
     const { filter, record } = testFilter("invert");
     const { app: t } = await createApp({}, {}, filter);
@@ -529,3 +546,136 @@ describe("스트리밍 통역 — 서버 노이즈 필터 (조각 단위, 2026-1
   });
 });
 
+
+describe("스트리밍 통역 — 노이즈 필터 사이드카 연결 (가짜 사이드카, docs/denoise-sidecar.md 4절)", () => {
+  async function sidecarApp(options: FakeSidecarOptions = {}) {
+    const sidecar = await startFakeSidecar(options);
+    const { app, engine } = await createApp({}, {}, new SidecarStreamFilter(sidecar.url));
+    return { app, engine, sidecar };
+  }
+
+  it("통화 조각이 사이드카를 거쳐 통역되고 (스트림당 연결 1개, 3,200바이트), 통화가 끝나면 연결을 닫는다", async () => {
+    const { app: t, sidecar } = await sidecarApp();
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!);
+      const sent = speak(env.managerSocket, streamId, 0.5);
+      expect((await turn).end.status).toBe("done");
+      expect(sidecar.state.connections).toBe(1);
+      expect(sidecar.state.frames).toBeGreaterThanOrEqual(sent - 2);
+      expect(new Set(sidecar.state.sizes)).toEqual(new Set([FRAME]));
+      await env.manager.as("post", `/sessions/${session.id}/end`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(sidecar.state.closed).toBe(1);
+    } finally {
+      await t.close();
+      await sidecar.close();
+    }
+  });
+
+  it("사이드카 결과가 실제로 쓰인다: 소리를 지우는 사이드카면 말이 감지되지 않는다 (대조군: 위 시험은 턴 생성)", async () => {
+    const { app: t, engine, sidecar } = await sidecarApp({ mode: "mute" });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const quiet = noEvent(env.workerSockets[0]!, "stream:out:start", 1200);
+      speak(env.managerSocket, streamId, 0.5);
+      await quiet;
+      expect(sidecar.state.frames).toBeGreaterThan(0);
+      expect(engine.connections.at(-1)!.appendedBytes).toBeGreaterThan(0); // 조각은 엔진까지 갔다 (무음으로)
+    } finally {
+      await t.close();
+      await sidecar.close();
+    }
+  });
+
+  it("사이드카 응답이 시간 제한(50ms)을 계속 넘기면 연속 5번 실패로 끄고 원본으로 통역을 계속한다", async () => {
+    const { app: t, sidecar } = await sidecarApp({ delayMs: 200 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!, 6000);
+      speak(env.managerSocket, streamId, 0.5);
+      expect((await turn).end.status).toBe("done");
+      expect(sidecar.state.frames).toBe(5); // 5번째 시간 초과 뒤로는 보내지 않는다
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(sidecar.state.closed).toBe(1);
+    } finally {
+      await t.close();
+      await sidecar.close();
+    }
+  });
+
+  it("사이드카에 연결할 수 없어도 통역은 원본으로 계속된다", async () => {
+    const { app: t } = await createApp({}, {}, new SidecarStreamFilter(await unusedUrl()));
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!);
+      speak(env.managerSocket, streamId, 0.5);
+      expect((await turn).end.status).toBe("done");
+    } finally {
+      await t.close();
+    }
+  });
+});
+
+// 실제 사이드카(denoise/, feat/denoise-sidecar)에 붙여 보는 선택 시험. 평소에는 건너뛴다.
+//   docker run -p 8765:8765 syncrew-denoise   (또는 DENOISE_MODEL=identity 로 32ms 지연만)
+//   DENOISE_TEST_URL=ws://127.0.0.1:8765 TEST_LOG_LEVEL=info npx vitest run test/integration/streaming.test.ts -t "실제 사이드카"
+describe.runIf(process.env.DENOISE_TEST_URL)("스트리밍 통역 — 실제 사이드카 (DENOISE_TEST_URL)", () => {
+  // GTCRN 은 시험용 순음(220Hz)을 잡음으로 지우므로 말이 감지되지 않을 수 있다 → 턴은 DENOISE_TEST_EXPECT_TURN=1(identity 모델)일 때만 요구
+  const savedDenoiseUrl = process.env.DENOISE_URL;
+  afterAll(() => {
+    // 같은 워커의 다른 시험이 실제 사이드카 주소를 쓰지 않게 되돌린다
+    if (savedDenoiseUrl === undefined) delete process.env.DENOISE_URL;
+    else process.env.DENOISE_URL = savedDenoiseUrl;
+  });
+
+  it("가짜 엔진 통화의 조각이 실제 사이드카를 시간 안에 거쳐 바뀌어 나온다", async () => {
+    process.env.DENOISE_URL = process.env.DENOISE_TEST_URL;
+    const sidecar = createStreamAudioFilter("sidecar"); // 플러그인 등록 경로 그대로
+    const record = { frames: 0, changed: 0, slowest: 0, sizes: new Set<number>() };
+    const filter: StreamAudioFilter = {
+      name: sidecar.name,
+      open(context) {
+        const session = sidecar.open(context);
+        return {
+          async process(frame) {
+            const started = performance.now();
+            const out = await session.process(frame);
+            record.frames += 1;
+            record.slowest = Math.max(record.slowest, performance.now() - started);
+            record.sizes.add(out.length);
+            if (out.some((v, i) => v !== frame[i])) record.changed += 1;
+            return out;
+          },
+          close: () => session.close?.(),
+        };
+      },
+    };
+    const { app: t } = await createApp({}, {}, filter);
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const turn = collectTurn(env.workerSockets[0]!, 8000);
+      const sent = speak(env.managerSocket, streamId, 1.0);
+      const status = await turn.then((result) => result.end.status, () => "없음 (말 감지 안 됨)");
+      await env.manager.as("post", `/sessions/${session.id}/end`);
+      console.info(`실제 사이드카: 보낸 조각 ${sent}, 필터 통과 ${record.frames}, 바뀐 조각 ${record.changed}, 가장 느린 왕복 ${record.slowest.toFixed(1)}ms, 턴 ${status}`);
+      expect(record.frames).toBeGreaterThanOrEqual(sent - 2);
+      expect(record.sizes).toEqual(new Set([FRAME / 2]));
+      expect(record.changed).toBeGreaterThan(0);
+      expect(record.slowest).toBeLessThan(DEFAULT_STREAM_FILTER_OPTIONS.frameBudgetMs);
+      if (process.env.DENOISE_TEST_EXPECT_TURN) expect(status).toBe("done");
+    } finally {
+      await t.close();
+    }
+  });
+});

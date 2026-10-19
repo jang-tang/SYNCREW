@@ -123,16 +123,30 @@ docker compose up -d --build server
 ```
 
 - 마이그레이션은 되돌리지 않는다 (Prisma 는 앞으로만). 새 마이그레이션이 들어간 업데이트를 롤백하면 옛 코드가 새 스키마 위에서 돈다 — 컬럼 추가 정도면 대개 동작하지만, 그런 업데이트는 시연 직전에 하지 않는다
-- 설정만 잘못됐다면 `./render-env.sh <fake|openai>` 를 다시 실행하고 `docker compose up -d server`
+- 설정만 잘못됐다면 `./render-env.sh <fake|openai> [passthrough|sidecar]` 를 다시 실행하고 `docker compose up -d server`
 
 ## 7. 노이즈 필터 사이드카
 
-`docker-compose.yml` 의 `denoise` 는 `profiles: ["denoise"]` 라 평소에는 뜨지 않는다. 구현은 `denoise/` (GTCRN, `denoise/README.md`).
-`docker compose --profile denoise up -d --build denoise` 로 띄운다 (EC2 에서 arm64 로 바로 빌드). 서버 쪽 연결(`STREAM_AUDIO_FILTER=sidecar`)은 별도 PR이며, 그 전까지는 사이드카를 띄워도 서버가 쓰지 않는다. 규격: `docs/denoise-sidecar.md`.
+`docker-compose.yml` 의 `denoise` 는 `profiles: ["denoise"]` 라 평소에는 뜨지 않는다. 구현은 `denoise/` (GTCRN, `denoise/README.md`), EC2 에서 arm64 로 바로 빌드한다.
+서버는 `.env` 의 `STREAM_AUDIO_FILTER=sidecar` 일 때만 사이드카(`DENOISE_URL`, 기본 `ws://denoise:8765`)를 쓴다. 규격·동작: `docs/denoise-sidecar.md` (4절이 서버 연결).
 
-- 확인: `docker compose logs -f denoise` — 연결마다 닫힐 때 `처리 ms P50 / P99` 가 찍힌다
-- EC2 안에서 처리 시간 측정: `docker compose exec denoise python bench.py` (동시 4연결, P99 < 30ms 이면 통과)
+켜기 (fake 엔진으로 먼저 확인, 비용 0):
+
+```bash
+cd /opt/syncrew/deploy
+./render-env.sh fake sidecar                    # .env: STREAM_AUDIO_FILTER=sidecar, DENOISE_URL='ws://denoise:8765'
+docker compose --profile denoise up -d --build  # denoise 와 server 를 함께 (server 는 .env 가 바뀌어 다시 만들어진다)
+```
+
+- 실제 엔진: `./render-env.sh openai sidecar && docker compose --profile denoise up -d` (`STREAM_AUDIO_FILTER=sidecar ./render-env.sh openai` 도 같다)
+- 확인: 통화를 하나 끝낸 뒤 `docker compose logs server | grep "스트리밍 노이즈 필터"`
+  - `스트리밍 노이즈 필터 결과` 의 `filtered` 가 조각 수와 같고 `failed` 0 이면 정상
+  - `스트리밍 노이즈 필터 실패, 원본 조각 사용` / `끔 (연속 실패)` 가 보이면 사이드카 연결·처리 시간을 본다 (`docker compose logs denoise`). 통역은 원본으로 계속된다
+  - 사이드카 쪽: `docker compose logs -f denoise` — 연결마다 닫힐 때 `처리 ms P50 / P99` 가 찍힌다
+- EC2 안에서 사이드카 처리 시간 측정: `docker compose exec denoise python bench.py` (동시 4연결, P99 < 30ms 이면 통과)
 - 원본 섞기: `DENOISE_DRY_MIX=0.2 docker compose --profile denoise up -d denoise` (`.env` 는 `render-env.sh` 가 다시 만들므로 셸 변수로 준다)
+- 끄기: `./render-env.sh <fake|openai>` (기본 passthrough) → `docker compose up -d server`. 사이드카는 `docker compose stop denoise`
+- `--profile denoise` 없이 `up -d` 하면 denoise 가 뜨지 않는다 → `sidecar` 로 켜 두었다면 통화마다 연결 실패 5번 뒤 필터 없이 계속된다 (통역은 된다)
 
 ## 8. 10/31 정리 (백업 → 삭제)
 

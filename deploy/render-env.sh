@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # SSM Parameter Store 에서 비밀 값을 읽어 deploy/.env 를 만든다 (EC2 에서 실행, 인스턴스 역할 사용).
 #
-#   사용법: deploy/render-env.sh [fake|openai]     (기본 fake — OpenAI 호출 없음, 비용 0)
+#   사용법: deploy/render-env.sh [fake|openai] [passthrough|sidecar]
+#     1번째: 엔진 (기본 fake — OpenAI 호출 없음, 비용 0)
+#     2번째: 스트리밍 노이즈 필터 STREAM_AUDIO_FILTER (기본 passthrough = 필터 없음,
+#            sidecar = denoise 컨테이너 사용 → `docker compose --profile denoise up -d` 로 함께 띄울 것. docs/denoise-sidecar.md)
+#            변수로 줘도 된다: STREAM_AUDIO_FILTER=sidecar ./render-env.sh openai (인자가 우선)
 #
 #   - 값은 화면에 출력하지 않는다. 결과 파일은 권한 600, git 제외(루트 .gitignore 의 .env).
 #   - 변수 목록은 server/src/config/env.ts · server/.env.example 기준 (전부 적는다).
@@ -11,18 +15,27 @@
 #
 # 덮어쓸 수 있는 환경 변수: AWS_REGION, SSM_PREFIX, DB_INSTANCE_ID, DB_USER, DB_NAME,
 #   DB_HOST·DB_PORT(지정하면 RDS 조회 생략), OPENAI_BUDGET_USD,
-#   STREAM_AUDIO_FILTER(passthrough|sidecar, 기본 passthrough), DENOISE_URL(기본 ws://denoise:8765)
+#   STREAM_AUDIO_FILTER(passthrough|sidecar, 기본 passthrough — 2번째 인자가 우선), DENOISE_URL(기본 ws://denoise:8765)
 set -euo pipefail
 umask 077
 
 ENGINE="${1:-fake}"
+FILTER="${2:-${STREAM_AUDIO_FILTER:-passthrough}}"
 case "$ENGINE" in
   fake | openai) ;;
   *)
-    echo "사용법: $0 [fake|openai]" >&2
+    echo "사용법: $0 [fake|openai] [passthrough|sidecar]" >&2
     exit 2
     ;;
 esac
+case "$FILTER" in
+  passthrough | sidecar) ;;
+  *)
+    echo "사용법: $0 [fake|openai] [passthrough|sidecar] (받은 필터: $FILTER)" >&2
+    exit 2
+    ;;
+esac
+DENOISE_URL="${DENOISE_URL:-ws://denoise:8765}"
 
 REGION="${AWS_REGION:-ap-southeast-2}"
 PREFIX="${SSM_PREFIX:-/syncrew}"
@@ -80,7 +93,7 @@ DB_PASSWORD_ENC="$(printf '%s' "$DB_PASSWORD" | python3 -c 'import sys, urllib.p
 # RDS CA 를 몰라 실패하므로, libpq 와 같은 의미(암호화, CA 검증 없음)로 쓴다. Prisma migrate 도 같은 주소로 동작.
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD_ENC}@${DB_HOST}:${DB_PORT}/${DB_NAME}?uselibpqcompat=true&sslmode=require"
 
-for name in SUPABASE_URL SUPABASE_JWKS_URL SUPABASE_SECRET_KEY AUDIO_URL_SECRET OPENAI_API_KEY DATABASE_URL; do
+for name in SUPABASE_URL SUPABASE_JWKS_URL SUPABASE_SECRET_KEY AUDIO_URL_SECRET OPENAI_API_KEY DATABASE_URL DENOISE_URL; do
   check_value "$name" "${!name}"
 done
 for name in SUPABASE_URL SUPABASE_JWKS_URL SUPABASE_SECRET_KEY DB_PASSWORD AUDIO_URL_SECRET; do
@@ -99,7 +112,7 @@ trap 'rm -f "$TMP"' EXIT
 
 cat >"$TMP" <<EOF
 # deploy/render-env.sh 가 $(date -u +%Y-%m-%dT%H:%M:%SZ) 에 만든 파일 — 직접 고치지 말고 스크립트를 다시 실행할 것
-# ENGINE=$ENGINE
+# ENGINE=$ENGINE STREAM_AUDIO_FILTER=$FILTER
 
 # ─── 서버 ───
 NODE_ENV=production
@@ -125,8 +138,8 @@ TRANSLATION_VOICE=marin
 STREAMING=on
 STREAM_MAX_SESSIONS=4
 STREAM_VAD_SILENCE_MS=500
-STREAM_AUDIO_FILTER=${STREAM_AUDIO_FILTER:-passthrough}
-DENOISE_URL=${DENOISE_URL:-ws://denoise:8765}
+STREAM_AUDIO_FILTER=$FILTER
+DENOISE_URL='$DENOISE_URL'
 
 # ─── 저장소 (compose 볼륨 server_data) ───
 STORAGE_DIR=/data
@@ -148,5 +161,9 @@ EOF
 chmod 600 "$TMP"
 mv -f "$TMP" "$OUT"
 trap - EXIT
-echo "작성 완료: $OUT (권한 600, ENGINE=$ENGINE, OPENAI_BUDGET_USD=$BUDGET). 값은 출력하지 않았습니다."
-echo "적용: cd $DIR && docker compose up -d server"
+echo "작성 완료: $OUT (권한 600, ENGINE=$ENGINE, STREAM_AUDIO_FILTER=$FILTER, OPENAI_BUDGET_USD=$BUDGET). 값은 출력하지 않았습니다."
+if [ "$FILTER" = "sidecar" ]; then
+  echo "적용: cd $DIR && docker compose --profile denoise up -d   (denoise 사이드카와 함께)"
+else
+  echo "적용: cd $DIR && docker compose up -d server"
+fi
