@@ -1,0 +1,19 @@
+# 이미지에 넣지 않는 것 — 비밀 값, 로컬 DB·음성, 의존성(이미지 안에서 npm ci), 시험 출력
+node_modules
+.env
+.env.*
+!.env.example
+.e2e-accounts.json
+.pgdata
+storage
+uploads
+src/generated
+call-peer-output
+openai-check-output
+stream-measure-output
+translate-compare-output
+stt-hint-output
+test
+Dockerfile
+.dockerignore
+.gitignore
