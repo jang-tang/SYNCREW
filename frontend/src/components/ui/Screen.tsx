@@ -92,7 +92,8 @@ export function StackHeader({
 export function LargeHeader({ eyebrow, title, right }: { eyebrow?: ReactNode; title: string; right?: ReactNode }) {
   return (
     <View style={styles.large}>
-      <View style={{ flex: 1, gap: spacing.xs }}>
+      {/* 현장 알약(eyebrow)과 큰 제목 사이: 4px 는 붙어 보여 16px 로 (2026-10-19 발표 화면 검토) */}
+      <View style={{ flex: 1, gap: spacing.lg }}>
         {eyebrow}
         <Text style={font.title} numberOfLines={1}>
           {title}
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
   },
 });
