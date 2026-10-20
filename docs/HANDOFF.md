@@ -61,6 +61,32 @@
 | S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
+#### 말하는 도중 원문 자막: 전사 세션을 gpt-live-transcribe 로 — 2026-10-20 (브랜치 `feat/live-transcribe`, 실제 OpenAI 확인)
+- **무엇**: 전사 전용 세션 모델을 `STREAM_STT_MODEL`(새 환경 변수, 기본 **`gpt-live-transcribe`**, `$0.017/분`)로 분리. VAD 없이(`turn_detection: null`, `languages:[원문]`, `delay:"low"`, 용어집 `keywords` ≤50) 입력을 따라가며 받아쓰므로 **`original_partial` 이 말 시작 0.47–0.76초 뒤(말하는 도중)** 에 온다 — 전에는 말 끝 뒤(3.4–4.2초). 말 끝은 그대로 번역 세션 server_vad 가 정하고, 번역 세션 `committed` 때 서버가 전사 세션에 `input_audio_buffer.commit` 을 턴당 1번 보내 두 세션 항목을 1:1 로 맞춘다. `STREAM_STT_MODEL=gpt-4o-transcribe` 면 예전(server_vad) 그대로. 발화 단위 STT 는 `STT_MODEL` 유지
+- **비용 기록**: duration(초) 사용량 → 1분 = 1,000 음성 토큰 환산(`durationUsage`), `DEFAULT_PRICING["gpt-live-transcribe"]` 음성 입력 $17/1M = $0.017/분. 턴당 약 $0.001
+- **실제 OpenAI 확인 ($0.075, DB 누적 $0.2616)**: `call-peer.ts` 2개 ko↔vi 각 3턴 — 6턴 모두 done·원문·짝 맞음, 비계 → giàn giáo, 경고 0. 표는 `docs/streaming-plan.md` 4-3절 ③. 6턴 원문이 잘린 것은 두 스크립트가 동시에 말해 메아리 차단(`echoDropped: 40`)이 조각을 무음으로 바꾼 탓(반이중 한계)
+- 파일: `server/src/streaming/realtimeStream.ts`, `config/env.ts`, `bootstrap.ts`, `engine/budget/pricing.ts`, `.env.example`, `deploy/render-env.sh`. 시험: 서버 **239** (+6). **실기기 미검증** — 다음 실기기 시험에서 "나" 자막이 말하는 도중 뜨는지 확인
+
+#### 전사 전용 세션 + 폰 재생 신호 메아리 차단 — 2026-10-19 밤 (브랜치 `fix/stream-commit-race`, 실기기 2차 발견 2건)
+- **증상 (iPhone 스피커, 시드니 서버)**: 내 말 자막이 말 끝 0.5–1.5초 뒤에야 뜨고 4턴 중 2턴은 원문 없음(6초 말이 "안녕." 으로) / 메아리 차단이 39조각을 무음으로 바꿨는데도 한 번 샘(폰 재생이 서버 추정 + 300ms 보다 늦음)
+- **A. 전사 전용 세션** (`realtimeStream.ts`, `STREAM_LIVE_TRANSCRIPTION=on|off` 기본 on): 화자 스트림마다 `?intent=transcription` 세션(gpt-4o-transcribe, 같은 server_vad)을 하나 더 열어 같은 음성을 넣고, 번역 세션의 입력 전사는 끔(2번 청구 방지). 턴 id 는 엔진 uuid, 두 세션 항목을 순서(FIFO)로 짝짓기 + 4초 뒤 버림. 전사 세션 실패 시 번역 세션 전사로 자동 복귀. `STREAM_DEBUG=1` 로 두 세션 이벤트 추적
+  - **실제 OpenAI 확인 ($0.039)**: 4턴 모두 done·원문 있음, 짝 모두 맞음. **그러나 gpt-4o-transcribe 는 전사 세션에서도 턴 확정 뒤에야 조각을 낸다** — 첫 조각은 말 끝 0.07–0.40초 뒤(완성본 0.52–0.76초), 말하는 도중 자막은 안 됨. 말하는 도중 자막은 `gpt-live-transcribe`(OpenAI 문서, VAD 없음) 후속 — 모델·가격 결정 필요 (`docs/streaming-plan.md` 4-3절)
+- **B. 폰 재생 신호** (`stream:playing {streamId, playing}`, 앱 `useStreamingCall.ts`·`playingSignal.ts`, 서버 `streamHub.ts`): 앱이 이중 오디오의 실제 재생 시작/끝을 알리면(끝은 200ms 떨림 제거) 서버는 그 신호(+꼬리 300ms)로만 무음 처리, 신호 없는 옛 앱은 서버 추정 그대로. **실기기 미검증**(스크립트는 소리를 재생하지 않음) — 다음 실기기 시험에서 `echoDropped` 와 메아리 유무 확인
+- 문서: `docs/realtime-protocol.md` 10절, `docs/streaming-plan.md` 4-3절. 시험: 서버 **233** (+4), 앱 단위 **36** (+3)
+
+#### 반이중 메아리 차단 + 스트리밍 용어집 — 2026-10-19 (브랜치 `fix/stream-commit-race`, 실기기 발견 2건)
+- **메아리**: iPhone 스피커로 들은 통역이 마이크로 되돌아와 내 다음 턴에 섞였다 → 서버가 X 에게 턴을 보내는 동안 + 꼬리 300ms(`StreamHubOptions.echoGuardMs`) 동안 X 의 조각을 버린다 — 통역 스트림은 **같은 길이 무음으로 바꿔** 엔진에 넣는다(그냥 버리면 말 끝 무음이 사라져 OpenAI VAD 가 턴을 못 끝냄 — 실제 확인에서 발견), relay 는 그냥 버림. 버린 수는 스트림 닫힐 때 로그 `echoDropped`·기록 `timings.echoDropped`. 반이중이라 상대 턴 중 끼어들기는 안 된다 — 단말 AEC 가 1순위, 꼬리 길이는 실기기에서 조정
+- **실제 OpenAI 확인**: `call-peer.ts` 2개로 4턴 모두 done, ko→vi 에서 비계 → giàn giáo·안전모 → mũ bảo hộ, 2번째 턴부터 지시문 캐시 적중(cached 1,408). 비용 $0.061 (DB 기록 누적 $0.147)
+- **용어집**: 스트리밍은 `terms: []` 였다 → 언어 쌍 기준 용어 ≤110개 + 검증 문장 ≤12개(약 3,900자, 결정적 순서)를 세션 지시문 앞쪽에 고정. 지금 데이터는 ko↔vi 만 번역이 있다
+- 문서: `docs/streaming-plan.md` 4-2절, `docs/realtime-protocol.md` 10절. 시험: 서버 **229** (+8)
+
+#### 스트리밍 말 끝 판단 변경 — 2026-10-19 (브랜치 `fix/stream-commit-race`)
+- **증상**: 실기기(iPhone, LTE) 스트리밍 통화에서 2번째 말부터 번역이 안 됨 (7~8번 말해 5번만 기록). 같은 날 앞 커밋(`72e34d1`)은 `response.create` 경쟁을 고쳤지만 근본 원인이 아니었다
+- **근본 원인 (실제 OpenAI API 탐침으로 실측)**: 서버가 `stream:pause` 를 수동 `input_audio_buffer.commit` 으로 바꿔 보냈는데, **수동 commit 을 한 번 보내면 그 세션의 서버 VAD 가 다시는 `speech_started` 를 내지 않는다** → 뒤의 말이 모두 조용히 사라짐. 수동 commit 없이 뒤 무음 ≥0.5초만 보내면 VAD 가 `speech_stopped → committed → response.created` 로 턴마다 알아서 끝내고(말 끝 뒤 약 10ms 에 응답 시작) 여러 턴이 모두 된다
+- **결정: 말 끝은 서버 VAD 만 정한다.** 단말은 말이 멎은 뒤 ≥0.6초 무음까지 보내고, `stream:pause` 는 "보내기 중단" 뜻만 갖는다 (통역 스트림은 엔진에 아무것도 보내지 않고, 같은 언어 직접 전달만 턴을 닫는다). 서버는 `input_audio_buffer.commit`·`response.create` 를 보내지 않는다 — `server/src/streaming/realtimeStream.ts` 의 수동 commit·응답 경쟁 코드를 모두 지움
+- **덧붙임**: 원문 전사 조각(`conversation.item.input_audio_transcription.delta`)을 `stream:mine:text` `kind: "original_partial"` 로 말한 사람에게 보내 받아쓰는 중 글자가 바로 뜬다(완성본 `original` 이 오면 바꿈). 듣는 사람은 완성본만. `scripts/call-peer.ts` 뒤 무음 0.3 → 0.8초
+- 문서: `docs/realtime-protocol.md` 10절, `docs/streaming-plan.md` D4. 시험: 서버 221 (수동 commit 시험 5개 삭제, 새 시험 3개), 앱 단위 31
+
 #### 실기기 없이 마무리 (2) — 2026-10-17
 - **S3 네이티브 코드 재점검** (Swift 482줄·Kotlin 554줄·JS 어댑터·`useStreamingCall`·`useHandsFree` 를 처음부터 읽음): 실기기 전에 고쳐야 할 결함은 찾지 못했다. 확인한 것 — Android: 통신 모드 진입·복원, Android 12+ `setCommunicationDevice`(블루투스 SCO > 유선 > 스피커, 수화기 제외), 장치 붙음·빠짐 재선택, 녹음·재생 논블로킹 스레드와 정지 순서, 시작 실패 시 정리, AEC/NS/AGC. iOS: playAndRecord+voiceChat+HFP, voice processing 실패 시 계속, 경로 변경·엔진 설정 변경·중단·미디어 서비스 재시작 시 재구성, 재생 세대 번호로 이전 콜백 무시, 권한 요청. JS: 스트림 열기 실패·마이크 실패 → 문장 단위, 들은 문장 재생 안 함
   - 실기기에서 눈여겨볼 점(결함은 아님): ① Android 블루투스 SCO 는 켜지는 데 시간이 걸려 통화 첫 0.5–1초는 휴대폰 마이크로 녹음될 수 있다 ② 재생 오류가 계속되면 `onError` 가 20ms 마다 반복될 수 있다(로그가 많아짐) ③ iOS 녹음 탭 크기는 iOS 가 정해 첫 조각까지 약 100ms 더 걸릴 수 있다 ④ 오디오 포커스(다른 앱 음악 멈춤)는 요청하지 않는다
@@ -85,7 +111,7 @@
 4. ~~실제 노이즈 필터 구현~~ 🟡 GTCRN 사이드카(`denoise/`, #4)와 서버 연결(`STREAM_AUDIO_FILTER=sidecar`, #6) 완료 (2026-10-19). 남은 것: 받아쓰기 CER 비교로 켤지 결정 (10/27), 시드니 EC2에서 `--profile denoise` 로 실측
 5. 현장 용어 데이터 보강 (다른 팀원: "거푸집·안전모·안전고리"가 검증 문장에 없음, 번역은 베트남어만 있음)
 ※ **실기기 없이 할 수 있는 일은 2026-10-17 에 모두 끝났다** — 위 1–2 는 실기기, 4–5 는 다른 팀원, 6 은 사용자 결정으로 나중
-6. 나중에(사용자 결정): UI 문구 원어민 검수, 업무용 메일 서비스, 우즈베크어 통역 품질(보류), 용어집 지시문(보류), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
+6. 나중에(사용자 결정): UI 문구 원어민 검수, 업무용 메일 서비스, 우즈베크어 통역 품질(보류), ~~용어집 지시문(보류)~~ ✅ 2026-10-19 스트리밍에도 적용, 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ### ❓ 미확인 (확인하지 못한 것 — 완료로 보지 말 것)
 - **S3 네이티브 오디오의 실기기 동작 전부**: 실제 목소리 통역 전달, 스피커 에코 루프 없음, 블루투스 헤드셋 입출력(특히 Android SCO), 경로 변경, 끊김·지연, iOS 는 실행 자체도 미확인(시뮬레이터 마이크가 Mac 권한 문제로 막혀 컴파일만 확인)

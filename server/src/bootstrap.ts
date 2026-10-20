@@ -43,7 +43,7 @@ export async function createContext(
   }
 
   const pricing = buildPricingTable(env.OPENAI_PRICING_JSON);
-  for (const model of [env.STT_MODEL, env.TRANSLATION_MODEL]) {
+  for (const model of [env.STT_MODEL, env.STREAM_STT_MODEL, env.TRANSLATION_MODEL]) {
     if (!pricing[model]) {
       throw new Error(`모델 단가가 없습니다: ${model}. OPENAI_PRICING_JSON에 추가하세요.`);
     }
@@ -72,11 +72,16 @@ export async function createContext(
       apiKey: env.OPENAI_API_KEY,
       model: env.TRANSLATION_MODEL,
       transcribeModel: env.STT_MODEL,
+      // 전사 전용 세션 모델 (기본 gpt-live-transcribe: VAD 없이 말하는 도중 조각). 전사 세션이 없을 때의 번역 세션 전사는 STT_MODEL
+      streamTranscribeModel: env.STREAM_STT_MODEL,
       voice: env.TRANSLATION_VOICE,
       reasoning: env.TRANSLATION_REASONING,
       silenceMs: env.STREAM_VAD_SILENCE_MS,
+      liveTranscription: env.STREAM_LIVE_TRANSCRIPTION === "on",
       budget,
       log: (message, detail) => logger.warn(detail ?? {}, message),
+      // STREAM_DEBUG=1: 두 세션(번역·전사)의 이벤트를 모두 남긴다 (원문 누락·턴 짝짓기 진단)
+      ...(env.STREAM_DEBUG === "1" ? { trace: (session, type, detail) => logger.info({ session, type, ...detail }, "스트리밍 엔진 이벤트") } : {}),
     });
     stt = new OpenAiStt(env.OPENAI_API_KEY, env.STT_MODEL, budget);
     translator = new RealtimeTranslator({

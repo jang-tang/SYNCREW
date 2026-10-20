@@ -55,6 +55,15 @@ export type ServerToClientEvents = {
   "stream:out:text": (payload: { turnId: string; kind: "original" | "translation"; text: string }) => void;
   /** 턴 끝. done 이면 기록(messageId)이 저장되고 message:new 도 따로 온다. failed 면 이 턴 통역 실패 */
   "stream:out:end": (payload: { turnId: string; status: "done" | "failed"; messageId: string | null }) => void;
+  /**
+   * 내 말(말한 사람에게) — 말한 사람 화면에 바로 보여 준다 (기록 알림보다 먼저, 2026-10-19).
+   *   original_partial: 받아쓰는 중 원문 조각(delta) — 이어 붙여 보여 준다
+   *   original        : 원문 전사 완성본 — 이어 붙인 조각을 통째로 바꾼다
+   *   translation     : 번역 자막 조각(delta)
+   */
+  "stream:mine:text": (payload: { sessionId: string; turnId: string; kind: "original" | "original_partial" | "translation"; text: string }) => void;
+  /** 내 말의 턴 끝 (말한 사람에게). failed 면 이 말은 통역되지 않았다 → 다시 말하도록 안내 */
+  "stream:mine:end": (payload: { sessionId: string; turnId: string; status: "done" | "failed" }) => void;
   /** 스트리밍을 계속할 수 없음 → 앱은 발화 단위 방식으로 바꾼다 (말한 사람에게) */
   "stream:fallback": (payload: Envelope & { sessionId: string; streamId: string; reason: StreamFallbackReason }) => void;
 };
@@ -106,8 +115,16 @@ export type ClientToServerEvents = {
   "stream:open": (payload: { sessionId: string; format: StreamFormat }, ack: (result: StreamOpenResult) => void) => void;
   /** 음성 조각 (약 100ms). 단말 VAD 가 말소리라고 판단한 구간 + 앞뒤 여유만 보낸다. ack 없음 */
   "stream:audio": (payload: { streamId: string; seq: number; pcm: ArrayBuffer }) => void;
-  /** 단말이 말이 멎었다고 판단 (뒤 여유까지 보낸 뒤): 서버가 그 턴을 바로 확정한다 */
+  /**
+   * 단말이 보내기를 멈춤 (말이 멎은 뒤 ≥0.6초 무음까지 보낸 뒤). 통역 스트림의 말 끝은 서버 VAD(무음 0.5초)만 정하므로
+   * 서버는 이 이벤트로 턴을 확정하지 않는다 (2026-10-19: 수동 commit 이 OpenAI VAD 를 멈추는 것을 실측). 같은 언어 직접 전달은 턴을 닫는다
+   */
   "stream:pause": (payload: { streamId: string }) => void;
+  /**
+   * 내 단말의 통역 재생이 실제로 시작/끝남 (2026-10-19, 메아리 차단용). 서버는 playing=true 인 동안(+ 꼬리 echoGuardMs) 내 조각을
+   * 무음으로 바꾼다. 이 이벤트를 한 번이라도 보낸 스트림은 서버의 재생 추정(stream:out:start~end) 대신 이 신호만 쓴다. ack 없음
+   */
+  "stream:playing": (payload: { streamId: string; playing: boolean }) => void;
   "stream:close": (payload: { streamId: string }, ack: (result: AckResult) => void) => void;
 };
 

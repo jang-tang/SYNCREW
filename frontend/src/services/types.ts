@@ -118,6 +118,8 @@ export interface RealtimeService {
   sendStreamAudio(streamId: string, seq: number, pcm: ArrayBuffer): void;
   /** 단말이 말 끝을 판단했을 때 */
   pauseStream(streamId: string): void;
+  /** 내 단말의 통역 재생이 실제로 시작/끝남 (메아리 차단용, 2026-10-19). 연결이 끊겨 있으면 버린다 */
+  reportStreamPlaying(streamId: string, playing: boolean): void;
   closeStream(streamId: string): void;
 }
 

@@ -20,6 +20,9 @@ export const normalizedDatasetSchema = z.object({
       translations: translationsSchema.default({}),
       meaning: z.string().optional(),
       rule: z.string().optional(),
+      risk: z.enum(["critical", "high", "normal"]).optional(),
+      core: z.boolean().optional(),
+      domain: z.string().optional(),
     }),
   ),
   phrases: z

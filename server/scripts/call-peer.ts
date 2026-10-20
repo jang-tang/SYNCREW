@@ -257,8 +257,10 @@ if (!FORCE_UTTERANCE) {
 
 
 async function speakStream(id: string) {
-  // 말 + 뒤 무음 0.3초를 100ms 조각으로 실시간 속도로 보낸다 (앱처럼 seq 는 스트림 안에서 계속 증가)
-  const padded = new Int16Array(voice.length + RATE * 0.3);
+  // 말 + 뒤 무음 0.8초를 100ms 조각으로 실시간 속도로 보낸다 (앱처럼 seq 는 스트림 안에서 계속 증가).
+  // 무음은 서버 VAD(무음 500ms)가 턴을 끝낼 만큼 길어야 한다 — stream:pause 는 "보내기 중단" 뜻일 뿐 턴을 확정하지 않는다
+  // (수동 commit 은 OpenAI 세션의 VAD 를 멈춰 뒤의 말이 모두 사라졌다, 2026-10-19 실측)
+  const padded = new Int16Array(voice.length + RATE * 0.8);
   padded.set(voice);
   const start = Date.now();
   for (let i = 0; i * FRAME_SAMPLES < padded.length; i += 1) {

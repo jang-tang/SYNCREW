@@ -323,6 +323,10 @@ try {
     await member.tap("Nghe");
     await manager.check("관리자: 같은 언어 → 직접 전달 방식", "같은 언어 · 음성 그대로 전달", 15000);
     await member.check("구성원: 같은 언어 → 직접 전달 방식", "Cùng ngôn ngữ · truyền giọng nói trực tiếp", 15000);
+    // 메아리 차단(반이중): 가짜 마이크가 양쪽에서 쉬지 않고 소리를 내므로, 구성원이 마이크를 끄지 않으면
+    // 관리자 앱이 계속 "재생 중"으로 보고돼 관리자 조각이 전부 버려진다 (2026-10-20, 실제 폰은 말을 멈추면 풀림)
+    await member.tap("Tắt micro");
+    await wait(1500);
     // 관리자 마이크 음성(가짜 마이크)이 구성원에게 조각으로 도착하는지, 기록(번역 메시지)은 생기지 않는지
     const got = await member.page
       .waitForFunction((n) => window.__syncrewPlayback.streamChunks > n + 10, { timeout: 30000 }, before.streamChunks)

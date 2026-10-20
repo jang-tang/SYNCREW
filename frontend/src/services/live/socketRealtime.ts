@@ -101,6 +101,9 @@ export function createSocketRealtime(auth: AuthService): RealtimeService {
     pauseStream(streamId) {
       if (socket.connected) socket.emit("stream:pause", { streamId });
     },
+    reportStreamPlaying(streamId, playing) {
+      if (socket.connected) socket.emit("stream:playing", { streamId, playing });
+    },
     closeStream(streamId) {
       if (socket.connected) socket.emit("stream:close", { streamId }, () => undefined);
     },

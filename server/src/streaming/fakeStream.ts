@@ -41,6 +41,8 @@ export type FakeConnectionRecord = {
   appendedBytes: number;
   commits: number;
   contexts: ContextLine[][];
+  /** 열 때 받은 언어 쌍 용어집 크기 (용어 수) */
+  glossaryTerms: number;
   closed: boolean;
 };
 
@@ -62,7 +64,7 @@ export class FakeStreamEngine implements StreamEngine {
 
   constructor(private readonly options: FakeStreamOptions = {}) {}
 
-  async open({ sourceLang, targetLang, events }: StreamOpenOptions): Promise<StreamConnection> {
+  async open({ sourceLang, targetLang, events, glossary }: StreamOpenOptions): Promise<StreamConnection> {
     this.opens += 1;
     if (this.options.failOpen?.(this.opens)) throw new Error("fake stream open failure");
     const record: FakeConnectionRecord = {
@@ -72,6 +74,7 @@ export class FakeStreamEngine implements StreamEngine {
       appendedBytes: 0,
       commits: 0,
       contexts: [],
+      glossaryTerms: glossary?.terms.length ?? 0,
       closed: false,
     };
     this.connections.push(record);
@@ -105,9 +108,9 @@ class FakeConnection implements StreamConnection {
   }
 
   commit(): void {
+    // stream:pause 는 "보내기 중단" 뜻 — 말 끝은 무음(silenceMs)으로만 판단한다 (OpenAI 구현과 같은 의미)
     if (this.dead) return;
     this.record.commits += 1;
-    if (this.speechMs > 0) this.endTurn();
   }
 
   setContext(lines: ContextLine[]): void {
@@ -148,8 +151,11 @@ class FakeConnection implements StreamConnection {
     const originalAt = options.originalDelayMs ?? 0;
     let originalSent = false;
     const sendOriginal = () => {
-      if (!originalSent) events.original(turnId, original);
+      if (originalSent) return;
       originalSent = true;
+      // 받아쓰기 조각(앞 절반) → 완성본 (OpenAI 의 ...transcription.delta → completed 순서)
+      events.originalDelta(turnId, original.slice(0, Math.ceil(original.length / 2)));
+      events.original(turnId, original);
     };
     if (originalAt === 0) sendOriginal();
 

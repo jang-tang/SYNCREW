@@ -737,6 +737,17 @@ export const STRINGS = {
     ru: "Достигнут лимит расходов на перевод — синхронный перевод остановлен",
   },
   "stream.failed": { ko: "통역 실패", zh: "翻译失败", vi: "Dịch thất bại", uz: "Tarjima amalga oshmadi", ru: "Ошибка перевода" },
+  // 내 말 자막 (말한 사람 화면, 2026-10-19 — 원어민 검수 전)
+  "stream.mine.me": { ko: "나", zh: "我", vi: "Tôi", uz: "Men", ru: "Я" },
+  "stream.mine.speaking": { ko: "듣고 있어요…", zh: "正在听…", vi: "Đang nghe…", uz: "Tinglayapman…", ru: "Слушаю…" },
+  "stream.mine.processing": { ko: "받아쓰는 중…", zh: "正在识别…", vi: "Đang nhận dạng…", uz: "Aniqlanmoqda…", ru: "Распознаю…" },
+  "stream.mine.failed": {
+    ko: "알아듣지 못했어요. 다시 말해 주세요",
+    zh: "没听清，请再说一遍",
+    vi: "Chưa nghe rõ, vui lòng nói lại",
+    uz: "Tushunilmadi, qaytadan ayting",
+    ru: "Не удалось распознать, повторите",
+  },
 
   // ─── 일괄 지시 대상 선택 ───
   "recip.quick": { ko: "빠른 선택", zh: "快速选择", vi: "Chọn nhanh", uz: "Tezkor tanlash", ru: "Быстрый выбор" },

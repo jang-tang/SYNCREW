@@ -10,6 +10,7 @@ import { Platform } from "react-native";
 import type { DeviceStatus } from "@shared/api";
 import { selectHeadsetInput } from "./audioDevice";
 import { enterCallRoute, exitCallRoute } from "./duplex";
+import { setMicLevel, setMicLevelDb } from "./micLevel";
 import { usePlaybackStore } from "./playback";
 import { preprocessRecording } from "./preprocess";
 import type { Recording } from "./useVoiceRecorder";
@@ -19,6 +20,7 @@ import { createVad } from "./vad";
 // - 버튼을 누를 필요가 없다. 받은 통역 음성이 재생되는 동안에는 듣기를 멈춘다(내 이어폰 소리가 다시 들어가지 않게).
 // - 블루투스 헤드셋이 있으면 그 마이크를 쓰고, 상태를 onDevice 로 알린다.
 // - 진짜 오디오 스트리밍이 아니라 "발화 단위" 전송이다. 지연은 말이 끝난 뒤 처리 시간만큼 생긴다 (docs/live-interpretation.md).
+// - 마이크 음량은 React 상태가 아니라 audio/micLevel 저장소에 쓴다 (100ms 마다 화면 전체를 다시 그리지 않게, 2026-10-20)
 
 /** 음성 인식용: 16kHz mono AAC (30초 ≈ 120KB, 서버 제한 2MB 안) */
 const OPTIONS: RecordingOptions = {
@@ -65,7 +67,6 @@ export function useHandsFree(options: {
   const playing = usePlaybackStore((state) => state.playingId !== null);
   const [state, setState] = useState<HandsFreeState>("off");
   const [error, setError] = useState<HandsFreeError | null>(null);
-  const [level, setLevel] = useState(0);
   const [device, setDevice] = useState<DeviceStatus | null>(null);
 
   // 최신 콜백·상태를 타이머 안에서 쓰기 위한 참조
@@ -138,7 +139,7 @@ export function useHandsFree(options: {
       setState("error");
     } finally {
       l.busy = false;
-      setLevel(0);
+      setMicLevel(0);
     }
   }
 
@@ -232,7 +233,7 @@ export function useHandsFree(options: {
       const metering = recorder.getStatus().metering ?? -160;
       // Android(expo-audio)는 음량을 읽을 때마다 값이 초기화돼 중간중간 -160(값 없음)이 끼어든다. 무음이 아니라 "측정 없음"이므로 건너뛴다. (실제 무음도 마이크 잡음 때문에 -50 안팎이다)
       if (Platform.OS !== "web" && metering <= -160) return;
-      setLevel(Math.max(0, Math.min(1, (metering + 60) / 60)));
+      setMicLevelDb(metering);
       const event = vad.current.push(metering, Date.now());
       if (!event) return;
       if (event.type === "speechStart") {
@@ -264,5 +265,5 @@ export function useHandsFree(options: {
     setError(null);
   };
 
-  return { state, error, level, device, retry };
+  return { state, error, device, retry };
 }
