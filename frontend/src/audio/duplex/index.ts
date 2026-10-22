@@ -45,3 +45,18 @@ export async function exitCallRoute(): Promise<void> {
   if (Platform.OS !== "android" || !SyncrewDuplex) return;
   await SyncrewDuplex.exitCallRoute().catch(() => undefined);
 }
+
+/**
+ * Android 발화 단위 통화: 통화 경로가 잡혀 있으면 음성(URL)을 통화 용도로 재생하고 끝나면 true, 경로가 없으면 false.
+ * expo-audio 재생기는 미디어 용도라 블루투스 SCO 중에는 헤드셋에서 들리지 않았다 (2026-10-23 Note 9 + WH-1000XM6).
+ * iOS·웹·모듈 없는 빌드: false. 재생 실패는 예외.
+ */
+export async function playInCall(url: string): Promise<boolean> {
+  if (Platform.OS !== "android" || !SyncrewDuplex?.playInCall) return false;
+  return SyncrewDuplex.playInCall(url);
+}
+
+export function stopInCall(): void {
+  if (Platform.OS !== "android") return;
+  SyncrewDuplex?.stopInCall?.();
+}

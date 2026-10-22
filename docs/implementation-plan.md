@@ -17,7 +17,7 @@
 | 4 | 통역 파이프라인 + 1:1 대화 | 3 | 완료 `fd2caf0` (실제 OpenAI 확인은 Phase 6에서 완료) |
 | 5 | 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 4 | 완료 `d7f29a4` |
 | 6 | 안정화·실제 OpenAI·live 모드·기기 확인 | 1–5 | 완료 `022f261` (실기기는 추후) |
-| 7 | 진짜 스트리밍 통역(1:1 통화) + 일괄 지시 대상 선택 UX | 6 | 계획 승인 (2026-10-12), S0 대기 |
+| 7 | 진짜 스트리밍 통역(1:1 통화) + 일괄 지시 대상 선택 UX | 6 | 진행 중 — S1·S2·S3 구현 완료, S3 실기기 iOS 일부 통과·Android 미실시 (2026-10-22, 아래 Phase 7 절) |
 
 ## Phase 1. 기반 — 완료 (2026-10-10, 커밋 `9371620`)
 
@@ -300,6 +300,30 @@
 - 못 한 것: 에뮬레이터에서 통역 음성 조각 수신·재생 확인 (디스크 부족으로 에뮬레이터가 켜지지 않음)
 - 시험: 서버 200, 앱 단위 22, 데모 e2e 99, live e2e 43, 혼합 통화 e2e 18, 타입 검사 모두 통과
 - **이로써 실기기 없이 할 수 있는 일은 남지 않았다.** 남은 것은 실기기 시험(S3 → S4 → S6, T2 D·E, T6)·다른 팀원 몫·나중 작업
+
+### S3 iOS 실기기 시험 (2026-10-17 밤, 새 담당자 현슈, 커밋 `4fd2d9d` · PR #1 병합 `76cac8b`, 상세: [device-test-log.md](device-test-log.md), [HANDOFF.md](HANDOFF.md) 2절)
+- 기기: iPhone 15 Pro Max(iOS 26.6.1) + AirPods Pro. 서버 `ENGINE=fake`(비용 0), 상대 `call-peer.ts`. Android 기기 없음 → Android 미실시
+- **버그 수정 — iOS voice processing 무한 재시작**: 에코 제거를 켠 엔진이 시작 직후 설정 변경으로 멈추고 재구성하면 또 멈춤(스피커 간헐·블루투스 HFP 항상) → 녹음 조각 0개·소리 없음. 수정: 48kHz 고정, 블루투스에서는 voice processing 미사용, 경로 변경 시 필요하면 재구성, 반복 보호(10초 4회 → 에코 제거 끄고 재구성, 8회 → `onError`), DEBUG 진단 로그 `[duplex-diag]`. `app.json` 에 iOS 번들 ID 추가(prebuild 에 필요)
+- 결과: 점검 화면 스피커(조각 100ms, 시험음 중 마이크 -62dB = 에코 제거 동작)·에어팟·통화 중 전환 통과, **F 스트리밍 통화 통과**(12턴, 에어팟 마이크 포함)
+- **남은 문제**: F 통화에서는 스피커로 시작해도 반복 보호가 걸려 에코 제거가 꺼진 채 진행, 통화 도중 스피커로 바뀌어도 꺼진 채 남음 → G 전에 원인 확인·수정 필요
+- 미실시: G·H(실제 OpenAI 필요), Android 전부, S4. 수정된 Swift 는 현슈 Mac 실기기 빌드로만 확인(서버·앱 JS 변경 없음)
+
+### 실기기 2차 발견 수정·배포·성능·보안 (2026-10-19–22, 현슈, PR #2–#10 · `main` `3d72cad`, 상세: [HANDOFF.md](HANDOFF.md) 2절, [streaming-plan.md](streaming-plan.md) 4-2·4-3절)
+- **배포**: AWS 시드니 EC2 + RDS + Docker Compose(Caddy), https://syncrew.hyunshu.com — 10/30 현장 시연, 10/31 삭제 ([deploy/README.md](../deploy/README.md))
+- **노이즈 필터**: GTCRN 사이드카 `denoise/` + 서버 `STREAM_AUDIO_FILTER=sidecar` ([denoise-sidecar.md](denoise-sidecar.md)). 켤지는 CER 비교 후
+- **스트리밍 (iPhone 실기기·시드니 서버에서 발견)**: 말 끝은 서버 VAD 만(수동 commit 제거), 반이중 메아리 차단(무음 대체) + 폰 재생 신호 `stream:playing`, 전사 전용 세션 `gpt-live-transcribe`(`STREAM_STT_MODEL`, 말하는 도중 자막), 스트리밍 용어집, 내 말 자막 `stream:mine:*`. 실제 OpenAI 는 `call-peer.ts` 스크립트끼리 확인(약 $0.18), **실기기 재확인 전**
+- **성능**: 앱 번들 Android −18%·iOS −19%, 통화 화면 다시 그리기 감소, Socket.IO ping 10s+10s, 리샘플·base64 가속 ([perf-app-2026-10-20.md](perf-app-2026-10-20.md), [perf-network-2026-10-20.md](perf-network-2026-10-20.md))
+- **보안**: Claude Security 검사 12건 중 9건 수정 + 화면 캡처 정적 서버. F12(LOW) 미해결
+- 네이티브 모듈은 바뀌지 않음 → iOS 통화 시작 때 에코 제거가 꺼지는 문제는 그대로
+
+### S3 Android 실기기 시험 (2026-10-23 새벽, 장태웅, Galaxy Note 9 Android 10 + Sony WH-1000XM6, 가짜 엔진, 상세: [device-test-log.md](device-test-log.md))
+- 통과: 점검 화면(헤드셋 SCO 열림·스피커·전환), F 스트리밍 통화(헤드셋·스피커·통화 중 전환·종료), C 문장 단위 + 헤드셋 마이크(10-14 실패 해소), 같은 언어 통화
+- 이어서 실제 OpenAI($0.413): **G 스피커 에코 루프 통과**, 통역 듣기(스트리밍·문장 단위 × 헤드셋·스피커) 통과, **H 통화 중 Wi-Fi 끊김 통과**(무선 adb)
+- 버그 6개 수정(10-23 커밋): Android 11 이하 SCO 해제, 무음 -160 헤드셋 문장 단위 VAD, **스트리밍 `stream:pause` 때 서버가 무음 0.7초 주입**(원문 밀림 원인 — 서버 VAD 가 쉼을 못 봄), 발화 단위 통역 음성 통화 용도 재생(`playInCall`), expo-audio 스피커폰 강제 회피, 통신 모드 재지정·SCO 재연결. 상세 [streaming-plan.md](streaming-plan.md) 5-5절
+- 시험: 서버 248(1 건너뜀), 앱 타입 검사·단위 46
+- 남은 것: S4 휴대폰 2대, Android 12+ 기기, iPhone 에서 이번 변경 영향 확인
+
+- **기준선 (2026-10-22, 이 PC, pull 직후)**: 서버 타입 검사 + 시험 248 통과·1 건너뜀, 앱 타입 검사 + 단위 46 통과. e2e 는 다시 돌리지 않음
 
 ## 2. 다른 개발자 연결 지점
 

@@ -45,6 +45,9 @@ export type StreamHubOptions = {
   filter: StreamFilterOptions;
   /** 메아리 차단: 상대 턴 재생이 끝난 뒤에도 이 시간 동안은 내 조각을 버린다 (스피커 → 마이크 잔향·재생 지연) */
   echoGuardMs: number;
+  /** 통역 스트림: stream:pause(단말이 보내기를 멈춤) 때 엔진에 넣는 무음 길이. 서버 VAD 는 받은 소리만 보고 무음 500ms 를 세므로,
+   *  단말이 말 끝 뒤 0.6초만 보내고 멈추면 실제로는 3초를 쉬어도 그 꼬리의 잡음 때문에 다음 말과 한 턴으로 붙는다 (2026-10-23 Note 9 스피커) */
+  pauseSilenceMs: number;
 };
 
 export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
@@ -55,6 +58,7 @@ export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
   relayIdleMs: 1_000,
   filter: DEFAULT_STREAM_FILTER_OPTIONS,
   echoGuardMs: 300,
+  pauseSilenceMs: 700,
 };
 
 /** 사용자 1명에게 재생 중인 턴들과, 마지막 턴이 끝난 뒤 차단이 풀리는 시각 */
@@ -360,9 +364,14 @@ export class StreamHub {
   pause(userId: string, streamId: string): void {
     const stream = this.streams.get(streamId);
     if (!stream || stream.speakerId !== userId || stream.closed) return;
-    // stream:pause = 단말이 보내기를 멈췄다는 뜻. 통역 스트림의 말 끝은 엔진(서버 VAD)만 정하므로 엔진에 아무것도 보내지 않는다
-    // (수동 commit 은 OpenAI 세션의 VAD 를 멈춰 뒤의 말이 모두 사라졌다 — 2026-10-19 실측). 같은 언어 직접 전달만 턴을 닫는다
-    if (!stream.relay) return;
+    // stream:pause = 단말이 보내기를 멈췄다는 뜻. 통역 스트림의 말 끝은 엔진(서버 VAD)만 정한다 — 수동 commit 은 보내지 않는다
+    // (수동 commit 은 OpenAI 세션의 VAD 를 멈춰 뒤의 말이 모두 사라졌다 — 2026-10-19 실측). 대신 실제로 소리가 끊긴 만큼 무음을
+    // 엔진에 넣어 서버 VAD 가 말 끝을 확실히 보게 한다 (필터 처리 중인 조각 뒤에, 순서 유지). 같은 언어 직접 전달은 턴을 닫는다
+    if (!stream.relay) {
+      const bytes = Math.round((stream.sampleRate * this.options.pauseSilenceMs) / 1000) * 2;
+      if (bytes > 0) stream.filter.after(() => this.ingest(stream, Buffer.alloc(bytes)));
+      return;
+    }
     // 필터 처리 중인 조각이 모두 들어간 뒤에 턴을 닫는다
     stream.filter.after(() => {
       if (!stream.closed) this.endRelayTurn(stream);

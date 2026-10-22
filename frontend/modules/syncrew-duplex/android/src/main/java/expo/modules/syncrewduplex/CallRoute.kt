@@ -22,6 +22,9 @@ class CallRoute(context: Context, private val onRoute: (String, String?) -> Unit
   private val mainExecutor = Executor { handler.post(it) }
   private var active = false
   private var previousMode = AudioManager.MODE_NORMAL
+  /** Android 11 이하: startBluetoothSco 를 이미 불렀는지. 시스템이 호출 횟수를 세므로 한 번만 부르고 한 번만 끈다
+   *  (2026-10-23 Note 9(Android 10): 시작 때 2번 불려 멈춘 뒤에도 SCO 가 켜진 채 남았다 — 음악까지 통화 음질로) */
+  private var scoRequested = false
   /** AudioManager.OnCommunicationDeviceChangedListener (API 31+, 옛 기기에서 클래스를 읽지 않도록 Any 로 둔다) */
   private var communicationListener: Any? = null
 
@@ -63,8 +66,7 @@ class CallRoute(context: Context, private val onRoute: (String, String?) -> Unit
     } else {
       @Suppress("DEPRECATION")
       run {
-        audioManager.stopBluetoothSco()
-        audioManager.isBluetoothScoOn = false
+        stopSco()
         audioManager.isSpeakerphoneOn = false
       }
     }
@@ -75,6 +77,10 @@ class CallRoute(context: Context, private val onRoute: (String, String?) -> Unit
   @Synchronized
   fun apply() {
     if (!active) return
+    // 다른 코드가 통신 모드를 풀었으면 되돌린다: 발화 단위 통화에서 expo-audio setAudioModeAsync 가 MODE_NORMAL 로 바꿔
+    // 통화 용도 재생(CallPlayer)이 헤드셋 대신 스피커로 나갔다 (2026-10-23 Note 9 + WH-1000XM6).
+    // 조건 없이 다시 지정한다 — 그 기기는 실제 모드가 NORMAL 인데 getMode() 가 IN_COMMUNICATION 을 돌려줘 비교가 통하지 않았다
+    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
       val devices = audioManager.availableCommunicationDevices
       val preferred = PREFERRED_TYPES.firstNotNullOfOrNull { type -> devices.firstOrNull { it.type == type } }
@@ -88,19 +94,34 @@ class CallRoute(context: Context, private val onRoute: (String, String?) -> Unit
         val bluetooth = outputs.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
         val wired = outputs.any { it.type in WIRED_TYPES }
         if (bluetooth) {
+          // 다른 코드(expo-audio setAudioModeAsync)가 스피커폰을 켜면 "통화 소리는 블루투스로" 지정이 지워지고, Android 11 이하에서
+          // 앱은 setBluetoothScoOn 으로 그 지정을 되살릴 수 없다 (SCO 가 새로 연결될 때만 적용) → SCO 를 다시 연결한다 (2026-10-23 Note 9)
+          if (audioManager.isSpeakerphoneOn && scoRequested) {
+            audioManager.isSpeakerphoneOn = false
+            stopSco()
+          }
           audioManager.isSpeakerphoneOn = false
-          audioManager.startBluetoothSco()
+          if (!scoRequested) {
+            scoRequested = true
+            audioManager.startBluetoothSco()
+          }
           audioManager.isBluetoothScoOn = true
         } else {
-          if (audioManager.isBluetoothScoOn) {
-            audioManager.stopBluetoothSco()
-            audioManager.isBluetoothScoOn = false
-          }
+          stopSco()
           audioManager.isSpeakerphoneOn = !wired
         }
       }
     }
     emitCurrent()
+  }
+
+  @Suppress("DEPRECATION")
+  private fun stopSco() {
+    if (scoRequested) {
+      scoRequested = false
+      audioManager.stopBluetoothSco()
+    }
+    audioManager.isBluetoothScoOn = false
   }
 
   /** 지금 경로 ("bluetooth" | "wired" | "speaker" | "unknown") 와 장치 이름 */
