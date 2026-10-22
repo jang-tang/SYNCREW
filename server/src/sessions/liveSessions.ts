@@ -240,10 +240,13 @@ export class LiveSessionService {
    * call: 통화 중인 두 사람 모두 / broadcast: 관리자(speaker)만
    */
   async utteranceTarget(sessionId: string, senderId: string) {
-    const row = await this.requireParticipant(sessionId, senderId);
+    const { row, siteRole } = await this.loadAsParticipant(sessionId, senderId);
     if (row.status !== "active") throw new AppError("CONFLICT", "진행 중인 세션이 아닙니다.");
     const me = row.participants.find((p) => p.userId === senderId)!;
-    if (row.mode === "broadcast" && me.role !== "speaker") throw new AppError("FORBIDDEN", "일괄 지시는 관리자만 말할 수 있습니다.");
+    // 일괄 지시는 시작할 때의 speaker 이면서 지금도 현장 관리자여야 한다 (시작 뒤 관리자에서 해제되면 더 말할 수 없다)
+    if (row.mode === "broadcast" && (me.role !== "speaker" || siteRole !== "manager")) {
+      throw new AppError("FORBIDDEN", "일괄 지시는 관리자만 말할 수 있습니다.");
+    }
     const recipientIds = row.participants.filter((p) => p.userId !== senderId && !p.leftAt).map((p) => p.userId);
     return {
       siteId: row.siteId,
@@ -256,12 +259,17 @@ export class LiveSessionService {
   // ─── 종료 · 연결 감시 ───────────────────────────────
 
   private async requireParticipant(sessionId: string, userId: string): Promise<FullRow> {
+    return (await this.loadAsParticipant(sessionId, userId)).row;
+  }
+
+  /** requireParticipant 와 같은 확인 + 지금의 현장 역할 (세션 참여 역할과 별개) */
+  private async loadAsParticipant(sessionId: string, userId: string): Promise<{ row: FullRow; siteRole: string }> {
     const row = await this.loadRow(sessionId);
     const participant = row?.participants.find((p) => p.userId === userId);
     if (!row || !participant) throw new AppError("NOT_FOUND", "세션을 찾을 수 없습니다.");
     const membership = await this.ctx.prisma.siteMembership.findUnique({ where: { siteId_userId: { siteId: row.siteId, userId } } });
     if (membership?.status !== "active") throw new AppError("NOT_FOUND", "세션을 찾을 수 없습니다.");
-    return row;
+    return { row, siteRole: membership.role };
   }
 
   private async finish(sessionId: string, reason: SessionEndReason, endedBy: string | null): Promise<LiveSession> {

@@ -61,6 +61,20 @@
 | S3 네이티브 오디오 (구현) | 자체 Expo 모듈(iOS AVAudioEngine+voice processing+HFP / Android 통신 모드+SCO+AudioRecord/AudioTrack), JS 어댑터, 문장 단위에도 Android SCO, 점검 화면 `/audio-check`, 소켓 재연결 — **실기기 시험 전** | `b038223` |
 | 실기기 없이 마무리 (2) | S3 코드 재점검, **혼합 통화 무음 버그 수정 + e2e `E2E_MIXED`**, 상대 역할 스크립트 `call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (아래 상세) | `74a7969` |
 
+#### 보안 검사·수정 (Claude Security 플러그인) — 2026-10-22 (브랜치 `claude/laughing-feynman-2h2wyz`)
+- **검사**: 저장소 전체(파일 304개) medium 강도. 검증단(3명 중 2명 이상 확인)을 통과한 발견 12건(MEDIUM 4·LOW 8), CRITICAL·HIGH 없음. 보고서는 로컬 `CLAUDE-SECURITY-20261022-022703/`(git 제외)
+- **적용한 수정 9건** (각각 별도 에이전트 검토 + 수정이 새 공격 경로를 만들지 않는지 재확인 통과):
+  - F1·F6·F7 e2e 정적 서버(`frontend/e2e/live.mjs`·`flows.mjs`·`mic.mjs`) 경로 조작으로 `server/.env` 읽힘 → dist 밖 경로 404, 잘못된 % 인코딩 400, 루프백(127.0.0.1·::1)에서만 열림
+  - F2 업로드 음성 ffmpeg 디코딩(`server/src/engine/audio/codec.ts`) → 형식·프로토콜 허용 목록, 길이(-t)·출력 크기·시간(15초) 제한
+  - F3 출시 빌드(live, `__DEV__` false)는 https 가 아닌 API 주소면 시작 시 거부(루프백만 예외, `frontend/src/releaseApiUrl.ts`). 개발 빌드는 그대로 http 가능
+  - F5 `syncrew://reset-password` 링크의 토큰 직접 수신(로그인 CSRF) 제거 → PKCE `?code=` 만 처리 (관리자 키로 만든 `#access_token` 링크는 이제 앱에서 안 열림, `docs/operations.md` 8절)
+  - F8(+F10) 관리자에서 해제되면 해제 전에 시작한 일괄 지시로 더 말할 수 없음(403)
+  - F9 `site:subscribe` 와 제외·관리자 해제가 겹칠 때 방에 남는 경쟁 상태 제거
+  - F11 통화 종료·구성원 제거와 `stream:open` 이 겹칠 때 스트림이 살아남는 경쟁 상태 제거
+- **수정하지 않은 것**: F4·F10 은 F3·F8 과 같은 원인이라 그 패치로 함께 해결. **F12(같은 언어 통화에서 상대가 음성 조각을 대량으로 보내 듣는 쪽 앱 메모리 고갈, LOW)는 미해결** — 서버 재생 대기 상한 시도 2번 모두 검토에서 반려(두 번째는 아주 작은 조각을 대량으로 보내는 공격을 못 막음). 다음 시도: 조각마다 최소 시간(예: 20ms) 부과 + 네이티브 재생 큐 상한
+- **같은 문제가 남은 곳(보고서 밖)**: `frontend/e2e/screens.mjs`(포트 8765)도 같은 경로 처리 패턴(접두사 검사만 있고 모든 인터페이스에서 열림)
+- 시험: 서버 **248** (+9), 앱 단위 **46** (+4). e2e(Chrome 필요)·실기기는 이 환경에서 못 돌림
+
 #### 말하는 도중 원문 자막: 전사 세션을 gpt-live-transcribe 로 — 2026-10-20 (브랜치 `feat/live-transcribe`, 실제 OpenAI 확인)
 - **무엇**: 전사 전용 세션 모델을 `STREAM_STT_MODEL`(새 환경 변수, 기본 **`gpt-live-transcribe`**, `$0.017/분`)로 분리. VAD 없이(`turn_detection: null`, `languages:[원문]`, `delay:"low"`, 용어집 `keywords` ≤50) 입력을 따라가며 받아쓰므로 **`original_partial` 이 말 시작 0.47–0.76초 뒤(말하는 도중)** 에 온다 — 전에는 말 끝 뒤(3.4–4.2초). 말 끝은 그대로 번역 세션 server_vad 가 정하고, 번역 세션 `committed` 때 서버가 전사 세션에 `input_audio_buffer.commit` 을 턴당 1번 보내 두 세션 항목을 1:1 로 맞춘다. `STREAM_STT_MODEL=gpt-4o-transcribe` 면 예전(server_vad) 그대로. 발화 단위 STT 는 `STT_MODEL` 유지
 - **비용 기록**: duration(초) 사용량 → 1분 = 1,000 음성 토큰 환산(`durationUsage`), `DEFAULT_PRICING["gpt-live-transcribe"]` 음성 입력 $17/1M = $0.017/분. 턴당 약 $0.001

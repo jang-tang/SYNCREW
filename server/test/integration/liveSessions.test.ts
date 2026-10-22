@@ -300,6 +300,32 @@ describe("시나리오 G: 권한", () => {
     expect((await outsider.as("post", `/sites/${siteId}/broadcasts`).send({ target: "all" })).status).toBe(404);
   });
 
+  it("일괄 지시 도중 관리자에서 해제되면 더 말할 수 없다 (해제 전 대조군 포함)", async () => {
+    const env = await setupSite(["vi", "zh"]);
+    const { manager, siteId, workers, workerSockets } = env;
+    // 작업자2를 관리자로 지정 → 전체 대상 일괄 지시 시작 (대상: 구성원인 작업자1)
+    const speaker = workers[1]!;
+    expect((await manager.as("patch", `/sites/${siteId}/members/${speaker.id}`).send({ role: "manager" })).status).toBe(204);
+    const session = (await speaker.as("post", `/sites/${siteId}/broadcasts`).send({ target: "all" })).body as LiveSession;
+    expect(session.participants.map((p) => [p.userId, p.role])).toEqual([[speaker.id, "speaker"], [workers[0]!.id, "listener"]]);
+
+    // 대조군: 관리자인 동안은 지시가 전달된다
+    const heard = nextEvent(workerSockets[0]!, "message:new");
+    expect((await utter(speaker, session.id)).status).toBe(202);
+    expect((await heard).message).toMatchObject({ kind: "instruction", senderId: speaker.id, sessionId: session.id });
+    await t.context.pipeline.idle();
+
+    // 다른 관리자가 해제 → 연결이 그대로라 세션은 열려 있어도 발화는 403, 지시가 가지 않는다
+    expect((await manager.as("patch", `/sites/${siteId}/members/${speaker.id}`).send({ role: "member" })).status).toBe(204);
+    const notHeard = noEvent(workerSockets[0]!, "message:new", 800);
+    const denied = await utter(speaker, session.id);
+    expect(denied.status).toBe(403);
+    expect(denied.body.error.code).toBe("FORBIDDEN");
+    await notHeard;
+    // 남은 세션은 끝낼 수 있다
+    expect((await speaker.as("post", `/sessions/${session.id}/end`)).body).toMatchObject({ status: "ended", endReason: "hangup" });
+  });
+
   it("현장에 없는 사람을 대상으로 지정할 수 없고, 제외된 구성원은 진행 중인 세션에서 빠진다", async () => {
     const env = await setupSite(["vi", "zh"]);
     const { manager, siteId, workers, workerSockets } = env;

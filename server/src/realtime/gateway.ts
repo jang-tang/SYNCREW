@@ -156,11 +156,21 @@ export function attachRealtime(
       const parsed = siteInput.safeParse(payload);
       if (!parsed.success) return reply(ack, { ok: false, code: "VALIDATION_ERROR" });
       const { siteId } = parsed.data;
-      const membership = await prisma.siteMembership.findUnique({ where: { siteId_userId: { siteId, userId } } });
+      const findMembership = () => prisma.siteMembership.findUnique({ where: { siteId_userId: { siteId, userId } } });
+      const membership = await findMembership();
       // 비멤버에게는 현장 존재 여부를 알리지 않는다 (REST 와 같은 404 의미)
       if (!membership || membership.status !== "active") return reply(ack, { ok: false, code: "NOT_FOUND" });
       const joined = [rooms.site(siteId), ...(membership.role === "manager" ? [rooms.managers(siteId)] : [])];
       await socket.join(joined);
+      // 확인과 참여 사이에 제외·관리자 해제가 커밋되면 membershipChanged 의 socketsLeave 가 참여보다 먼저 돌아 아무것도 빼지 못한다.
+      // 그래서 참여한 뒤 한 번 더 읽어, 더 이상 맞지 않는 방에서 나온다.
+      // 이 재확인이 보지 못한 변경은 재확인(=참여 뒤) 이후에 커밋되므로, 커밋 후 발행되는 membershipChanged 가 소켓을 뺀다.
+      const current = await findMembership();
+      if (!current || current.status !== "active") {
+        for (const room of joined) await socket.leave(room);
+        return reply(ack, { ok: false, code: "NOT_FOUND" });
+      }
+      if (membership.role === "manager" && current.role !== "manager") await socket.leave(rooms.managers(siteId));
       socket.data.sites.add(siteId);
       reply(ack, { ok: true });
     });

@@ -64,17 +64,13 @@ export function createSupabaseAuth(): AuthService {
       check(await supabase.auth.updateUser({ password }));
     },
     async handleAuthRedirect(url) {
-      // PKCE: ?code=... / 암시적 흐름: #access_token=...&refresh_token=...
+      // PKCE: ?code=... 만 받는다. 코드는 이 기기가 재설정을 요청할 때 저장한 code verifier 가 있어야 세션으로 바뀐다.
+      // 암시적 흐름(#access_token=...&refresh_token=...)은 받지 않는다 — 누구나 syncrew:// 링크로 다른 계정의 토큰을 넣어
+      // 이 앱을 그 계정으로 로그인시킬 수 있다(로그인 CSRF). 앱의 "비밀번호 찾기"는 PKCE 라 ?code= 로만 돌아온다.
       const parsed = new URL(url.replace("#", "?"));
       const code = parsed.searchParams.get("code");
       if (code) {
         check(await supabase.auth.exchangeCodeForSession(code));
-        return true;
-      }
-      const accessToken = parsed.searchParams.get("access_token");
-      const refreshToken = parsed.searchParams.get("refresh_token");
-      if (accessToken && refreshToken) {
-        check(await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }));
         return true;
       }
       return false;

@@ -1,6 +1,6 @@
 import type { AppContext } from "../context";
 import { runPreprocessorSafely } from "../engine/audio/audioPreprocessor";
-import { AudioDecodeError, decodeToPcm, durationSeconds, encodeWav } from "../engine/audio/codec";
+import { AudioDecodeError, decodeToPcm, durationSeconds, encodeWav, PIPELINE_SAMPLE_RATE } from "../engine/audio/codec";
 import { BudgetExceededError } from "../engine/budget/budgetGuard";
 import type { DomainResult } from "../engine/domain/domainProcessor";
 import type { MessageStatus } from "../shared/api";
@@ -193,7 +193,8 @@ export class MessagePipeline {
     let start = performance.now();
     let pcm;
     try {
-      pcm = await decodeToPcm(storage.resolve(message.inputAudioPath!));
+      // 길이 초과를 알 수 있을 만큼(상한 + 1초)만 디코딩한다
+      pcm = await decodeToPcm(storage.resolve(message.inputAudioPath!), PIPELINE_SAMPLE_RATE, { maxSeconds: this.options.maxAudioSeconds + 1 });
     } catch (error) {
       throw new PipelineError("AUDIO_INVALID", error instanceof AudioDecodeError ? error.message : String(error));
     }

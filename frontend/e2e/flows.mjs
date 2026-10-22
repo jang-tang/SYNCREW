@@ -12,12 +12,42 @@ const outDir = path.resolve(process.argv[3] ?? "e2e/output");
 const CHROME = process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 fs.mkdirSync(outDir, { recursive: true });
 const types = { ".html": "text/html", ".js": "text/javascript", ".png": "image/png", ".ttf": "font/ttf" };
-const server = http.createServer((req, res) => {
-  let file = path.join(distDir, decodeURIComponent(req.url.split("?")[0]));
+const onRequest = (req, res) => {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(req.url.split("?")[0]);
+  } catch {
+    res.writeHead(400); res.end(); // 잘못된 %인코딩
+    return;
+  }
+  let file = path.join(distDir, pathname);
+  // dist 폴더 밖(../ 등)의 파일은 열지 않는다
+  const rel = path.relative(distDir, file);
+  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    res.writeHead(404); res.end();
+    return;
+  }
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(distDir, "index.html");
   res.writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" });
   fs.createReadStream(file).pipe(res);
-}).listen(8766);
+};
+// 이 PC 안(루프백)에서만 연다. Chrome 은 localhost 를 ::1·127.0.0.1 어느 쪽으로도 접속하므로 두 주소 모두 이 스크립트가 연다
+// (한쪽만 열면 다른 사용자가 나머지 주소의 8766 을 먼저 열어 브라우저 요청을 가로챌 수 있다).
+// IPv6 루프백이 없는 PC 에서는 아무도 ::1 을 열 수 없으므로 건너뛴다. 그 밖의 실패(이미 사용 중 등)는 그대로 중단한다.
+const servers = [];
+for (const host of ["127.0.0.1", "::1"]) {
+  const server = http.createServer(onRequest);
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(8766, host, () => { server.off("error", reject); resolve(); });
+    });
+  } catch (error) {
+    if (host === "::1" && (error.code === "EADDRNOTAVAIL" || error.code === "EAFNOSUPPORT")) continue;
+    throw error;
+  }
+  servers.push(server);
+}
 const base = "http://localhost:8766";
 // 검증용 Chrome 프로필: 자동완성·비밀번호 저장/추천 끄기 (팝업이 입력을 가로채지 않도록)
 const profileDir = fs.mkdtempSync(path.join(outDir, "chrome-"));
@@ -384,5 +414,5 @@ await check("받은 지시 기록에 실시간 표시", "Jonli");
 console.log(`\n결과: 통과 ${pass} / 실패 ${fail}`);
 console.log("콘솔 오류:", errors.length ? [...new Set(errors)].join("\n") : "없음");
 await browser.close();
-server.close();
+for (const server of servers) server.close();
 process.exit(fail > 0 ? 1 : 0);

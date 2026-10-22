@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FakeStt, FakeTranslator } from "../../src/engine/fake";
 import type { LiveSession, MessageView } from "../../src/shared/api";
 import type { ServerToClientEvents, StreamOpenResult } from "../../src/shared/realtime";
@@ -392,6 +392,86 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(second).not.toBe(first);
     expect(firstRecord.closed).toBe(true);
     expect(engine.connections.at(-1)!.closed).toBe(false);
+  });
+});
+
+describe("스트리밍 통역 — 열기 도중 통화 종료·멤버 제외 (권한 확인과 등록 사이 경쟁)", () => {
+  /** 권한 확인(utteranceTarget)이 통과한 직후, 스트림을 등록하기 전에 hook 을 실행한다 (경쟁을 결정적으로 재현) */
+  function afterAuthorization(t: RtApp, hook: () => Promise<unknown>) {
+    const sessions = t.context.sessions;
+    const original = sessions.utteranceTarget.bind(sessions);
+    return vi.spyOn(sessions, "utteranceTarget").mockImplementationOnce(async (...args) => {
+      const target = await original(...args);
+      await hook();
+      return target;
+    });
+  }
+
+  it("권한 확인 뒤 등록 전에 상대가 통화를 끊으면 스트림을 등록하지 않는다 (CONFLICT, 엔진 연결 없음). 대조군: 같은 경로에서 끊지 않으면 열린다", async () => {
+    const { app: t, engine } = await createApp({}, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const worker = env.workers[0]!;
+      const control = afterAuthorization(t, async () => {});
+      expect(await open(env.workerSockets[0]!, session.id)).toMatchObject({ ok: true, mode: "interpret" });
+      control.mockRestore();
+      expect(t.context.streams!.size).toBe(1);
+
+      const spy = afterAuthorization(t, () => worker.as("post", `/sessions/${session.id}/end`).expect(200));
+      expect(await open(env.managerSocket, session.id)).toEqual({ ok: false, code: "CONFLICT" });
+      spy.mockRestore();
+      expect(t.context.streams!.size).toBe(0);
+      expect(engine.connections).toHaveLength(1); // 대조군의 연결뿐 (끝난 통화에 OpenAI 연결을 만들지 않는다)
+      expect(engine.connections[0]!.closed).toBe(true);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("권한 확인 뒤 등록 전에 현장에서 제외되면 스트림을 등록하지 않는다 (CONFLICT). 대조군: 관리자의 스트림은 열렸다가 통화 종료로 닫힌다", async () => {
+    const { app: t, engine } = await createApp({}, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const worker = env.workers[0]!;
+      expect(await open(env.managerSocket, session.id)).toMatchObject({ ok: true, mode: "interpret" });
+      expect(t.context.streams!.size).toBe(1);
+
+      const spy = afterAuthorization(t, () => env.manager.as("patch", `/sites/${env.siteId}/members/${worker.id}`).send({ action: "remove" }).expect(204));
+      expect(await open(env.workerSockets[0]!, session.id)).toEqual({ ok: false, code: "CONFLICT" });
+      spy.mockRestore();
+      expect(t.context.streams!.size).toBe(0);
+      expect(engine.connections).toHaveLength(1);
+      const view = await env.manager.as("get", `/sessions/${session.id}`);
+      expect(view.body).toMatchObject({ status: "ended", endReason: "removed" });
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("엔진을 여는 동안 통화가 끝나면 CONFLICT 와 함께 방금 연 엔진 연결도 닫는다. 대조군: 진행 중인 통화의 엔진 연결은 열려 있다", async () => {
+    const { app: t, engine } = await createApp({}, { maxStreams: 100 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      expect(await open(env.workerSockets[0]!, session.id)).toMatchObject({ ok: true, mode: "interpret" });
+      expect(engine.connections[0]!.closed).toBe(false);
+
+      const originalOpen = engine.open.bind(engine);
+      const spy = vi.spyOn(engine, "open").mockImplementationOnce(async (options) => {
+        const connection = await originalOpen(options);
+        await env.workers[0]!.as("post", `/sessions/${session.id}/end`).expect(200);
+        return connection;
+      });
+      expect(await open(env.managerSocket, session.id)).toEqual({ ok: false, code: "CONFLICT" });
+      spy.mockRestore();
+      expect(engine.connections).toHaveLength(2);
+      expect(engine.connections.map((c) => c.closed)).toEqual([true, true]);
+      expect(t.context.streams!.size).toBe(0);
+    } finally {
+      await t.close();
+    }
   });
 });
 
