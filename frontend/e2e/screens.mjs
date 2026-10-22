@@ -9,13 +9,43 @@ const outDir = path.resolve(process.argv[3] ?? "e2e/output/screens");
 const CHROME = process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 fs.mkdirSync(outDir, { recursive: true });
 const types = { ".html": "text/html", ".js": "text/javascript", ".png": "image/png", ".ttf": "font/ttf", ".ico": "image/x-icon", ".json": "application/json", ".css": "text/css" };
-const server = http.createServer((req, res) => {
-  const url = decodeURIComponent(req.url.split("?")[0]);
-  let file = path.join(distDir, url);
-  if (!file.startsWith(distDir) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(distDir, "index.html");
+const PORT = Number(process.env.SCREENS_PORT ?? 8765);
+const onRequest = (req, res) => {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(req.url.split("?")[0]);
+  } catch {
+    res.writeHead(400); res.end(); // 잘못된 %인코딩
+    return;
+  }
+  let file = path.join(distDir, pathname);
+  // dist 폴더 밖(../ 등)의 파일은 열지 않는다
+  const rel = path.relative(distDir, file);
+  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    res.writeHead(404); res.end();
+    return;
+  }
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(distDir, "index.html");
   res.writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" });
   fs.createReadStream(file).pipe(res);
-}).listen(8765);
+};
+// 이 PC 안(루프백)에서만 연다. Chrome 은 localhost 를 ::1·127.0.0.1 어느 쪽으로도 접속하므로 두 주소 모두 이 스크립트가 연다
+// (한쪽만 열면 다른 사용자가 나머지 주소의 포트를 먼저 열어 브라우저 요청을 가로챌 수 있다).
+// IPv6 루프백이 없는 PC 에서는 아무도 ::1 을 열 수 없으므로 건너뛴다. 그 밖의 실패(이미 사용 중 등)는 그대로 중단한다.
+const servers = [];
+for (const host of ["127.0.0.1", "::1"]) {
+  const server = http.createServer(onRequest);
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(PORT, host, () => { server.off("error", reject); resolve(); });
+    });
+  } catch (error) {
+    if (host === "::1" && (error.code === "EADDRNOTAVAIL" || error.code === "EAFNOSUPPORT")) continue;
+    throw error;
+  }
+  servers.push(server);
+}
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--lang=ko-KR"] });
 const page = await browser.newPage();
@@ -23,7 +53,7 @@ await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
 const errors = [];
 page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
 page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text().slice(0, 300)}`); });
-const base = "http://localhost:8765";
+const base = `http://localhost:${PORT}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const shot = async (name, url, ms = 1500) => {
   if (url) await page.goto(base + url, { waitUntil: "networkidle0" });
@@ -90,4 +120,4 @@ await shot("18-member-group-chat", "/site/chat/s_b_group", 2000);
 
 console.log("ERRORS:", errors.length ? "\n" + [...new Set(errors)].join("\n") : "none");
 await browser.close();
-server.close();
+for (const server of servers) server.close();
