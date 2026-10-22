@@ -11,6 +11,7 @@
 //   npx tsx scripts/call-peer.ts --answer              # 휴대폰이 걸어 오는 전화를 기다렸다가 받기
 //   npx tsx scripts/call-peer.ts --as manager          # 이 스크립트가 관리자 계정 (휴대폰은 구성원 계정)
 //   옵션: --server http://localhost:4000  --every 8  --count 0(무한)  --listen(말하지 않고 듣기만)  --utterance(스트리밍 쓰지 않음)  --text "문장"
+//         --continuous(말 사이에도 작은 잡음을 계속 보냄 — 휴대폰 앱처럼 마이크가 늘 켜진 상황. 2026-10-23 원문 밀림 재현용)
 // 끝내기: Ctrl+C (통화를 끊고 종료). 받은 음성: server/call-peer-output/
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -48,6 +49,7 @@ const COUNT = Number(option("count", "0"));
 const LISTEN_ONLY = flag("listen");
 const FORCE_UTTERANCE = flag("utterance");
 const ANSWER = flag("answer");
+const CONTINUOUS = flag("continuous");
 const outDir = path.resolve("call-peer-output");
 mkdirSync(outDir, { recursive: true });
 
@@ -262,6 +264,7 @@ async function speakStream(id: string) {
   // (수동 commit 은 OpenAI 세션의 VAD 를 멈춰 뒤의 말이 모두 사라졌다, 2026-10-19 실측)
   const padded = new Int16Array(voice.length + RATE * 0.8);
   padded.set(voice);
+  speaking = true;
   const start = Date.now();
   for (let i = 0; i * FRAME_SAMPLES < padded.length; i += 1) {
     if (streamId !== id || ended) return;
@@ -270,9 +273,26 @@ async function speakStream(id: string) {
     const next = start + (i + 1) * 100;
     await wait(Math.max(0, next - Date.now()));
   }
-  socket.emit("stream:pause", { streamId: id });
+  speaking = false;
+  if (!CONTINUOUS) socket.emit("stream:pause", { streamId: id });
 }
 let seq = 0;
+let speaking = false;
+
+/** --continuous: 말하지 않는 동안에도 100ms 마다 마이크 잡음 수준(약 -66dBFS)의 조각을 보낸다 */
+function noiseFrame(): ArrayBuffer {
+  const frame = new Int16Array(FRAME_SAMPLES);
+  for (let i = 0; i < frame.length; i += 1) frame[i] = Math.round((Math.random() * 2 - 1) * 16);
+  return frame.buffer;
+}
+if (CONTINUOUS && streamId) {
+  const id = streamId;
+  log("말 사이에도 잡음을 계속 보냅니다 (--continuous)");
+  const timer = setInterval(() => {
+    if (streamId !== id || ended) return clearInterval(timer);
+    if (!speaking) socket.emit("stream:audio", { streamId: id, seq: seq++, pcm: noiseFrame() });
+  }, 100);
+}
 
 async function speakUtterance() {
   const form = new FormData();

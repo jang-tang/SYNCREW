@@ -33,6 +33,13 @@ export interface SyncrewDuplexNative {
    */
   enterCallRoute(): Promise<NativeRouteEvent>;
   exitCallRoute(): Promise<void>;
+  /**
+   * Android: 통화 경로(enterCallRoute)가 잡혀 있으면 음성 파일(URL)을 통화 용도로 재생하고, 끝나면 true.
+   * 경로가 없으면 바로 false. expo-audio 재생기는 미디어 용도라 블루투스 SCO 중에는 헤드셋에서 들리지 않는다 (2026-10-23).
+   * iOS 에는 없다 (expo-audio 가 통화 세션으로 재생).
+   */
+  playInCall?(url: string): Promise<boolean>;
+  stopInCall?(): void;
   addListener(event: "onFrame", listener: (event: NativeFrameEvent) => void): Subscription;
   addListener(event: "onRoute", listener: (event: NativeRouteEvent) => void): Subscription;
   addListener(event: "onPlayback", listener: (event: NativePlaybackEvent) => void): Subscription;

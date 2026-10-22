@@ -12,7 +12,7 @@
 - 실행하지 않은 테스트를 통과했다고 보고하지 않는다. 결정이 바뀌면 `docs/`도 함께 고친다.
 - 응답은 한국어.
 
-## 현재 상태 (2026-10-17, Phase 7 S3 구현 완료·실기기 시험 전, 실기기 없이 할 일은 모두 끝남 — 인수인계: `docs/HANDOFF.md`)
+## 현재 상태 (2026-10-23, Phase 7 S3 Android 실기기 시험 끝·iOS 일부, 시드니 배포·10/30 시연 준비 — 인수인계: `docs/HANDOFF.md`)
 
 | 단계 | 상태 | 커밋 |
 |---|---|---|
@@ -23,7 +23,7 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 완료 (10-14). **실기기 준비·T2 기준선 (10-14–15): Android·iPhone A·B 통과, iPhone 헤드셋 통과, Android 헤드셋 마이크 무음 → S3. 실기기 버그 6개 수정** (`docs/implementation-plan.md` T2 절). **S3 구현 (10-15 새벽): 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`, 에뮬레이터 확인, 실기기 시험 전** (`docs/streaming-plan.md` 5-3절). **실기기 없이 마무리 (2) (10-17)**: S3 코드 재점검, 혼합 통화 무음 버그 수정(+e2e `E2E_MIXED`), 상대 역할 스크립트 `server/scripts/call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (`74a7969`). **2026-10-17 밤 인수인계(새 담당자, Android 기기 없음): S3 iOS 실기기 시험 통과(iPhone 15 Pro Max + AirPods Pro, 점검 화면 + F 스트리밍 통화), iOS voice processing 무한 재시작 버그 수정(미커밋). 다음: Android 기기 확보 → Android S3·S4, 실제 OpenAI 로 G·H** — `docs/HANDOFF.md` 1·7절, `docs/device-test-log.md` | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff`·`0c995ad`·`b038223`·`74a7969` |
+| Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 완료 (10-14). **실기기 준비·T2 기준선 (10-14–15): Android·iPhone A·B 통과, iPhone 헤드셋 통과, Android 헤드셋 마이크 무음 → S3. 실기기 버그 6개 수정** (`docs/implementation-plan.md` T2 절). **S3 구현 (10-15 새벽): 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`, 에뮬레이터 확인, 실기기 시험 전** (`docs/streaming-plan.md` 5-3절). **실기기 없이 마무리 (2) (10-17)**: S3 코드 재점검, 혼합 통화 무음 버그 수정(+e2e `E2E_MIXED`), 상대 역할 스크립트 `server/scripts/call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (`74a7969`). **S3 iOS 실기기 시험 (10-17 밤, 새 담당자 현슈, iPhone 15 Pro Max + AirPods Pro, 가짜 엔진)**: 점검 화면 + F 스트리밍 통화 통과, iOS voice processing 무한 재시작 버그 수정 (`4fd2d9d`, PR #1). ⚠ 통화 시작 때 스피커에서도 에코 제거가 꺼지는 문제 남음. **10-19–22 (현슈, PR #2–#10)**: AWS 시드니 배포(10/30 시연·10/31 삭제), 노이즈 필터 사이드카, iPhone 실기기 2차 발견 수정(서버 VAD 만으로 말 끝·반이중 메아리 차단·`stream:playing`·전사 전용 세션 `gpt-live-transcribe`·스트리밍 용어집, 실기기 재확인 전), 앱 경량화·네트워크 성능, 보안 9건. **10-22 결정: 10/30 시연은 Android·iPhone 모두, 모든 시험은 장태웅이 이 PC 에서.** **10-23 새벽 Android S3 (Note 9 Android 10 + WH-1000XM6, 가짜 엔진): 점검 화면·F·C(헤드셋 마이크 SCO 해결)·같은 언어 통과, 버그 2개 수정(미커밋: Android 11 이하 SCO 해제, 무음 -160 헤드셋 문장 단위 VAD). 실제 OpenAI($0.161, DB 누적 $0.498): G 에코 통과, 스트리밍 통역 헤드셋 재생 통과 / 실패 2건 → 수정·재시험 통과(누적 $0.709): 스트리밍 원문 밀림(서버 `pauseSilenceMs` 무음 주입), 문장 단위 통역 헤드셋 재생(네이티브 `playInCall` + expo-audio 스피커폰 강제 회피). 10-23 커밋. 이어서 문장 단위 스피커 재생·H(Wi-Fi 끊김) 통과 → **Android 단독 시험 끝**(누적 $0.750). 무선 adb 로 전환(방법 `docs/HANDOFF.md`).** **다음: 10-19–20 수정 실기기 재확인 + iOS 에코 제거 문제 → 실제 OpenAI 로 iOS G·H → Android S3(기기 있는 사람) → S4** — `docs/HANDOFF.md` 1·7절, `docs/device-test-log.md` | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff`·`0c995ad`·`b038223`·`74a7969`·`4fd2d9d`·`3d72cad` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
 - 실시간: `server/src/realtime/gateway.ts`가 `DomainEvents`를 Socket.IO로 구현하고 서버 시작 시 `context.events`를 교체한다. 라우트는 반드시 호출 시점의 `context.events.*`를 쓴다(구조 분해로 미리 꺼내면 noop이 남음).
@@ -37,19 +37,23 @@
 - Phase 5 실시간 통역: `docs/live-interpretation.md` (핸즈프리 발화 단위 방식, 세션 API, VAD, 이어폰 처리, 검증·미검증). 세션 서비스 `server/src/sessions/liveSessions.ts`, 앱 `frontend/src/audio/useHandsFree.ts`.
 - 검증 완료(2026-10-12): 실제 OpenAI 5개 언어 왕복, 서버 경로 지연(업로드 → 상대 수신 5.1초, 말 끝 기준 약 6초), live 모드 2인 e2e 27개(웹 빌드 + 실제 Supabase 계정 + 실제 서버), 에뮬레이터 일괄 지시·통화, iOS 시뮬레이터 실행.
 - 테스트 계정(사용자 허락, 2026-10-12): `syncrew-e2e-manager@example.com`, `syncrew-e2e-member@example.com`. 비밀번호는 `server/.e2e-accounts.json`(git 제외). 삭제는 `npx tsx scripts/e2e-accounts.ts --delete`.
-- 실기기(2026-10-14–15): 네이티브 앱 live 모드(휴대폰 → PC 서버) 확인, 문장 단위 통화 양쪽 통과, iPhone 헤드셋 통과. 미검증: Android 헤드셋 마이크(무음 → S3), 휴대폰 스트리밍(S3), 휴대폰 2대 동시 통화, D·E 시나리오.
+- 실기기(2026-10-14–15): 네이티브 앱 live 모드(휴대폰 → PC 서버) 확인, 문장 단위 통화 양쪽 통과, iPhone 헤드셋 통과. **2026-10-17 밤: iPhone 15 Pro Max 스트리밍(F) 통과(가짜 엔진)**. **2026-10-23: Galaxy Note 9(Android 10) + WH-1000XM6 S3 전부 통과**(헤드셋 마이크 SCO·스트리밍·문장 단위·G 에코·H Wi-Fi 끊김). 미검증: iPhone G·H(실제 OpenAI)·10-23 변경 뒤 iOS, Android 12+ 기기, 휴대폰 2대 동시 통화, D·E 시나리오.
+- **작업 환경 두 곳** (2026-10-18): 이 PC(장태웅, 서버 DB·`.env`·e2e 계정 파일, T2 때 Galaxy S22·iPhone 17 Pro) / 현슈 Mac(iPhone 15 Pro Max + AirPods Pro, **Android 없음**, iOS 개인 팀 서명·번들 ID `com.syncfield.syncrew.hyeonsyu`). 새 세션은 어느 쪽인지 먼저 확인 (`docs/HANDOFF.md` 1절 표).
+- **⛔ 이 PC 디스크 여유 9.0GB (2026-10-22)**: 네이티브 빌드에는 15GB 이상 필요 → 이 PC 에서 실기기 작업 전 `df -h /System/Volumes/Data` 로 먼저 확인.
 
-## 남은 일 (우선순위 순, 2026-10-14 갱신)
+## 남은 일 (우선순위 순, 2026-10-22 갱신)
 
 **전체 인수인계·다음 작업 안내는 `docs/HANDOFF.md` 가 기준이다.** 아래는 요약.
 
-완료 (2026-10-13–14): B1 대상 선택 UX, S0 ① OpenAI 측정, S1 서버 스트리밍, S2 웹 검증 클라이언트(실제 OpenAI 확인 포함), B2 작업조 저장, 안정화, Expo 패치, 번역 전용 모델 비교(유지 결정), Supabase 비밀번호 재설정 설정, 관리자 지정·해제, 같은 언어 통화 앱 e2e, 서버 노이즈 필터 조각 단위 연결 지점, 받아쓰기 모델 gpt-4o-transcribe 교체. 상세는 `docs/implementation-plan.md` Phase 7, `docs/streaming-plan.md` 4-1·5-1·5-2절.
+완료 (2026-10-13–14): B1 대상 선택 UX, S0 ① OpenAI 측정, S1 서버 스트리밍, S2 웹 검증 클라이언트(실제 OpenAI 확인 포함), B2 작업조 저장, 안정화, Expo 패치, 번역 전용 모델 비교(유지 결정), Supabase 비밀번호 재설정 설정, 관리자 지정·해제, 같은 언어 통화 앱 e2e, 서버 노이즈 필터 조각 단위 연결 지점, 받아쓰기 모델 gpt-4o-transcribe 교체. 2026-10-15: T2 실기기 기준선·버그 6개, S3 네이티브 오디오 구현. 2026-10-17: S3 코드 재점검, 혼합 통화 무음 버그 수정(`E2E_MIXED`), 통화 상대 스크립트 `call-peer.ts`, OpenAI 가격 대조 — **실기기 없이 할 수 있는 일은 모두 끝남**. 2026-10-17 밤: S3 iOS 실기기 시험(점검 화면·F 통과, voice processing 무한 재시작 수정 `4fd2d9d`). 상세는 `docs/implementation-plan.md` Phase 7, `docs/streaming-plan.md` 4-1·5-1·5-2절.
 
+0. **이 PC 에서 할 때: 디스크 공간 확보 (사용자, 15GB 이상, 10-22 현재 9.0GB)** — 없으면 이 PC 에서 네이티브 빌드 불가
 1. ~~실기기 준비~~ ✅ (2026-10-14: Galaxy S22 + Buds2, iPhone 17 Pro + AirPods Pro). 실기기 실행 절차(네트워크·빌드·서명)는 `docs/HANDOFF.md` 7절. T2 남은 것: D·E 시나리오, 헤드셋으로 통역 듣기
-2. **S3 네이티브 오디오 (iOS·Android)** — **2026-10-15 새벽 구현 완료(자체 Expo 모듈 `frontend/modules/syncrew-duplex/`), 실기기 시험 남음**: 점검 화면 `syncrew:///audio-check`(개발 빌드) → 스트리밍 통화 F·G·H → 문장 단위 폴백의 Android 헤드셋 재시험. 절차 `docs/HANDOFF.md` 7절. 아래는 구현 전 메모 — 빌드 전 옛 경로가 남은 Android 빌드 캐시 삭제(`rm -rf frontend/android/app/.cxx frontend/android/app/build`), Expo 패치(10-14) 후 개발 빌드 새로. 1순위 `react-native-audio-api` 1.0 nightly 로 `frontend/src/audio/duplex/` 에 네이티브 구현(지금은 iOS·Android 에서 null → 휴대폰은 발화 단위 방식). 후보·위험: `docs/s0-report.md` 2절. **iOS·Android 모두 확인**, 먼저 구현하고 실기기에서 고친다
+2. **S3 실기기 시험 (iOS·Android)** — **Android: 10-23 Note 9 전부 통과(버그 6개 수정)**. iOS: 점검 화면·F 통과(10-17 밤), 10-19 2차 발견은 서버에서 수정. **남은 것(iOS): ⓪ 10-19–23 수정 뒤 iPhone 재확인(시드니 서버 포함) — 10/30 현장 시연 전 ① iOS 통화 시작 때 스피커에서도 에코 제거가 꺼지는 문제 확인·수정(가짜 엔진, 비용 0) ② 실제 OpenAI 로 iOS G·H(약 $0.5–1, 승인 후) ~~③ Android 전부~~ ✅ 10-23 Note 9 통과 (Android 12+ 기기는 미확인).** 상대는 `server/scripts/call-peer.ts`. 절차 `docs/HANDOFF.md` 7절. **iOS·Android 모두 확인**, 실기기에서 나오는 문제는 모듈 안에서 고친다
 3. **S4 1:1 통화(휴대폰 2대) → S6 실기기 튜닝** (지연 P50 ≤ 2.0초·P90 ≤ 3.0초, 무음 300–400ms·추론 minimal 실험, 헤드셋, 비용 약 $3–6 → 서버 한도 상향 전 금액 안내)
 4. 실기기에서만 확인 가능: 비밀번호 재설정 메일 링크 → 앱 열림, 사람 목소리로 받아쓰기("비계→기계" 재확인), 작업조·관리자 지정 화면의 네이티브 표시, 소리 품질·체감 지연
-5. 다른 팀원 몫: 실제 노이즈 필터 구현(서버 `STREAM_AUDIO_FILTER`·`AUDIO_PREPROCESSOR` 에 등록), 현장 용어 데이터 보강(거푸집·안전모·안전고리 등, 중국어·러시아어·우즈베크어 번역)
+5. 다른 팀원 몫: 노이즈 필터 — 스트리밍용 GTCRN 사이드카 연결 완료(10-19), 켤지 CER 비교로 결정(10/27)·발화 단위 `AUDIO_PREPROCESSOR` 남음, 현장 용어 데이터 보강(거푸집·안전모·안전고리 등, 중국어·러시아어·우즈베크어 번역)
+5-1. 보안 F12(LOW, 같은 언어 통화 대량 조각 → 앱 메모리) 미해결 / **10/31 AWS 시드니 자원 삭제** (`deploy/README.md` 8절)
 6. 나중에: UI 문구 원어민 검수, 업무용 메일 서비스(지금 개인 Gmail SMTP), 우즈베크어 통역 품질(보류), ~~용어집 지시문(보류)~~(2026-10-19 스트리밍에도 적용, `docs/streaming-plan.md` 4-2절), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
 ### 지켜야 할 사용자 결정 (요약, 상세는 `docs/streaming-plan.md` 0-1·0-2절)
@@ -66,7 +70,7 @@
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
 3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**248개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**46개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
-4. **실기기 준비 여부를 먼저 확인**한다 (`docs/HANDOFF.md` 5·7절). 준비 전이면 준비 절차를 안내한다.
+4. **작업 환경(이 PC / 현슈 Mac)·연결된 기기·(이 PC 라면) 디스크 여유 15GB 이상을 먼저 확인**한다 (`df -h /System/Volumes/Data`, `docs/HANDOFF.md` 1·5·7절). 모자라거나 준비 전이면 그것부터 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 약 $0.34 사용). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
 
@@ -77,7 +81,7 @@
   - **Android 빌드는 JDK 21** (`/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home`). 기본 JDK 26·Android Studio JDK 25는 CMake 단계에서 실패.
   - **프로젝트는 2026-10-14부터 영문 경로** `/Users/taewoongjang/PlayGround/SYNCREW` (예전 한글 경로에서는 iOS `pod install` 이 실패해 복사본으로 빌드했다 — 이제 원래 폴더에서 바로 `expo run:ios` 가능, 아직 실제로 빌드해 보지는 않음).
   - 시뮬레이터 조작 도구가 없어 iOS는 화면 캡처만 가능. Android는 `adb shell input`으로 조작.
-  - **디스크 여유 공간이 적다** (2026-10-17 작업 후 **약 2GB** — 네이티브 빌드·에뮬레이터가 안 들어간다. 10-17 에 에뮬레이터가 공간 부족으로 켜지지 않았다. 사용자가 공간을 확보해야 함, `docs/HANDOFF.md` 7절). Android 빌드(Gradle)·iOS 빌드(Pods)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인한다.
+  - **디스크 여유 공간이 적다** (2026-10-17 약 2GB → 10-18 8.1GB → **10-22 9.0GB** — 아직 네이티브 빌드·에뮬레이터에는 모자란다. 10-17 에 에뮬레이터가 공간 부족으로 켜지지 않았다. 사용자가 공간을 확보해야 함, `docs/HANDOFF.md` 7절). Android 빌드(Gradle)·iOS 빌드(Pods)는 공간을 많이 쓰므로 빌드 전 `df -h /System/Volumes/Data`로 확인한다.
   - 에뮬레이터 마이크로는 실제 말소리가 들어오지 않았다 → 말소리 자동 감지는 웹 가짜 마이크(`npm run e2e:mic`)로 확인했고, 최종은 실기기.
   - 에뮬레이터 조작: uiautomator 화면 구조(`adb shell uiautomator dump`)에서 글자로 좌표를 찾아 `adb shell input tap`. 개발 빌드는 에뮬레이터에 설치돼 있으므로 Metro만 띄우면 된다 (`docs/phase4-report.md` 7절).
   - `expo start`가 `frontend/tsconfig.json`을 자동으로 고쳐 쓴다 → 작업 후 `git checkout -- frontend/tsconfig.json`.
@@ -98,7 +102,7 @@
 | 계층·역할 | 현장(Room) 아래 관리자(manager) / 구성원(member). 조직 계층 없음 |
 | 인증 | Supabase Auth, 이메일+비밀번호만 (이메일 없는 작업자 대응 안 함). 서버는 JWKS로 JWT 검증 |
 | 데이터 저장 | 로컬 Postgres(`embedded-postgres`) + Prisma 7. Supabase에는 데이터 저장 안 함. 음성 파일은 서버 로컬 디스크 |
-| 호스팅 | 로컬 PC. 휴대폰은 같은 Wi-Fi로 접속 |
+| 호스팅 | 로컬 PC. 휴대폰은 같은 Wi-Fi로 접속. **추가로 2026-10-20–31 AWS 시드니 운영 배포**(https://syncrew.hyunshu.com, EC2 + RDS + Docker, 10/30 현장 시연, 10/31 삭제 — `deploy/README.md`) |
 | 언어 | ko, zh, vi, uz, ru |
 | 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 **`gpt-4o-transcribe`** (2026-10-14 mini 에서 교체 — 현장 용어·숫자가 더 정확, 용어 힌트는 오히려 나빠 쓰지 않음). 스트리밍 통화의 전사 전용 세션은 **`gpt-live-transcribe`**(`STREAM_STT_MODEL`, 2026-10-20, 말하는 도중 자막, $0.017/분). **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
 | 비용 | BudgetGuard가 모든 호출을 감쌈. 서버 한도 **$3 누적** (10-12 $0.5 → 10-13 $3). 잔액 $80(10-14), 막 쓰지 않기 |
@@ -118,7 +122,7 @@
 - 서버 테스트는 사용자를 무작위 UUID로 만들어 테스트 파일끼리 데이터가 섞이지 않게 한다 (`server/test/helpers/testApp.ts`: 테스트용 ES256 토큰 발급).
 - 서버 요청 검증은 zod, 오류 응답은 `{error:{code,message}}` (코드: `server/src/shared/api.ts`).
 - 상태 변경은 REST, 서버→앱 알림은 Socket.IO (`docs/realtime-protocol.md`).
-- 네이티브 이중 오디오(S3): `frontend/modules/syncrew-duplex/` (Expo 로컬 모듈, Swift·Kotlin). 앱은 `src/audio/duplex/` 의 `DuplexAudio` 로만 쓴다. 개발용 점검 화면 `syncrew:///audio-check`. **에뮬레이터·시뮬레이터에서 Mac 마이크를 쓰게 하지 말 것**(`adb emu avd hostmicon` 등) — 권한 창을 누를 사람이 없어 CoreAudio 입력이 막히고 앱·웹 e2e 마이크까지 꼬였다(2026-10-15)
+- 네이티브 이중 오디오(S3): `frontend/modules/syncrew-duplex/` (Expo 로컬 모듈, Swift·Kotlin). 앱은 `src/audio/duplex/` 의 `DuplexAudio` 로만 쓴다. 개발용 점검 화면 `syncrew:///audio-check`. **iOS 는 블루투스 HFP 일 때 voice processing 을 쓰지 않는다**(같이 켜면 엔진이 무한 재시작, 10-17 밤), 진단은 DEBUG 빌드 `[duplex-diag]` 로그. **에뮬레이터·시뮬레이터에서 Mac 마이크를 쓰게 하지 말 것**(`adb emu avd hostmicon` 등) — 권한 창을 누를 사람이 없어 CoreAudio 입력이 막히고 앱·웹 e2e 마이크까지 꼬였다(2026-10-15)
 - 앱 화면은 `frontend/src/app` (expo-router). 디자인 토큰 `frontend/src/theme.ts`, UI 문구는 `frontend/src/i18n/strings.ts`(5개 언어 모두 채울 것). Expo 패키지는 `npx expo install`로 설치. `frontend/AGENTS.md` 참고 (Expo는 SDK마다 API가 바뀌므로 문서 확인).
 - 비밀 값: `SUPABASE_SECRET_KEY`, `OPENAI_API_KEY`는 `server/.env`에만. 앱에는 publishable key만.
 - Prisma가 AI의 `migrate reset`을 사용자 동의 없이 차단한다. 우회하지 말고 새 마이그레이션을 추가할 것.
@@ -144,7 +148,7 @@ cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프
 cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 43개 (통화는 스트리밍, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
 cd frontend && E2E_MIXED=1 npm run e2e:live      # 한쪽만 스트리밍하는 통화 18개 (서버를 ENGINE=fake STREAM_MAX_SESSIONS=1 로 실행 중이어야 함)
-cd server && npx tsx scripts/call-peer.ts        # 실기기 시험용 통화 상대 (e2e 계정, 합성 음성 말하기·휴대폰 소리 음량/wav). --answer·--utterance·--as manager. ENGINE=fake 면 비용 0
+cd server && npx tsx scripts/call-peer.ts        # 실기기 시험용 통화 상대 (e2e 계정, 합성 음성 말하기·휴대폰 소리 음량/wav). --answer·--utterance·--as manager·--listen·--continuous(말 사이에도 잡음 계속). ENGINE=fake 면 비용 0
 ```
 
 - 백그라운드로 띄운 DB·서버는 작업이 끝나면 **반드시** 종료한다: 서버 `pkill -f "src/index.ts"` (`npm run dev` 는 `tsx watch src/index.ts` 라 "tsx src/index.ts" 패턴으로는 안 죽는다), DB `pkill -INT -f scripts/db.ts` 후에도 postgres 가 남으면 `cd server && node_modules/@embedded-postgres/darwin-arm64/native/bin/pg_ctl -D .pgdata stop -m fast`. 확인: `lsof -nP -iTCP:4000 -sTCP:LISTEN`, `lsof -nP -iTCP:5433 -sTCP:LISTEN` 이 비어 있어야 한다 (2026-10-13 확인).

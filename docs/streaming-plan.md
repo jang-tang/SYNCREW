@@ -384,6 +384,30 @@ export interface DuplexAudio {
 
 **코드 재점검 (2026-10-17, 실기기 없이)**: Swift·Kotlin·JS 어댑터·`useStreamingCall`·`useHandsFree` 를 다시 읽었고 실기기 전에 고칠 결함은 없었다. 실기기에서 눈여겨볼 점: ① Android 블루투스 SCO 가 켜지는 동안(약 0.5–1초) 첫 소리가 휴대폰 마이크로 들어갈 수 있음 ② Android 재생 오류가 계속되면 `onError` 가 20ms 마다 반복(로그 많아짐) ③ iOS 녹음 탭 크기는 iOS 가 정해 첫 조각이 약 100ms 늦을 수 있음 ④ 오디오 포커스를 요청하지 않음(다른 앱 소리와 겹칠 수 있음). **버그 수정 (같은 날)**: 한쪽만 스트리밍하는 통화에서 문장 단위 쪽이 상대 말을 못 듣던 문제 — 서버는 듣는 사람의 방식과 상관없이 `stream:out:*` 를 보내는데, 앱이 폴백 중에도 그 턴을 "스트림으로 들음"으로 표시해 기록 알림 재생까지 건너뛰었다. 이제 **내 스트림이 열려 있을 때만** 스트림 턴을 받는다 (`useStreamingCall`). live e2e `E2E_MIXED=1` 로 확인(수정 전 실패·수정 후 통과). 남은 한계: 같은 언어(직접 전달)는 기록이 없어 혼합 상황에서 문장 단위 쪽이 듣지 못함. 시험 도구: 상대 역할 스크립트 `server/scripts/call-peer.ts` (`docs/operations.md` 6절)
 
+### 5-4. S3 iOS 실기기 결과 (2026-10-17 밤, iPhone 15 Pro Max + AirPods Pro, 커밋 `4fd2d9d`)
+
+- **iOS 오디오 세션·엔진 방침 변경** (`ios/SyncrewDuplexModule.swift`):
+  - 세션 샘플레이트 48kHz 고정 (voice processing 을 켜면 입력 48k·출력 44.1k 로 어긋나 iOS 가 설정을 계속 다시 잡았다)
+  - **voice processing(에코 제거)은 휴대폰 스피커·유선일 때만** (`shouldUseVoiceProcessing()`). 블루투스 HFP 와 함께 켜면 엔진이 시작 직후 `AVAudioEngineConfigurationChange` 로 멈추고 재구성해도 반복된다. HFP 헤드셋은 되울림 구조가 아니고 자체 처리가 있다고 보고 끈다
+  - 경로 변경으로 켜야 할지가 바뀌면 엔진 재구성. 설정 변경으로 멈추면 `recoverEngine()`: 10초 안에 4회 초과 → 그 통화 동안 에코 제거를 끄고 재구성(`onError` `voice_processing_loop`), 8회 초과 → 멈추고 `onError` `restart_loop`
+  - DEBUG 진단 로그 `[duplex-diag]` (엔진 생성·복구·탭·변환·재생 예약)
+- 확인: 점검 화면 스피커(조각 100ms, 말소리 -15dB, 시험음 중 마이크 -62dB)·에어팟(시험음 중 마이크 -25dB, 에코 제거 없음)·통화 중 전환, **F 스트리밍 통화**(12턴, 첫 조각 약 0.8s = 가짜 엔진 지연)
+- **미해결**: ① F 통화에서는 스피커로 시작해도 반복 보호가 걸려 에코 제거 없이 진행(점검 화면에서는 켜짐 — 통화 화면과의 차이를 찾아야 함) ② 통화 도중 에어팟 → 스피커 전환 뒤에도 꺼진 채 남음 ③ `tapFormat`(형식이 그대로면 재구성 대신 재시작만)은 준비만 되고 쓰이지 않음 — ①② 수정 후보
+- 미검증: G·H(실제 OpenAI), 에어팟 사용 중 상대 통역이 마이크로 되돌아가는지, 실제 통역 음성 소리, 지연, Android 전부
+
+### 5-5. S3 Android 실기기 결과 (2026-10-23 새벽, Galaxy Note 9 Android 10 + Sony WH-1000XM6, 장태웅, 상세 `docs/device-test-log.md`)
+
+- **통과**: 점검 화면(헤드셋 SCO 열림·스피커·전환), F 스트리밍(헤드셋·스피커·통화 중 전환·종료), C 문장 단위 + 헤드셋 마이크(10-14 S22 무음 해소), 같은 언어 통화, **G 스피커 에코 루프(실제 OpenAI, 되돌아간 턴 0)**, 통역 듣기(스트리밍·문장 단위 × 헤드셋·스피커), **H 통화 중 Wi-Fi 끊김**(재연결 뒤 계속). 실제 OpenAI $0.413
+- **수정 6건** (모두 실기기 재시험 통과):
+  1. `CallRoute.kt`: Android 11 이하 `startBluetoothSco` 2번·`stop` 1번 → 멈춘 뒤에도 SCO 가 남음 → 요청 여부를 기억해 한 번만
+  2. `useHandsFree.ts`: 조용할 때 -160 을 계속 보내는 헤드셋에서 문장 단위 VAD 가 말 끝을 못 봄(세 문장이 16.8초로 묶임) → -160 이 300ms 연속이면 무음
+  3. **`streamHub.ts`: `stream:pause` 때 무음 0.7초(`pauseSilenceMs`)를 엔진에 넣는다** — 스트리밍 원문이 한 턴씩 밀려 보인 원인. 진단(`STREAM_DEBUG=1`): 두 세션 짝짓기는 정상이었고, 서버 VAD 가 3초 쉼을 말 끝으로 보지 않아 첫 문장 + 다음 문장 앞부분이 한 턴이 됐다. 단말이 말 끝 뒤 0.6초만 보내고 멈추므로 OpenAI 에는 실제 쉼이 0.6초 꼬리로 줄고, 스피커의 방 잡음이 무음 500ms 를 못 채웠다. 수동 commit 은 여전히 쓰지 않는다(D4)
+  4. `CallPlayer.kt` + `playInCall`: 발화 단위 통화의 통역 음성을 **통화 용도(USAGE_VOICE_COMMUNICATION)** 로 재생 — expo-audio 재생기는 미디어 용도 고정이라 블루투스 SCO 중에는 멈춘 A2DP 로 나가 헤드셋에서 안 들렸다. 통화 경로가 없으면(대화방 다시 듣기 등) 예전처럼 expo-audio
+  5. `playback.ts`·`useHandsFree.ts`: Android 에서 expo-audio `setAudioModeAsync` 가 부를 때마다 일반 모드 + 스피커폰을 강제해 "통화 소리는 블루투스로" 지정을 지웠다(Android 10 은 앱이 되살릴 수 없음) → Android 에서는 재생 전 호출 안 함, 녹음 설정은 `shouldRouteThroughEarpiece: true`
+  6. `CallRoute.kt`: 통신 모드를 늘 다시 지정(이 기기는 실제 NORMAL 인데 `getMode()` 가 IN_COMMUNICATION 을 돌려줌) + 다른 코드가 스피커폰을 켰으면 SCO 재연결
+- 관찰: 잘못 말한 첫 마디가 "Xe nâng đang đi qua!"(지게차가 지나갑니다)로 번역 — 스트리밍 지시문의 현장 용어집 영향 추정, 지켜볼 것. 스피커에서 받아쓰기 오류(비계→비에, 오후 세시→문제시), 헤드셋은 정확
+- 미검증: Android 12+ 기기(`setCommunicationDevice` 경로), S4 휴대폰 2대, iPhone 에서 이번 JS 변경 영향(Android 분기만이지만 확인 필요)
+
 ## 5. 앱 설계
 
 - `frontend/src/audio/duplex/`: `DuplexAudio` 인터페이스 + 구현 3개 (네이티브 라이브러리 어댑터 또는 자체 모듈, 웹 `AudioWorklet` 캡처 + Web Audio 재생). 웹 구현은 제품용이 아니라 **헤드리스 Chrome 자동 검증용**이다 (가짜 마이크 음성 파일로 전체 경로 확인 — 이번 Phase 6에서 쓴 방식).

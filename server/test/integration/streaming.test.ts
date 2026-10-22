@@ -259,20 +259,21 @@ describe("스트리밍 통역 — 기본 흐름", () => {
     expect(record.contexts.at(-1)![1]!.translation).toBe("[zh] [음성 ko] 0.5s");
   });
 
-  it("stream:pause 는 턴을 확정하지 않는다 — 말 끝은 엔진(서버 VAD) 무음 판단만 (2026-10-19: 수동 commit 이 OpenAI VAD 를 멈춤)", async () => {
+  it("stream:pause 는 수동 commit 없이 무음만 넣어 서버 VAD 가 말 끝을 보게 한다 (2026-10-19 수동 commit 금지, 2026-10-23 꼬리 잡음으로 턴이 붙음)", async () => {
     const env = await setupSite(t, ["ru"]);
     const session = await connectCall(env);
     const streamId = streamIdOf(await open(env.managerSocket, session.id));
     const listener = env.workerSockets[0]!;
+    // 대조군: 뒤 무음 없이 말만 보내고 멈추지 않으면 턴이 확정되지 않는다
     const quiet = noEvent(listener, "stream:out:start", 700);
-    const seq = speak(env.managerSocket, streamId, 0.6, 0, 0); // 뒤 무음 없이
-    env.managerSocket.emit("stream:pause", { streamId });
+    const seq = speak(env.managerSocket, streamId, 0.6, 0, 0);
     await quiet;
-    expect(engine.connections.at(-1)!.commits).toBe(0);
-    // 대조군: 뒤 무음(≥ 엔진 500ms)이 오면 그제야 턴이 확정된다
+    // pause 를 보내면 서버가 무음(pauseSilenceMs)을 넣어 엔진 VAD(500ms)가 턴을 끝낸다 — commit 은 여전히 0
     const turn = collectTurn(listener);
-    speak(env.managerSocket, streamId, 0, seq);
+    env.managerSocket.emit("stream:pause", { streamId });
     expect((await turn).end.status).toBe("done");
+    expect(engine.connections.at(-1)!.commits).toBe(0);
+    expect(seq).toBeGreaterThan(0);
   });
 
   it("권한: 비참여자 NOT_FOUND, 울리는 중 CONFLICT, 일괄 지시 UNSUPPORTED, 형식 오류 VALIDATION_ERROR", async () => {

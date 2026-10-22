@@ -34,6 +34,8 @@ const OPTIONS: RecordingOptions = {
 };
 
 const TICK_MS = 100;
+/** -160 이 이만큼 연속되면 "측정 없음"이 아니라 진짜 무음으로 본다 (조용할 때 소리를 0 으로 보내는 헤드셋, 2026-10-23 Sony WH-1000XM6) */
+const SILENT_STREAK = 3;
 /** 헤드셋 연결·해제 확인 간격 */
 const DEVICE_CHECK_MS = 5000;
 
@@ -72,7 +74,7 @@ export function useHandsFree(options: {
   // 최신 콜백·상태를 타이머 안에서 쓰기 위한 참조
   const callbacks = useRef(options);
   callbacks.current = options;
-  const loop = useRef({ recording: false, busy: false, speaking: false, startedAt: 0 });
+  const loop = useRef({ recording: false, busy: false, speaking: false, startedAt: 0, silentTicks: 0 });
   const vad = useRef(createVad());
 
   const reportDevice = (next: DeviceStatus) => {
@@ -182,7 +184,9 @@ export function useHandsFree(options: {
           allowsRecording: true,
           playsInSilentMode: true,
           interruptionMode: "doNotMix",
-          shouldRouteThroughEarpiece: false,
+          // Android: false 면 expo-audio 가 일반 모드 + 스피커폰을 강제해 블루투스 헤드셋(SCO) 지정이 지워진다 (2026-10-23 Note 9).
+          // true = 통화 모드 + 스피커폰 끔. 실제 장치(헤드셋·유선·스피커)는 바로 뒤 enterCallRoute 가 고른다
+          shouldRouteThroughEarpiece: Platform.OS === "android",
         });
         // Android: 통신 모드 + 블루투스 헤드셋 SCO 를 먼저 연다 (녹음기가 헤드셋 마이크를 받도록)
         await enterCallRoute();
@@ -231,8 +235,15 @@ export function useHandsFree(options: {
       const l = loop.current;
       if (!l.recording || l.busy) return;
       const metering = recorder.getStatus().metering ?? -160;
-      // Android(expo-audio)는 음량을 읽을 때마다 값이 초기화돼 중간중간 -160(값 없음)이 끼어든다. 무음이 아니라 "측정 없음"이므로 건너뛴다. (실제 무음도 마이크 잡음 때문에 -50 안팎이다)
-      if (Platform.OS !== "web" && metering <= -160) return;
+      // Android(expo-audio)는 음량을 읽을 때마다 값이 초기화돼 중간중간 -160(값 없음)이 끼어든다. 무음이 아니라 "측정 없음"이므로 한두 번은 건너뛴다.
+      // 단, 조용할 때 소리를 완전히 0 으로 보내는 블루투스 헤드셋은 -160 이 계속 이어진다 → 연속되면 진짜 무음으로 넘겨야 말 끝을 알아챈다
+      // (2026-10-23 Note 9 + WH-1000XM6: 건너뛰기만 해서 세 문장이 16.8초 한 덩어리로 묶였다)
+      if (Platform.OS !== "web" && metering <= -160) {
+        l.silentTicks += 1;
+        if (l.silentTicks < SILENT_STREAK) return;
+      } else {
+        l.silentTicks = 0;
+      }
       setMicLevelDb(metering);
       const event = vad.current.push(metering, Date.now());
       if (!event) return;

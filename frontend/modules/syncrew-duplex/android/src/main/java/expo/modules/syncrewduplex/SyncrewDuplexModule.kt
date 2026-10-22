@@ -11,10 +11,12 @@ import expo.modules.kotlin.modules.ModuleDefinition
 //   캡처: AudioRecord(VOICE_COMMUNICATION, 16kHz mono PCM16) + 에코 제거·잡음 억제·자동 음량 → 100ms 조각 — DuplexEngine.kt
 //   재생: AudioTrack(USAGE_VOICE_COMMUNICATION, 24kHz, 스트리밍) 쓰기 스레드 + 큐, 비어 있다가 시작할 때 120ms 무음
 //   발화 단위 통화(expo-audio 녹음)는 enterCallRoute/exitCallRoute 로 경로만 잡는다 (2026-10-14 실기기: 헤드셋 마이크가 무음이던 문제)
+//   그때 통역 음성은 playInCall 로 통화 용도 재생 — CallPlayer.kt (2026-10-23 실기기: expo-audio 재생이 헤드셋에서 안 들리던 문제)
 
 class SyncrewDuplexModule : Module() {
   private var duplex: DuplexEngine? = null
   private var callRoute: CallRoute? = null
+  private val callPlayer = CallPlayer()
 
   private fun emitRoute(route: String, name: String?) {
     sendEvent("onRoute", mapOf("route" to route, "name" to name))
@@ -73,11 +75,30 @@ class SyncrewDuplexModule : Module() {
     }
 
     AsyncFunction("exitCallRoute") {
+      callPlayer.stop()
       callRoute?.exit()
       callRoute = null
     }
 
+    // 통화 경로(enterCallRoute)가 잡혀 있을 때만 통화 용도로 재생하고 끝나면 true. 경로가 없으면 바로 false (JS 가 expo-audio 로 재생)
+    AsyncFunction("playInCall") { url: String, promise: Promise ->
+      val route = callRoute
+      if (route == null) {
+        promise.resolve(false)
+        return@AsyncFunction
+      }
+      route.apply() // 재생 직전에 통신 모드·장치를 다시 맞춘다 (다른 코드가 모드를 풀었을 수 있다)
+      callPlayer.play(url) { error ->
+        if (error == null) promise.resolve(true) else promise.reject("play_failed", error.message ?: error.toString(), error)
+      }
+    }
+
+    Function("stopInCall") {
+      callPlayer.stop()
+    }
+
     OnDestroy {
+      callPlayer.stop()
       duplex?.stop()
       duplex = null
       callRoute?.exit()
