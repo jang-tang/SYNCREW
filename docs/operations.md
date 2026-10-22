@@ -123,7 +123,7 @@ cd frontend && CI=1 npx expo start --dev-client --port 8081   # 앱 JS 제공 (�
   - 한계: 일반 Gmail 하루 약 500통, 스팸함 가능, 보내는 주소가 개인 Gmail → 실제 서비스 전에 전용 계정 또는 업무용 메일 서비스(Resend 등) 권장
   - 앱 비밀번호는 Supabase 화면에만 입력한다 (대화·파일에 적지 않는다). 2026-10-14 한 번 노출되어 사용자가 교체함
 - **링크 이동 확인 (관리자 키로 테스트 계정 재설정 링크 생성, 메일 안 보냄)**: `syncrew://reset-password` 요청 → **303 으로 `syncrew://reset-password` 이동** (토큰 붙음). 대조군: 등록 안 한 주소 → `http://localhost:3000`(Site URL) 으로 이동 = 등록 목록이 실제로 적용됨
-  - 관리자 링크는 토큰이 `#access_token=…` 형식(암시적), 앱이 보내는 요청은 `?code=…`(PKCE) — `handleAuthRedirect` 가 둘 다 처리
+  - 관리자 링크는 토큰이 `#access_token=…` 형식(암시적), 앱이 보내는 요청은 `?code=…`(PKCE) — `handleAuthRedirect` 는 `?code=…` 만 처리한다 (암시적 토큰 링크는 아무 앱·웹 페이지나 보내 다른 계정으로 로그인시킬 수 있어 받지 않음 — 로그인 CSRF 차단, 2026-10-22)
   - 대시보드의 "Send password recovery" 는 앱 주소 정보 없이 보내서 링크가 Site URL 로 간다 (정상 — 실제 사용자는 앱의 "비밀번호 찾기"로 요청)
 - 남은 확인: 실기기에서 메일 링크 → 앱 열림 → 새 비밀번호 저장 (S3 때. 에뮬레이터면 `adb shell am start -a android.intent.action.VIEW -d "syncrew://reset-password?code=…"` 로도 화면 확인 가능)
 

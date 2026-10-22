@@ -1,6 +1,8 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import ffmpegPath from "ffmpeg-static";
 import { describe, expect, it } from "vitest";
 import { AudioDecodeError, decodeToPcm, encodeWav } from "../src/engine/audio/codec";
 import { AudioUrlSigner } from "../src/messaging/audioUrls";
@@ -27,6 +29,44 @@ describe("오디오 변환", () => {
     const file = path.join(mkdtempSync(path.join(tmpdir(), "syncrew-wav-")), "c.m4a");
     writeFileSync(file, "not audio");
     await expect(decodeToPcm(file)).rejects.toBeInstanceOf(AudioDecodeError);
+  });
+
+  it("업로드 허용 형식(m4a·3gp·aac·webm·ogg·mp3·wav)과 확인 스크립트의 aiff 는 모두 디코딩한다", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "syncrew-fmt-"));
+    const cases: [string, string[]][] = [
+      ["a.m4a", ["-c:a", "aac"]],
+      ["a.3gp", ["-c:a", "aac"]],
+      ["a.aac", ["-c:a", "aac", "-f", "adts"]],
+      ["a.webm", ["-ar", "48000", "-c:a", "opus", "-strict", "-2"]],
+      ["a.ogg", ["-ar", "48000", "-c:a", "opus", "-strict", "-2"]],
+      ["a.mp3", ["-c:a", "mp2", "-f", "mp2"]],
+      ["a.wav", []],
+      ["a.aiff", []],
+    ];
+    for (const [name, codec] of cases) {
+      const file = path.join(dir, name);
+      execFileSync(ffmpegPath as unknown as string, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", ...codec, file]);
+      const decoded = await decodeToPcm(file);
+      expect(decoded.data.length, name).toBeGreaterThan(15_000);
+    }
+  });
+
+  it("내용으로 감지되는 재생 목록 형식(concat)은 열지 않는다 (대조군: 목록이 가리키는 파일은 디코딩된다)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "syncrew-wav-"));
+    const other = path.join(dir, "other.wav");
+    writeFileSync(other, encodeWav(new Int16Array(16_000), 16_000));
+    const playlist = path.join(dir, "d.m4a");
+    writeFileSync(playlist, `ffconcat version 1.0\n${"file other.wav\n".repeat(20)}`);
+    await expect(decodeToPcm(playlist)).rejects.toBeInstanceOf(AudioDecodeError);
+    expect((await decodeToPcm(other)).data.length).toBe(16_000);
+  });
+
+  it("maxSeconds 까지만 디코딩하고, 시간 제한을 넘으면 AudioDecodeError", async () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "syncrew-wav-")), "e.wav");
+    writeFileSync(file, encodeWav(new Int16Array(16_000 * 5), 16_000));
+    expect((await decodeToPcm(file, 16_000, { maxSeconds: 2 })).data.length).toBe(32_000);
+    expect((await decodeToPcm(file)).data.length).toBe(80_000); // 대조군: 기본 상한 안이면 전체
+    await expect(decodeToPcm(file, 16_000, { timeoutMs: 1 })).rejects.toThrow("시간 초과");
   });
 });
 

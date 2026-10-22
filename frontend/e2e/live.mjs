@@ -28,7 +28,7 @@ fs.mkdirSync(outDir, { recursive: true });
 // ─── 정적 파일 + 서버 중계 ───
 const types = { ".html": "text/html", ".js": "text/javascript", ".png": "image/png", ".ttf": "font/ttf" };
 const proxied = (url) => /^\/(api\/|health|socket\.io\/)/.test(url);
-const web = http.createServer((req, res) => {
+const onRequest = (req, res) => {
   if (proxied(req.url)) {
     const upstream = http.request({ ...SERVER, path: req.url, method: req.method, headers: req.headers }, (up) => {
       res.writeHead(up.statusCode, up.headers);
@@ -38,13 +38,26 @@ const web = http.createServer((req, res) => {
     req.pipe(upstream);
     return;
   }
-  let file = path.join(distDir, decodeURIComponent(req.url.split("?")[0]));
+  let pathname;
+  try {
+    pathname = decodeURIComponent(req.url.split("?")[0]);
+  } catch {
+    res.writeHead(400); res.end(); // 잘못된 %인코딩
+    return;
+  }
+  let file = path.join(distDir, pathname);
+  // dist 폴더 밖(../ 등)의 파일은 열지 않는다
+  const rel = path.relative(distDir, file);
+  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    res.writeHead(404); res.end();
+    return;
+  }
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(distDir, "index.html");
   res.writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" });
   fs.createReadStream(file).pipe(res);
-});
+};
 // WebSocket 업그레이드는 원본 바이트를 그대로 중계한다
-web.on("upgrade", (req, socket, head) => {
+const onUpgrade = (req, socket, head) => {
   const upstream = net.connect(SERVER.port, SERVER.host, () => {
     upstream.write(`${req.method} ${req.url} HTTP/1.1\r\n${Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`).join("\r\n")}\r\n\r\n`);
     upstream.write(head);
@@ -52,8 +65,24 @@ web.on("upgrade", (req, socket, head) => {
   });
   upstream.on("error", () => socket.destroy());
   socket.on("error", () => upstream.destroy());
-});
-await new Promise((resolve) => web.listen(PORT, resolve));
+};
+// 이 PC 안(루프백)에서만 연다. Chrome 은 localhost 를 ::1·127.0.0.1 어느 쪽으로도 접속하므로 두 주소 모두 이 스크립트가 연다
+// (한쪽만 열면 다른 사용자가 나머지 주소의 8767 을 먼저 열어 로그인 화면·비밀번호를 가로챌 수 있다).
+// IPv6 루프백이 없는 PC 에서는 아무도 ::1 을 열 수 없으므로 건너뛴다. 그 밖의 실패(이미 사용 중 등)는 그대로 중단한다.
+const webServers = [];
+for (const host of ["127.0.0.1", "::1"]) {
+  const server = http.createServer(onRequest).on("upgrade", onUpgrade);
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(PORT, host, () => { server.off("error", reject); resolve(); });
+    });
+  } catch (error) {
+    if (host === "::1" && (error.code === "EADDRNOTAVAIL" || error.code === "EAFNOSUPPORT")) continue;
+    throw error;
+  }
+  webServers.push(server);
+}
 const base = `http://localhost:${PORT}`;
 
 // ─── 가짜 마이크 음성 (말 3–4초 + 무음 4초, 반복 재생) ───
@@ -401,6 +430,6 @@ try {
   console.log("콘솔 오류:", errors.length ? [...new Set(errors)].join("\n") : "없음");
   await manager.browser.close();
   await member.browser.close();
-  web.close();
+  for (const server of webServers) server.close();
   process.exit(fail > 0 ? 1 : 0);
 }

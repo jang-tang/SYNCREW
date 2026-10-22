@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createRealtimeTestApp, nextEvent, noEvent } from "../helpers/testApp";
 
 type RtApp = Awaited<ReturnType<typeof createRealtimeTestApp>>;
@@ -127,6 +127,98 @@ describe("제외 즉시 차단 (시나리오 12 실시간)", () => {
     await silent;
 
     expect(await subscribe(workerSocket, siteId)).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+});
+
+describe("구독 확인과 제외·관리자 해제가 겹칠 때", () => {
+  /**
+   * site:subscribe 의 첫 멤버십 조회를 가로채, 옛 값(active)을 읽은 직후·방 참여 전에 변경을 커밋·발행시킨다.
+   * membershipChanged 의 socketsLeave 가 참여보다 먼저 도는 경쟁을 그대로 재현한다.
+   */
+  function changeDuringSubscribeRead(siteId: string, userId: string, change: () => Promise<unknown>) {
+    const delegate = t.context.prisma.siteMembership;
+    const original = delegate.findUnique.bind(delegate);
+    let intercepted = false;
+    const spy = vi.spyOn(delegate, "findUnique").mockImplementation(((args: Parameters<typeof original>[0]) => {
+      const key = args.where.siteId_userId;
+      if (intercepted || key?.siteId !== siteId || key.userId !== userId) return original(args);
+      intercepted = true;
+      return (async () => {
+        const stale = await original(args);
+        await change();
+        return stale;
+      })();
+    }) as never);
+    return { restore: () => spy.mockRestore(), intercepted: () => intercepted };
+  }
+
+  it("제외가 확인과 참여 사이에 커밋돼도 현장 방에 남지 않고 구독이 거부된다", async () => {
+    const { manager, siteId, code } = await setupSite();
+    const worker = await (await t.user()).withProfile();
+    await worker.as("post", "/join").send({ code });
+    await manager.as("patch", `/sites/${siteId}/members/${worker.id}`).send({ action: "approve" });
+    const managerSocket = await t.connected(manager.token);
+    await subscribe(managerSocket, siteId);
+    const workerSocket = await t.connected(worker.token);
+
+    const removed = nextEvent(workerSocket, "membership:changed");
+    const race = changeDuringSubscribeRead(siteId, worker.id, () =>
+      manager.as("patch", `/sites/${siteId}/members/${worker.id}`).send({ action: "remove" }),
+    );
+    try {
+      expect(await subscribe(workerSocket, siteId)).toEqual({ ok: false, code: "NOT_FOUND" });
+    } finally {
+      race.restore();
+    }
+    expect(race.intercepted()).toBe(true);
+    expect(await removed).toMatchObject({ siteId, userId: worker.id, status: "removed" });
+
+    // 대조군(관리자)은 presence 를 받고, 제외된 작업자는 받지 않아야 한다.
+    const other = await (await t.user()).withProfile();
+    await other.as("post", "/join").send({ code });
+    await manager.as("patch", `/sites/${siteId}/members/${other.id}`).send({ action: "approve" });
+    const control = nextEvent(managerSocket, "presence:changed");
+    const silent = noEvent(workerSocket, "presence:changed", 600);
+    await t.connected(other.token);
+    expect(await control).toMatchObject({ userId: other.id, online: true });
+    await silent;
+  });
+
+  it("관리자 해제가 확인과 참여 사이에 커밋되면 관리자 방에서는 빠지고 현장 방에는 남는다", async () => {
+    const { manager, siteId, code } = await setupSite();
+    const worker = await (await t.user()).withProfile();
+    await worker.as("post", "/join").send({ code });
+    await manager.as("patch", `/sites/${siteId}/members/${worker.id}`).send({ action: "approve" });
+    await manager.as("patch", `/sites/${siteId}/members/${worker.id}`).send({ role: "manager" });
+    const managerSocket = await t.connected(manager.token);
+    await subscribe(managerSocket, siteId);
+    const workerSocket = await t.connected(worker.token);
+
+    const demoted = nextEvent(workerSocket, "membership:changed");
+    const race = changeDuringSubscribeRead(siteId, worker.id, () =>
+      manager.as("patch", `/sites/${siteId}/members/${worker.id}`).send({ role: "member" }),
+    );
+    try {
+      expect(await subscribe(workerSocket, siteId)).toEqual({ ok: true });
+    } finally {
+      race.restore();
+    }
+    expect(race.intercepted()).toBe(true);
+    expect(await demoted).toMatchObject({ siteId, userId: worker.id, role: "member", status: "active" });
+
+    // 관리자 방: 대조군(관리자)은 가입 요청을 받고, 해제된 작업자는 받지 않아야 한다.
+    const newcomer = await (await t.user()).withProfile();
+    const control = nextEvent(managerSocket, "join:requested");
+    const silent = noEvent(workerSocket, "join:requested", 600);
+    await newcomer.as("post", "/join").send({ code });
+    expect(await control).toMatchObject({ siteId, userId: newcomer.id });
+    await silent;
+
+    // 현장 방에는 남는다: 다른 멤버의 접속 알림을 받는다.
+    await manager.as("patch", `/sites/${siteId}/members/${newcomer.id}`).send({ action: "approve" });
+    const stillInSite = nextEvent(workerSocket, "presence:changed");
+    await t.connected(newcomer.token);
+    expect(await stillInSite).toMatchObject({ userId: newcomer.id, online: true });
   });
 });
 

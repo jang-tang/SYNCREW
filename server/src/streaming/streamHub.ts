@@ -60,6 +60,9 @@ export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
 /** 사용자 1명에게 재생 중인 턴들과, 마지막 턴이 끝난 뒤 차단이 풀리는 시각 */
 type Playback = { turns: Set<string>; guardUntil: number };
 
+/** 진행 중인 열기(open) 1건. 그사이 그 세션이 끝나면(closeSession) revoked */
+type PendingOpen = { sessionId: string; revoked: boolean };
+
 type TurnState = {
   id: string;
   seq: number;
@@ -113,6 +116,8 @@ export class StreamHub {
   private readonly streams = new Map<string, Stream>();
   /** 듣는 사람(userId)별 재생 상태 — 메아리 차단 판단용 */
   private readonly playback = new Map<string, Playback>();
+  /** 진행 중인 열기들 — closeSession 은 등록된 스트림만 닫으므로, 권한 확인과 등록 사이에 끝난 세션은 이 표시로 막는다 */
+  private readonly pendingOpens = new Set<PendingOpen>();
   readonly options: StreamHubOptions;
 
   constructor(
@@ -132,6 +137,18 @@ export class StreamHub {
 
   async open(userId: string, socketId: string, sessionId: string, format: StreamFormat): Promise<StreamOpenResult> {
     if (!this.options.enabled) return { ok: false, code: "UNSUPPORTED" };
+    // 권한 확인(await)과 등록 사이에 통화가 끝나거나 멤버에서 제외되면(finish → closeSession) 이 표시로 알아채고 등록하지 않는다.
+    // 표시는 열기가 끝나면 지운다 (진행 중인 열기 수만큼만 남는다)
+    const pending: PendingOpen = { sessionId, revoked: false };
+    this.pendingOpens.add(pending);
+    try {
+      return await this.openStream(pending, userId, socketId, sessionId, format);
+    } finally {
+      this.pendingOpens.delete(pending);
+    }
+  }
+
+  private async openStream(pending: PendingOpen, userId: string, socketId: string, sessionId: string, format: StreamFormat): Promise<StreamOpenResult> {
     let target;
     try {
       target = await this.ctx.sessions.utteranceTarget(sessionId, userId);
@@ -143,6 +160,8 @@ export class StreamHub {
     if (target.kind !== "direct" || target.recipientIds.length !== 1) return { ok: false, code: "UNSUPPORTED" };
     const listenerId = target.recipientIds[0]!;
     const langs = await siteLangs(this.ctx.prisma, target.siteId, [userId, listenerId]);
+    // 마지막 await 뒤: 권한 확인 이후 이 세션이 끝났으면 등록하지 않는다 (여기서 등록(streams.set)까지는 await 가 없다)
+    if (pending.revoked) return { ok: false, code: "CONFLICT" };
     const sourceLang = langs.get(userId)!;
     const targetLang = langs.get(listenerId)!;
     // 같은 언어끼리는 통역 없이 음성을 그대로 전달한다 (OpenAI 를 쓰지 않으므로 엔진·상한과 무관)
@@ -205,7 +224,12 @@ export class StreamHub {
       this.ctx.logger.warn({ err: error, sessionId }, "스트리밍 엔진 열기 실패");
       return { ok: false, code: "ENGINE_UNAVAILABLE" };
     }
-    if (stream.closed) return { ok: false, code: "CONFLICT" };
+    if (stream.closed) {
+      // 엔진을 여는 동안 닫혔으면(통화 종료 등) 방금 연 엔진 연결도 닫는다 (closeStream 때는 아직 연결이 없었다)
+      stream.connection?.close();
+      stream.connection = null;
+      return { ok: false, code: "CONFLICT" };
+    }
     this.ctx.logger.info({ sessionId, streamId: stream.id, sourceLang, targetLang }, "스트리밍 통역 시작");
     return { ok: true, streamId: stream.id, outputSampleRate: this.engine!.sampleRate, mode: "interpret" };
   }
@@ -518,8 +542,9 @@ export class StreamHub {
     stream.turns.clear();
   }
 
-  /** 통화가 끝나면 그 세션의 스트림을 모두 닫는다 (LiveSessionService.finish) */
+  /** 통화가 끝나면 그 세션의 스트림을 모두 닫는다 (LiveSessionService.finish). 아직 등록 전인 열기도 막는다 */
   closeSession(sessionId: string): void {
+    for (const pending of this.pendingOpens) if (pending.sessionId === sessionId) pending.revoked = true;
     for (const stream of [...this.streams.values()]) if (stream.sessionId === sessionId) this.closeStream(stream);
   }
 
