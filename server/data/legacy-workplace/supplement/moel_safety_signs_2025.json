@@ -1,0 +1,32 @@
+{
+  "name": "moel_multilingual_safety_signs_2025",
+  "version": "2025.10.10",
+  "source": {
+    "title": "고용노동부·국토교통부 「당신의 언어로 당신의 안전을 지킵니다」 다국어 안전표지 (보도자료 2025-10-10 첨부 '251001 붙임 다국어 안전표지(11개국어).pdf')",
+    "url": "https://www.moel.go.kr/news/enews/report/enewsView.do?news_seq=18434",
+    "license": "공공누리 표시 없음 — 2026-10-23 사용자가 고용노동부에 문의해 이용 확인받음",
+    "transcription": "PDF 가 그림뿐이라 1–2쪽(ko)·9–10쪽(vi)·13–14쪽(uz)·17–18쪽(zh)을 그림으로 바꿔 읽고 옮겼다 (2026-10-23). 한 칸에 두 줄이면 한국어 줄 기준으로 나눴고, 줄이 맞지 않는 칸(화재·폭발)은 한 문장으로 합쳤다. 우즈베크어 o‘·g‘ 는 U+02BB, 끊음표(’)는 U+02BC"
+  },
+  "note": "검증 문장: 원문이 이 문장과 같으면(문장부호·공백 무시) 번역기에 이 번역을 그대로 쓰게 한다. 러시아어판은 없다",
+  "sentences": [
+    { "id": "MOEL01a", "category": "추락", "ko": "추락 위험! 안전모, 안전대 착용 필수", "vi": "Chú ý té, ngã! Phải đội mũ bảo hộ, sử dụng dây đeo an toàn.", "zh": "当心坠落！必须佩戴安全帽及安全带", "uz": "Qulash xavfi! Xavfsizlik kaska va xavfsizlik kamarini taqish majburiy" },
+    { "id": "MOEL01b", "category": "추락", "ko": "작업발판·안전난간·추락방호망 등 설치 후 작업", "vi": "Chỉ làm việc sau khi lắp đặt giàn giáo, lan can, lưới chống rơi.", "zh": "安装好手脚架、安全栏杆、防坠网等措施后方可作业", "uz": "Ish taxtasi, xavfsizlik panjaralari, qulashdan himoya tarmoqlarini oʻrnatgandan keyin ishlash mumkin." },
+    { "id": "MOEL02a", "category": "끼임", "ko": "기계 방호장치 해제 금지", "vi": "Cấm tháo gỡ thiết bị che chắn máy.", "zh": "严禁拆除机器防护装置", "uz": "Uskunalarning himoya qurilmasini olib tashlash taqiqlanadi." },
+    { "id": "MOEL02b", "category": "끼임", "ko": "정비·보수는 전원 차단 후 작업!", "vi": "Phải ngắt nguồn điện trước khi sửa chữa, bảo dưỡng.", "zh": "检修及维护必须在切断电源后进行！", "uz": "Texnik xizmat koʻrsatish va taʼmirlash elektr quvvatini uzgandan keyin amalga oshirish mumkin." },
+    { "id": "MOEL03a", "category": "부딪힘", "ko": "통로는 항상 정리 정돈!", "vi": "Lối đi phải được giữ thông thoáng.", "zh": "通道必须保持畅通整洁！", "uz": "Yoʻlaklar doim tartibli va toza boʻlishi kerak!" },
+    { "id": "MOEL03b", "category": "부딪힘", "ko": "시설물 해체 · 장비 작업 시 접근 금지", "vi": "Cấm lại gần khi công trình đang tháo dỡ hoặc máy móc đang hoạt động.", "zh": "设施拆除、设备作业时禁止靠近", "uz": "Obyektlarni demontaj qilish yoki asbob-uskunalar bilan ishlash vaqtida yaqinlashish taqiqlanadi." },
+    { "id": "MOEL04", "category": "화재·폭발", "ko": "화기작업 전 주변 가연물 정리, 소화기 비치, 화재감시자 확인", "vi": "Phải dọn sạch vật liệu dễ cháy xung quanh trước khi hàn, cắt. Phải bố trí bình chữa cháy và người giám sát phòng cháy chữa cháy.", "zh": "动火作业前应清理周边可燃物并配备灭火器，确认消防监护人", "uz": "Yongʻin xavfi bilan ishlashda atrofdagi barcha yonuvchan materiallarni tartibga solish kerak. Yongʻin oʻchirish moslamalar joyini, yongʻin nazoratchisini tekshirib olish kerak." },
+    { "id": "MOEL05a", "category": "질식", "ko": "작업 전 산소·유해가스 측정, 충분한 환기!", "vi": "Trước khi làm việc, phải đo oxy và khí độc, đảm bảo thông gió.", "zh": "作业前应测量氧气及有害气体，确保充分通风！", "uz": "Ish boshlashdan oldin kislorod, zararli gazlarni oʻlchash, ventilyatsiyani toʻliq taʼminlash kerak." },
+    { "id": "MOEL05b", "category": "질식", "ko": "적정 공기가 아닌 경우 호흡 보호구 반드시 착용", "vi": "Bắt buộc đeo mặt nạ phòng độc.", "zh": "佩戴呼吸防护器材（空气质量不佳时必须佩戴！）", "uz": "Nafas olish uchun himoya vositalarini taqish (Havo tarkibi normal boʻlmaganda taqish majburiy)" },
+    { "id": "MOEL06a", "category": "낙하", "ko": "안전모 착용 필수", "vi": "Phải đội mũ bảo hộ.", "zh": "必须佩戴安全帽", "uz": "Xavfsizlik kaskasini taqish majburiy" },
+    { "id": "MOEL06b", "category": "낙하", "ko": "머리 위 낙하물 발생 작업구역, 접근 금지!", "vi": "Cấm lại gần khu vực có nguy cơ vật liệu rơi từ trên cao.", "zh": "头顶坠物频发作业区，禁止靠近！", "uz": "Bosh ustiga narsalar tushishi mumkin boʻlgan ish hudud, yaqinlashish taqiqlanadi!" },
+    { "id": "MOEL07a", "category": "협착", "ko": "협착 위험!", "vi": "Chú ý bị kẹt, ép!", "zh": "当心夹伤！", "uz": "Qisilib qolish xavfi!" },
+    { "id": "MOEL07b", "category": "협착", "ko": "신체가 위험한계에 들어가지 않도록 주의", "vi": "Không để tay hay bất kỳ bộ phận nào của cơ thể vào khu vực có nguy cơ bị kẹt, ép.", "zh": "严禁将身体伸进危险区域", "uz": "Tana aʼzolari xavfli uskunalar orasiga kirib ketishidan ehtiyot boʻlish kerak." },
+    { "id": "MOEL08a", "category": "감전", "ko": "감전 위험! 접지 확인", "vi": "Chú ý điện giật! Phải kiểm tra tiếp đất.", "zh": "当心触电！请确认接地", "uz": "Tok urish xavfi! Yerga ulanganligini tekshirish" },
+    { "id": "MOEL08b", "category": "감전", "ko": "절연장갑·절연용 보호구 반드시 착용", "vi": "Phải đeo găng tay cách điện và dùng thiết bị bảo hộ.", "zh": "必须佩戴绝缘手套及绝缘防护器具", "uz": "Elektr izolyatsiyalangan qoʻlqop: Izolyatsiyalovchi himoya anjomlarini albatta taqish kerak." },
+    { "id": "MOEL09a", "category": "중장비", "ko": "충돌 주의!", "vi": "Chú ý va chạm!", "zh": "注意碰撞！", "uz": "Toʻqnashuv xavfi!" },
+    { "id": "MOEL09b", "category": "중장비", "ko": "중장비 사각지대 접근 금지", "vi": "Cấm lại gần điểm mù của máy móc hạng nặng.", "zh": "严禁靠近重型机械视野盲区", "uz": "Ogʻir texnikaning koʻrinmas burchaklariga yaqinlashish taqiqlanadi." },
+    { "id": "MOEL10a", "category": "임의조작금지", "ko": "모르는 기계 조작 금지", "vi": "Cấm vận hành máy khi không biết rõ.", "zh": "禁止操作不熟悉的机器", "uz": "Tanish boʻlmagan uskunani boshqarish taqiqlanadi." },
+    { "id": "MOEL10b", "category": "임의조작금지", "ko": "가동 중인 기계 정비 금지", "vi": "Cấm sửa chữa khi máy đang hoạt động.", "zh": "严禁在机器运转中进行维修", "uz": "Ishlayotgan uskunaga texnik xizmat koʻrsatish taqiqlanadi." }
+  ]
+}

@@ -1,0 +1,2789 @@
+{
+  "name": "kosha_slang_supplement",
+  "version": "2026.10.23",
+  "generated_at": "2026-10-23",
+  "source": {
+    "title": "한국산업안전보건공단_산업현장 법률용어 정의 데이터 — 산업 현장 및 법률 용어 유의어 사전.csv",
+    "url": "https://www.data.go.kr/data/15161288/fileData.do",
+    "license": "공공데이터포털 이용허락범위 제한 없음",
+    "data_date": "2026-10-01 (포털 수정일)"
+  },
+  "note": "건설 일본어계 은어 → 표준 한국어 (translate_as_ko). 언어별 번역은 넣지 않는다 (docs/field-terms.md 0절). 검수: 공단 사전 그대로 + 위 기준으로 고름, 현장 확인 전",
+  "counts": {
+    "terms": 210,
+    "overrides": 2
+  },
+  "terms": [
+    {
+      "id": "KS001",
+      "canonical_ko": "다가네",
+      "variants_ko": [
+        "타가네"
+      ],
+      "translate_as_ko": "정",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다가네",
+        "정",
+        "타가네"
+      ]
+    },
+    {
+      "id": "KS002",
+      "canonical_ko": "다께와리",
+      "variants_ko": [],
+      "translate_as_ko": "대쪽, 타일",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다께와리",
+        "대쪽",
+        "타일"
+      ]
+    },
+    {
+      "id": "KS003",
+      "canonical_ko": "가꾸목",
+      "variants_ko": [],
+      "translate_as_ko": "각목",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가꾸목",
+        "각목"
+      ]
+    },
+    {
+      "id": "KS004",
+      "canonical_ko": "가꾸부찌",
+      "variants_ko": [],
+      "translate_as_ko": "문선, 문틀",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가꾸부찌",
+        "문선",
+        "문틀"
+      ]
+    },
+    {
+      "id": "KS005",
+      "canonical_ko": "가나고데",
+      "variants_ko": [],
+      "translate_as_ko": "쇠흙손",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가나고데",
+        "쇠흙손"
+      ]
+    },
+    {
+      "id": "KS006",
+      "canonical_ko": "가나모노",
+      "variants_ko": [],
+      "translate_as_ko": "철물, 창호",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가나모노",
+        "철물",
+        "창호"
+      ]
+    },
+    {
+      "id": "KS007",
+      "canonical_ko": "가다와꾸",
+      "variants_ko": [],
+      "translate_as_ko": "형틀",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가다와꾸",
+        "형틀"
+      ]
+    },
+    {
+      "id": "KS008",
+      "canonical_ko": "가리고야",
+      "variants_ko": [],
+      "translate_as_ko": "가설건물",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가리고야",
+        "가설건물"
+      ]
+    },
+    {
+      "id": "KS009",
+      "canonical_ko": "가시메",
+      "variants_ko": [],
+      "translate_as_ko": "리벳 작업",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가시메",
+        "Rivetting"
+      ]
+    },
+    {
+      "id": "KS010",
+      "canonical_ko": "가이당",
+      "variants_ko": [],
+      "translate_as_ko": "계단",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가이당",
+        "계단"
+      ]
+    },
+    {
+      "id": "KS011",
+      "canonical_ko": "가타키리",
+      "variants_ko": [],
+      "translate_as_ko": "외쪽깍이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "가타키리",
+        "외쪽깍이"
+      ]
+    },
+    {
+      "id": "KS012",
+      "canonical_ko": "게꼬미",
+      "variants_ko": [],
+      "translate_as_ko": "챌판, 계단",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "게꼬미",
+        "챌판",
+        "계단"
+      ]
+    },
+    {
+      "id": "KS013",
+      "canonical_ko": "겐사끼",
+      "variants_ko": [],
+      "translate_as_ko": "래칫 렌치, 견삭기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "겐사끼",
+        "래칫 렌치",
+        "견삭기"
+      ]
+    },
+    {
+      "id": "KS014",
+      "canonical_ko": "고구찌",
+      "variants_ko": [],
+      "translate_as_ko": "마구리, 말구",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고구찌",
+        "마구리",
+        "말구"
+      ]
+    },
+    {
+      "id": "KS015",
+      "canonical_ko": "고다다끼",
+      "variants_ko": [],
+      "translate_as_ko": "잔다듬",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고다다끼",
+        "잔다듬"
+      ]
+    },
+    {
+      "id": "KS016",
+      "canonical_ko": "고데무라",
+      "variants_ko": [],
+      "translate_as_ko": "흙 손자국",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고데무라",
+        "흙 손자국"
+      ]
+    },
+    {
+      "id": "KS017",
+      "canonical_ko": "고바다떼",
+      "variants_ko": [],
+      "translate_as_ko": "세워쌓기, 벽돌",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고바다떼",
+        "세워쌓기",
+        "벽돌"
+      ]
+    },
+    {
+      "id": "KS018",
+      "canonical_ko": "고바이",
+      "variants_ko": [],
+      "translate_as_ko": "구배, 기울임",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고바이",
+        "구배",
+        "기울임"
+      ]
+    },
+    {
+      "id": "KS019",
+      "canonical_ko": "고부다시",
+      "variants_ko": [],
+      "translate_as_ko": "혹두기, 돌",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "고부다시",
+        "혹두기",
+        "돌"
+      ]
+    },
+    {
+      "id": "KS020",
+      "canonical_ko": "구루마",
+      "variants_ko": [],
+      "translate_as_ko": "손수레, 외발수레",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "구루마",
+        "손수레",
+        "외발수레"
+      ]
+    },
+    {
+      "id": "KS021",
+      "canonical_ko": "구리스",
+      "variants_ko": [],
+      "translate_as_ko": "그리스, 윤활유",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "구리스",
+        "그리스",
+        "윤활유",
+        "Grease"
+      ]
+    },
+    {
+      "id": "KS022",
+      "canonical_ko": "기고데",
+      "variants_ko": [],
+      "translate_as_ko": "나무흙손",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기고데",
+        "나무흙손"
+      ]
+    },
+    {
+      "id": "KS023",
+      "canonical_ko": "기리까에",
+      "variants_ko": [],
+      "translate_as_ko": "바꾸기, 교체",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기리까에",
+        "바꾸기",
+        "교체"
+      ]
+    },
+    {
+      "id": "KS024",
+      "canonical_ko": "기리꼬미",
+      "variants_ko": [],
+      "translate_as_ko": "덤핑, 흙모래가 섞인 자갈",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기리꼬미",
+        "덤핑",
+        "흙모래가 섞인 자갈"
+      ]
+    },
+    {
+      "id": "KS025",
+      "canonical_ko": "기리바리",
+      "variants_ko": [],
+      "translate_as_ko": "버팀대",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "기리바리",
+        "버팀대"
+      ]
+    },
+    {
+      "id": "KS026",
+      "canonical_ko": "기리빠시",
+      "variants_ko": [
+        "키렙바시"
+      ],
+      "translate_as_ko": "칩, 톱밥, 자투리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기리빠시",
+        "칩",
+        "Chip",
+        "톱밥",
+        "자투리",
+        "지스러기",
+        "키렙바시",
+        "왈가닥",
+        "기리바"
+      ]
+    },
+    {
+      "id": "KS027",
+      "canonical_ko": "기즈리",
+      "variants_ko": [],
+      "translate_as_ko": "졸대",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기즈리",
+        "졸대"
+      ]
+    },
+    {
+      "id": "KS028",
+      "canonical_ko": "나가떼",
+      "variants_ko": [],
+      "translate_as_ko": "벽돌 긴면",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "나가떼",
+        "벽돌 긴면"
+      ]
+    },
+    {
+      "id": "KS029",
+      "canonical_ko": "나나메",
+      "variants_ko": [],
+      "translate_as_ko": "경사",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "나나메",
+        "경사"
+      ]
+    },
+    {
+      "id": "KS030",
+      "canonical_ko": "나라시",
+      "variants_ko": [],
+      "translate_as_ko": "고르기, 평탄화 작업, 평탄화",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "나라시",
+        "고르기",
+        "평탄화 작업",
+        "평탄화"
+      ]
+    },
+    {
+      "id": "KS031",
+      "canonical_ko": "나리마끼",
+      "variants_ko": [
+        "노리바케"
+      ],
+      "translate_as_ko": "정배솔",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "나리마끼",
+        "정배솔",
+        "노리바케"
+      ]
+    },
+    {
+      "id": "KS032",
+      "canonical_ko": "네지리",
+      "variants_ko": [],
+      "translate_as_ko": "뒤틀림",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "네지리",
+        "뒤틀림"
+      ]
+    },
+    {
+      "id": "KS033",
+      "canonical_ko": "노가다",
+      "variants_ko": [
+        "노가대",
+        "도가다"
+      ],
+      "translate_as_ko": "토공",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "노가다",
+        "토공",
+        "노가대",
+        "도가다"
+      ]
+    },
+    {
+      "id": "KS034",
+      "canonical_ko": "노기스",
+      "variants_ko": [],
+      "translate_as_ko": "버니어 캘리퍼스",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "노기스",
+        "버니어 캘리퍼스"
+      ]
+    },
+    {
+      "id": "KS035",
+      "canonical_ko": "노리비끼",
+      "variants_ko": [
+        "노로비끼"
+      ],
+      "translate_as_ko": "시멘트 풀칠",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "노리비끼",
+        "시멘트 풀칠",
+        "노로비끼"
+      ]
+    },
+    {
+      "id": "KS036",
+      "canonical_ko": "노바시",
+      "variants_ko": [],
+      "translate_as_ko": "늘이기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "노바시",
+        "늘이기"
+      ]
+    },
+    {
+      "id": "KS037",
+      "canonical_ko": "노보리",
+      "variants_ko": [],
+      "translate_as_ko": "비계다리",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "노보리",
+        "비계다리"
+      ]
+    },
+    {
+      "id": "KS038",
+      "canonical_ko": "다데도이",
+      "variants_ko": [],
+      "translate_as_ko": "선홈통",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다데도이",
+        "선홈통"
+      ]
+    },
+    {
+      "id": "KS039",
+      "canonical_ko": "다라이",
+      "variants_ko": [],
+      "translate_as_ko": "고무대야",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다라이",
+        "고무대야"
+      ]
+    },
+    {
+      "id": "KS040",
+      "canonical_ko": "다루끼",
+      "variants_ko": [],
+      "translate_as_ko": "서까래",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다루끼",
+        "서까래",
+        "소각재"
+      ]
+    },
+    {
+      "id": "KS041",
+      "canonical_ko": "다마이시",
+      "variants_ko": [],
+      "translate_as_ko": "호박돌",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다마이시",
+        "호박돌"
+      ]
+    },
+    {
+      "id": "KS042",
+      "canonical_ko": "다이까렝가",
+      "variants_ko": [],
+      "translate_as_ko": "내화벽돌",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다이까렝가",
+        "내화벽돌"
+      ]
+    },
+    {
+      "id": "KS043",
+      "canonical_ko": "다이꼬바리",
+      "variants_ko": [],
+      "translate_as_ko": "양면붙임",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다이꼬바리",
+        "양면붙임"
+      ]
+    },
+    {
+      "id": "KS044",
+      "canonical_ko": "다찌아가리",
+      "variants_ko": [],
+      "translate_as_ko": "입상, 치켜올림",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다찌아가리",
+        "입상",
+        "치켜올림"
+      ]
+    },
+    {
+      "id": "KS045",
+      "canonical_ko": "단도리",
+      "variants_ko": [],
+      "translate_as_ko": "준비, 마련, 채비",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "단도리",
+        "준비",
+        "마련",
+        "채비"
+      ]
+    },
+    {
+      "id": "KS046",
+      "canonical_ko": "단찌가이",
+      "variants_ko": [],
+      "translate_as_ko": "이격, 단차",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "단찌가이",
+        "이격",
+        "단차"
+      ]
+    },
+    {
+      "id": "KS047",
+      "canonical_ko": "데나오시",
+      "variants_ko": [
+        "데나우시"
+      ],
+      "translate_as_ko": "재손질, 재시공, 리셋",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "데나오시",
+        "재손질",
+        "재시공",
+        "리셋",
+        "데나우시"
+      ]
+    },
+    {
+      "id": "KS048",
+      "canonical_ko": "데네리",
+      "variants_ko": [],
+      "translate_as_ko": "손비빔",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "데네리",
+        "손비빔"
+      ]
+    },
+    {
+      "id": "KS049",
+      "canonical_ko": "데마찌",
+      "variants_ko": [],
+      "translate_as_ko": "작업대기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "데마찌",
+        "작업대기"
+      ]
+    },
+    {
+      "id": "KS050",
+      "canonical_ko": "데모도",
+      "variants_ko": [
+        "뒷모도"
+      ],
+      "translate_as_ko": "조력공, 조공, 잡부",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "데모도",
+        "조력공",
+        "조공",
+        "잡부",
+        "결꾼",
+        "뒷모도"
+      ]
+    },
+    {
+      "id": "KS051",
+      "canonical_ko": "데스라",
+      "variants_ko": [],
+      "translate_as_ko": "출력 인원",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "override": true,
+      "override_reason": "기존 seed 는 '난간'(신뢰도 medium_low) — 공단 사전은 데스라 = 출력 인원, 데스리 = 난간 (2026-10-23 사용자 결정으로 공단 기준)",
+      "asr_corrections": [
+        "데쓰라",
+        "대수라"
+      ],
+      "source_group": [
+        "데스라",
+        "출력 인원"
+      ]
+    },
+    {
+      "id": "KS052",
+      "canonical_ko": "데스리",
+      "variants_ko": [],
+      "translate_as_ko": "난간",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "데스리",
+        "난간"
+      ]
+    },
+    {
+      "id": "KS053",
+      "canonical_ko": "데코보코",
+      "variants_ko": [
+        "데꾸보꾸"
+      ],
+      "translate_as_ko": "요철",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "데코보코",
+        "요철",
+        "데꾸보꾸"
+      ]
+    },
+    {
+      "id": "KS054",
+      "canonical_ko": "덴조",
+      "variants_ko": [],
+      "translate_as_ko": "천장, 반자",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "덴조-",
+        "천장",
+        "반자"
+      ]
+    },
+    {
+      "id": "KS055",
+      "canonical_ko": "뎃킨",
+      "variants_ko": [],
+      "translate_as_ko": "철근",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "뎃킨",
+        "철근"
+      ]
+    },
+    {
+      "id": "KS056",
+      "canonical_ko": "도끼다시",
+      "variants_ko": [
+        "도기다시"
+      ],
+      "translate_as_ko": "갈아내기, 인조석",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "도끼다시",
+        "갈아내기",
+        "인조석",
+        "도기다시"
+      ]
+    },
+    {
+      "id": "KS057",
+      "canonical_ko": "도도메",
+      "variants_ko": [],
+      "translate_as_ko": "흙막이",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "도도메",
+        "흙막이"
+      ]
+    },
+    {
+      "id": "KS058",
+      "canonical_ko": "도라무",
+      "variants_ko": [],
+      "translate_as_ko": "드럼",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "도라무",
+        "드럼",
+        "Drum"
+      ]
+    },
+    {
+      "id": "KS059",
+      "canonical_ko": "도란스",
+      "variants_ko": [],
+      "translate_as_ko": "변압기",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "도란스",
+        "변압기",
+        "Transformer"
+      ]
+    },
+    {
+      "id": "KS060",
+      "canonical_ko": "도지나",
+      "variants_ko": [],
+      "translate_as_ko": "주상 안전 벨트",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "도지나",
+        "주상 안전 벨트"
+      ]
+    },
+    {
+      "id": "KS061",
+      "canonical_ko": "돗바",
+      "variants_ko": [
+        "돕빠"
+      ],
+      "translate_as_ko": "장옷, 덮개, 패딩",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "돗바",
+        "장옷",
+        "topper",
+        "덮개",
+        "패딩",
+        "돕빠"
+      ]
+    },
+    {
+      "id": "KS062",
+      "canonical_ko": "라바콘",
+      "variants_ko": [],
+      "translate_as_ko": "트래픽콘, 삼각대",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "라바콘",
+        "트래픽콘",
+        "삼각대"
+      ]
+    },
+    {
+      "id": "KS063",
+      "canonical_ko": "레듀샤",
+      "variants_ko": [],
+      "translate_as_ko": "리듀서",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "레듀샤",
+        "리듀서",
+        "Reducer"
+      ]
+    },
+    {
+      "id": "KS064",
+      "canonical_ko": "마구사",
+      "variants_ko": [],
+      "translate_as_ko": "인방",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마구사",
+        "인방"
+      ]
+    },
+    {
+      "id": "KS065",
+      "canonical_ko": "반생이",
+      "variants_ko": [],
+      "translate_as_ko": "구운철사, 소둔철사, 소둔선",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "반생이",
+        "구운철사",
+        "반생",
+        "소둔철사",
+        "소둔선"
+      ]
+    },
+    {
+      "id": "KS066",
+      "canonical_ko": "마루보",
+      "variants_ko": [],
+      "translate_as_ko": "전산볼트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마루보",
+        "전산볼트"
+      ]
+    },
+    {
+      "id": "KS067",
+      "canonical_ko": "마루다",
+      "variants_ko": [
+        "마루타"
+      ],
+      "translate_as_ko": "통나무",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마루다",
+        "통나무",
+        "마루타"
+      ]
+    },
+    {
+      "id": "KS068",
+      "canonical_ko": "마에가리",
+      "variants_ko": [],
+      "translate_as_ko": "가불",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마에가리",
+        "가불"
+      ]
+    },
+    {
+      "id": "KS069",
+      "canonical_ko": "마와리부찌",
+      "variants_ko": [],
+      "translate_as_ko": "반자돌림",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마와리부찌",
+        "반자돌림"
+      ]
+    },
+    {
+      "id": "KS070",
+      "canonical_ko": "마지끼리",
+      "variants_ko": [],
+      "translate_as_ko": "칸막이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마지끼리",
+        "칸막이"
+      ]
+    },
+    {
+      "id": "KS071",
+      "canonical_ko": "마키선",
+      "variants_ko": [],
+      "translate_as_ko": "전기 릴",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "마키선",
+        "전기 릴",
+        "Reel"
+      ]
+    },
+    {
+      "id": "KS072",
+      "canonical_ko": "만땅",
+      "variants_ko": [],
+      "translate_as_ko": "가득 참",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "만땅",
+        "가득 참"
+      ]
+    },
+    {
+      "id": "KS073",
+      "canonical_ko": "메가네",
+      "variants_ko": [],
+      "translate_as_ko": "링 스패너",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "메가네",
+        "링 스패너"
+      ]
+    },
+    {
+      "id": "KS074",
+      "canonical_ko": "메꾸라",
+      "variants_ko": [
+        "메꾸라시",
+        "매꾸라이"
+      ],
+      "translate_as_ko": "막음",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "메꾸라",
+        "막음",
+        "메꾸라시",
+        "매꾸라이"
+      ]
+    },
+    {
+      "id": "KS075",
+      "canonical_ko": "메모도",
+      "variants_ko": [],
+      "translate_as_ko": "수평조절목",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "메모도",
+        "수평조절목"
+      ]
+    },
+    {
+      "id": "KS076",
+      "canonical_ko": "메지",
+      "variants_ko": [],
+      "translate_as_ko": "줄눈",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "메지",
+        "줄눈"
+      ]
+    },
+    {
+      "id": "KS077",
+      "canonical_ko": "메지보",
+      "variants_ko": [],
+      "translate_as_ko": "줄눈대",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "메지보",
+        "줄눈대"
+      ]
+    },
+    {
+      "id": "KS078",
+      "canonical_ko": "멘끼",
+      "variants_ko": [],
+      "translate_as_ko": "면대",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "멘끼",
+        "면대"
+      ]
+    },
+    {
+      "id": "KS079",
+      "canonical_ko": "멘도리",
+      "variants_ko": [],
+      "translate_as_ko": "모접기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "멘도리",
+        "모접기"
+      ]
+    },
+    {
+      "id": "KS080",
+      "canonical_ko": "모도시",
+      "variants_ko": [],
+      "translate_as_ko": "원래대로",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "모도시",
+        "원래대로"
+      ]
+    },
+    {
+      "id": "KS081",
+      "canonical_ko": "모찌꼬미",
+      "variants_ko": [],
+      "translate_as_ko": "지입",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "모찌꼬미",
+        "지입"
+      ]
+    },
+    {
+      "id": "KS082",
+      "canonical_ko": "무시로",
+      "variants_ko": [],
+      "translate_as_ko": "거적",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "무시로",
+        "거적"
+      ]
+    },
+    {
+      "id": "KS083",
+      "canonical_ko": "미스모리",
+      "variants_ko": [
+        "미즈모리"
+      ],
+      "translate_as_ko": "물수평, 수준기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "미스모리",
+        "물수평",
+        "수준기",
+        "미즈모리"
+      ]
+    },
+    {
+      "id": "KS084",
+      "canonical_ko": "미쓰모리",
+      "variants_ko": [],
+      "translate_as_ko": "견적",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "미쓰모리",
+        "견적"
+      ]
+    },
+    {
+      "id": "KS085",
+      "canonical_ko": "미즈끼리",
+      "variants_ko": [],
+      "translate_as_ko": "물끊기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "미즈끼리",
+        "물끊기"
+      ]
+    },
+    {
+      "id": "KS086",
+      "canonical_ko": "바라시",
+      "variants_ko": [],
+      "translate_as_ko": "분해작업, 해체작업",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "바라시",
+        "분해작업",
+        "해체작업"
+      ]
+    },
+    {
+      "id": "KS087",
+      "canonical_ko": "바이브",
+      "variants_ko": [],
+      "translate_as_ko": "바이브레이터, 진동장치",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "바이브",
+        "바이브레이터",
+        "Vibrator",
+        "진동장치"
+      ]
+    },
+    {
+      "id": "KS088",
+      "canonical_ko": "바께쓰",
+      "variants_ko": [],
+      "translate_as_ko": "버킷, 양동이, 물통",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "바께쓰",
+        "버킷",
+        "Bucket",
+        "양동이",
+        "물통"
+      ]
+    },
+    {
+      "id": "KS089",
+      "canonical_ko": "부란자",
+      "variants_ko": [],
+      "translate_as_ko": "플런저 펌프",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "부란자",
+        "플런저 펌프"
+      ]
+    },
+    {
+      "id": "KS090",
+      "canonical_ko": "부록꾸",
+      "variants_ko": [],
+      "translate_as_ko": "블록",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "부록꾸",
+        "블록"
+      ]
+    },
+    {
+      "id": "KS091",
+      "canonical_ko": "부비끼",
+      "variants_ko": [],
+      "translate_as_ko": "톱밥칫수 빼기, 제재목",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "부비끼",
+        "톱밥칫수 빼기",
+        "제재목"
+      ]
+    },
+    {
+      "id": "KS092",
+      "canonical_ko": "브레까",
+      "variants_ko": [
+        "뿌레카"
+      ],
+      "translate_as_ko": "브레이커",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "브레까",
+        "브레이커",
+        "Breaker",
+        "뿌레카"
+      ]
+    },
+    {
+      "id": "KS093",
+      "canonical_ko": "빠꾸",
+      "variants_ko": [],
+      "translate_as_ko": "백",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빠꾸",
+        "백",
+        "Back"
+      ]
+    },
+    {
+      "id": "KS094",
+      "canonical_ko": "빠데",
+      "variants_ko": [],
+      "translate_as_ko": "퍼티",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빠데",
+        "퍼티",
+        "Putty"
+      ]
+    },
+    {
+      "id": "KS095",
+      "canonical_ko": "빠레트",
+      "variants_ko": [],
+      "translate_as_ko": "파렛트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빠레트",
+        "파렛트",
+        "Pallet",
+        "파렛트"
+      ]
+    },
+    {
+      "id": "KS096",
+      "canonical_ko": "빠루",
+      "variants_ko": [],
+      "translate_as_ko": "못 빼는 연장, 장도리, 노루발못뽑이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빠루",
+        "못 빼는 연장",
+        "장도리",
+        "노루발못뽑이",
+        "쇠지레"
+      ]
+    },
+    {
+      "id": "KS097",
+      "canonical_ko": "빠우",
+      "variants_ko": [],
+      "translate_as_ko": "버핑",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빠우",
+        "버핑",
+        "buffing"
+      ]
+    },
+    {
+      "id": "KS098",
+      "canonical_ko": "빼빠",
+      "variants_ko": [],
+      "translate_as_ko": "사포",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "빼빠",
+        "사포",
+        "Sandpaper"
+      ]
+    },
+    {
+      "id": "KS099",
+      "canonical_ko": "뺑끼",
+      "variants_ko": [],
+      "translate_as_ko": "페인트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "뺑끼",
+        "페인트",
+        "Paint"
+      ]
+    },
+    {
+      "id": "KS100",
+      "canonical_ko": "사게부리",
+      "variants_ko": [
+        "사게후리"
+      ],
+      "translate_as_ko": "다림추",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사게부리",
+        "다림추",
+        "사게후리"
+      ]
+    },
+    {
+      "id": "KS101",
+      "canonical_ko": "사부로꾸",
+      "variants_ko": [],
+      "translate_as_ko": "합판",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사부로꾸",
+        "3'¡¿6'",
+        "합판"
+      ]
+    },
+    {
+      "id": "KS102",
+      "canonical_ko": "사비도메",
+      "variants_ko": [],
+      "translate_as_ko": "녹막이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사비도메",
+        "녹막이"
+      ]
+    },
+    {
+      "id": "KS103",
+      "canonical_ko": "사뽀도",
+      "variants_ko": [],
+      "translate_as_ko": "서포트",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "사뽀도",
+        "서포트",
+        "Support"
+      ]
+    },
+    {
+      "id": "KS104",
+      "canonical_ko": "사시꼬미",
+      "variants_ko": [],
+      "translate_as_ko": "꽂이쇠, 콘센트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사시꼬미",
+        "꽂이쇠",
+        "콘센트"
+      ]
+    },
+    {
+      "id": "KS105",
+      "canonical_ko": "사시낑",
+      "variants_ko": [],
+      "translate_as_ko": "삽근, 삽입근",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사시낑",
+        "삽근",
+        "삽입근"
+      ]
+    },
+    {
+      "id": "KS106",
+      "canonical_ko": "삼바시",
+      "variants_ko": [],
+      "translate_as_ko": "수평 비계다리",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "삼바시",
+        "수평 비계다리"
+      ]
+    },
+    {
+      "id": "KS107",
+      "canonical_ko": "세끼이다",
+      "variants_ko": [],
+      "translate_as_ko": "형틀",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "세끼이다",
+        "형틀"
+      ]
+    },
+    {
+      "id": "KS108",
+      "canonical_ko": "세멘",
+      "variants_ko": [],
+      "translate_as_ko": "시멘트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "세멘",
+        "시멘트",
+        "세면"
+      ]
+    },
+    {
+      "id": "KS109",
+      "canonical_ko": "쇼꾸닝",
+      "variants_ko": [],
+      "translate_as_ko": "기능공",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "쇼꾸닝",
+        "기능공"
+      ]
+    },
+    {
+      "id": "KS110",
+      "canonical_ko": "스데바",
+      "variants_ko": [],
+      "translate_as_ko": "사토장",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스데바",
+        "사토장"
+      ]
+    },
+    {
+      "id": "KS111",
+      "canonical_ko": "스미키리",
+      "variants_ko": [],
+      "translate_as_ko": "모따기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스미키리",
+        "모따기"
+      ]
+    },
+    {
+      "id": "KS112",
+      "canonical_ko": "스지까이",
+      "variants_ko": [],
+      "translate_as_ko": "가새",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "스지까이",
+        "가새",
+        "Brace"
+      ]
+    },
+    {
+      "id": "KS113",
+      "canonical_ko": "스텐",
+      "variants_ko": [
+        "스덴",
+        "스뎅"
+      ],
+      "translate_as_ko": "스테인리스",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스텐",
+        "스테인리스",
+        "Stainless",
+        "스덴",
+        "스뎅"
+      ]
+    },
+    {
+      "id": "KS114",
+      "canonical_ko": "스페샤",
+      "variants_ko": [],
+      "translate_as_ko": "스페이서",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스페샤",
+        "스페이서",
+        "Spacer"
+      ]
+    },
+    {
+      "id": "KS115",
+      "canonical_ko": "스페아",
+      "variants_ko": [],
+      "translate_as_ko": "스페어, 여분",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스페아",
+        "스페어",
+        "Spare",
+        "여분"
+      ]
+    },
+    {
+      "id": "KS116",
+      "canonical_ko": "승고다루끼",
+      "variants_ko": [],
+      "translate_as_ko": "한치반 각재",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "승고다루끼",
+        "한치반 각재"
+      ]
+    },
+    {
+      "id": "KS117",
+      "canonical_ko": "시다지",
+      "variants_ko": [],
+      "translate_as_ko": "바탕, 하지",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시다지",
+        "바탕",
+        "하지"
+      ]
+    },
+    {
+      "id": "KS118",
+      "canonical_ko": "시따바",
+      "variants_ko": [],
+      "translate_as_ko": "아랫면",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시따바",
+        "아랫면"
+      ]
+    },
+    {
+      "id": "KS119",
+      "canonical_ko": "시로토",
+      "variants_ko": [],
+      "translate_as_ko": "초보자",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시로토",
+        "초보자"
+      ]
+    },
+    {
+      "id": "KS120",
+      "canonical_ko": "시루시",
+      "variants_ko": [
+        "시로시"
+      ],
+      "translate_as_ko": "표시, 마킹",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시루시",
+        "표시",
+        "마킹",
+        "시로시",
+        "히로시"
+      ]
+    },
+    {
+      "id": "KS121",
+      "canonical_ko": "시마이",
+      "variants_ko": [],
+      "translate_as_ko": "끝, 마무리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시마이",
+        "끝",
+        "마무리",
+        "오늘"
+      ]
+    },
+    {
+      "id": "KS122",
+      "canonical_ko": "시메라",
+      "variants_ko": [
+        "시메루"
+      ],
+      "translate_as_ko": "장선기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시메라",
+        "장선기",
+        "시메루"
+      ]
+    },
+    {
+      "id": "KS123",
+      "canonical_ko": "시아게",
+      "variants_ko": [],
+      "translate_as_ko": "마감",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시아게",
+        "마감"
+      ]
+    },
+    {
+      "id": "KS124",
+      "canonical_ko": "시하찌",
+      "variants_ko": [],
+      "translate_as_ko": "합판",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "시하찌",
+        "합판"
+      ]
+    },
+    {
+      "id": "KS125",
+      "canonical_ko": "쓰루하시",
+      "variants_ko": [],
+      "translate_as_ko": "곡괭이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "쓰루하시",
+        "곡괭이"
+      ]
+    },
+    {
+      "id": "KS126",
+      "canonical_ko": "아까렝가",
+      "variants_ko": [],
+      "translate_as_ko": "적벽돌",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "아까렝가",
+        "적벽돌"
+      ]
+    },
+    {
+      "id": "KS127",
+      "canonical_ko": "아나방",
+      "variants_ko": [],
+      "translate_as_ko": "유공강판(PSP)",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "override": true,
+      "override_reason": "기존 seed 는 '천공·코어 작업'(신뢰도 low) — 공단 사전은 PSP(Punched Steel Plate, 유공강판)",
+      "asr_corrections": [],
+      "source_group": [
+        "아나방",
+        "Punched Steel Plate",
+        "PSP"
+      ]
+    },
+    {
+      "id": "KS128",
+      "canonical_ko": "아다라시",
+      "variants_ko": [],
+      "translate_as_ko": "신품",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "아다라시",
+        "신품"
+      ]
+    },
+    {
+      "id": "KS129",
+      "canonical_ko": "아라이다시",
+      "variants_ko": [],
+      "translate_as_ko": "씻어내기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "아라이다시",
+        "씻어내기"
+      ]
+    },
+    {
+      "id": "KS130",
+      "canonical_ko": "아시바",
+      "variants_ko": [],
+      "translate_as_ko": "비계, 발판",
+      "risk_level": "critical",
+      "domain": "construction_slang",
+      "source_group": [
+        "아시바",
+        "비계",
+        "발판",
+        "scaffold"
+      ]
+    },
+    {
+      "id": "KS131",
+      "canonical_ko": "야기리",
+      "variants_ko": [],
+      "translate_as_ko": "거푸집, 철근벽체",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "야기리",
+        "거푸집",
+        "철근벽체"
+      ]
+    },
+    {
+      "id": "KS132",
+      "canonical_ko": "야리가다",
+      "variants_ko": [],
+      "translate_as_ko": "규준틀, 수평규준틀",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "야리가다",
+        "규준틀",
+        "수평규준틀"
+      ]
+    },
+    {
+      "id": "KS133",
+      "canonical_ko": "야리끼리",
+      "variants_ko": [],
+      "translate_as_ko": "할당제 근무",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "야리끼리",
+        "할당제 근무"
+      ]
+    },
+    {
+      "id": "KS134",
+      "canonical_ko": "야마도메",
+      "variants_ko": [],
+      "translate_as_ko": "흙막이",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "야마도메",
+        "흙막이"
+      ]
+    },
+    {
+      "id": "KS135",
+      "canonical_ko": "야스리",
+      "variants_ko": [],
+      "translate_as_ko": "줄공구",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "야스리",
+        "줄공구"
+      ]
+    },
+    {
+      "id": "KS136",
+      "canonical_ko": "엔토쓰",
+      "variants_ko": [],
+      "translate_as_ko": "굴뚝",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "엔토쓰",
+        "굴뚝"
+      ]
+    },
+    {
+      "id": "KS137",
+      "canonical_ko": "오가네",
+      "variants_ko": [],
+      "translate_as_ko": "큰 직각자",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오가네",
+        "큰 직각자"
+      ]
+    },
+    {
+      "id": "KS138",
+      "canonical_ko": "오도리바",
+      "variants_ko": [],
+      "translate_as_ko": "계단참",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오도리바",
+        "계단참"
+      ]
+    },
+    {
+      "id": "KS139",
+      "canonical_ko": "오비끼",
+      "variants_ko": [],
+      "translate_as_ko": "멍에",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오-비끼",
+        "멍에",
+        "3인치 각재"
+      ]
+    },
+    {
+      "id": "KS140",
+      "canonical_ko": "오비낑",
+      "variants_ko": [],
+      "translate_as_ko": "띠철근",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오비낑",
+        "띠철근",
+        "Hoop"
+      ]
+    },
+    {
+      "id": "KS141",
+      "canonical_ko": "오사마리",
+      "variants_ko": [],
+      "translate_as_ko": "마무리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오사마리",
+        "마무리"
+      ]
+    },
+    {
+      "id": "KS142",
+      "canonical_ko": "오사이",
+      "variants_ko": [
+        "오사에"
+      ],
+      "translate_as_ko": "누름, 몰탈, 유리퍼티",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오사이",
+        "누름",
+        "몰탈",
+        "오사에",
+        "유리퍼티"
+      ]
+    },
+    {
+      "id": "KS143",
+      "canonical_ko": "오삽",
+      "variants_ko": [],
+      "translate_as_ko": "큰삽",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오삽",
+        "큰삽"
+      ]
+    },
+    {
+      "id": "KS144",
+      "canonical_ko": "오시이레",
+      "variants_ko": [],
+      "translate_as_ko": "반침, 벽장, 침구",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오시이레",
+        "반침",
+        "벽장",
+        "침구"
+      ]
+    },
+    {
+      "id": "KS145",
+      "canonical_ko": "오야지",
+      "variants_ko": [
+        "오야",
+        "오야가다"
+      ],
+      "translate_as_ko": "책임자, 우두머리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "오야",
+        "책임자",
+        "우두머리",
+        "오야지",
+        "오야가다"
+      ]
+    },
+    {
+      "id": "KS146",
+      "canonical_ko": "오함마",
+      "variants_ko": [],
+      "translate_as_ko": "큰 햄머",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "오함마",
+        "큰 햄머",
+        "hammar"
+      ]
+    },
+    {
+      "id": "KS147",
+      "canonical_ko": "우라이시",
+      "variants_ko": [],
+      "translate_as_ko": "뒷채움 자갈",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "우라이시",
+        "뒷채움 자갈"
+      ]
+    },
+    {
+      "id": "KS148",
+      "canonical_ko": "우메모도시",
+      "variants_ko": [],
+      "translate_as_ko": "되메우기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "우메모도시",
+        "되메우기"
+      ]
+    },
+    {
+      "id": "KS149",
+      "canonical_ko": "우와낑",
+      "variants_ko": [],
+      "translate_as_ko": "상부근",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "우와낑",
+        "상부근"
+      ]
+    },
+    {
+      "id": "KS150",
+      "canonical_ko": "우찌바나시",
+      "variants_ko": [],
+      "translate_as_ko": "콘크리트, 제물 마감",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "우찌바나시",
+        "콘크리트",
+        "제물 마감"
+      ]
+    },
+    {
+      "id": "KS151",
+      "canonical_ko": "유도리",
+      "variants_ko": [],
+      "translate_as_ko": "융통성",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "유도리",
+        "융통성"
+      ]
+    },
+    {
+      "id": "KS152",
+      "canonical_ko": "이모메지",
+      "variants_ko": [],
+      "translate_as_ko": "통줄눈",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "이모메지",
+        "통줄눈"
+      ]
+    },
+    {
+      "id": "KS153",
+      "canonical_ko": "이바리",
+      "variants_ko": [],
+      "translate_as_ko": "거스러미, 찌꺼기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "이바리",
+        "거스러미",
+        "찌꺼기"
+      ]
+    },
+    {
+      "id": "KS154",
+      "canonical_ko": "자가네",
+      "variants_ko": [],
+      "translate_as_ko": "수도꼭지",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "자가네",
+        "수도꼭지"
+      ]
+    },
+    {
+      "id": "KS155",
+      "canonical_ko": "자바라",
+      "variants_ko": [
+        "쟈바라"
+      ],
+      "translate_as_ko": "주름진 물건, 접문, 나선",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "자바라",
+        "주름진 물건",
+        "접문",
+        "쟈바라",
+        "나선"
+      ]
+    },
+    {
+      "id": "KS156",
+      "canonical_ko": "짬뿌",
+      "variants_ko": [],
+      "translate_as_ko": "점프",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "짬뿌",
+        "점프"
+      ]
+    },
+    {
+      "id": "KS157",
+      "canonical_ko": "찐빠",
+      "variants_ko": [
+        "찜빠"
+      ],
+      "translate_as_ko": "짝짝이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "찐빠",
+        "짝짝이",
+        "찜빠"
+      ]
+    },
+    {
+      "id": "KS158",
+      "canonical_ko": "쿠사리",
+      "variants_ko": [],
+      "translate_as_ko": "쇠사슬",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "쿠사리",
+        "쇠사슬"
+      ]
+    },
+    {
+      "id": "KS159",
+      "canonical_ko": "쿠사비",
+      "variants_ko": [],
+      "translate_as_ko": "쐐기, 웨지",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "쿠사비",
+        "쐐기",
+        "Wedge",
+        "웨지"
+      ]
+    },
+    {
+      "id": "KS160",
+      "canonical_ko": "키리카에",
+      "variants_ko": [
+        "기레까이",
+        "기레까시"
+      ],
+      "translate_as_ko": "바꾸기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "키리카에",
+        "바꾸기",
+        "기레까이",
+        "기레까시"
+      ]
+    },
+    {
+      "id": "KS161",
+      "canonical_ko": "타이루",
+      "variants_ko": [],
+      "translate_as_ko": "타일",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "타이루",
+        "타일"
+      ]
+    },
+    {
+      "id": "KS162",
+      "canonical_ko": "투바이",
+      "variants_ko": [],
+      "translate_as_ko": "각재",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "투바이",
+        "각재"
+      ]
+    },
+    {
+      "id": "KS163",
+      "canonical_ko": "하바끼",
+      "variants_ko": [],
+      "translate_as_ko": "걸레받이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "하바끼",
+        "걸레받이"
+      ]
+    },
+    {
+      "id": "KS164",
+      "canonical_ko": "하스리",
+      "variants_ko": [
+        "까대기"
+      ],
+      "translate_as_ko": "쪼아내기, 정질",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "하스리",
+        "쪼아내기",
+        "정질",
+        "까대기"
+      ]
+    },
+    {
+      "id": "KS165",
+      "canonical_ko": "하이바",
+      "variants_ko": [],
+      "translate_as_ko": "안전모, 헬멧",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "하이바",
+        "안전모",
+        "헬멧",
+        "Helmet",
+        "방탄모"
+      ]
+    },
+    {
+      "id": "KS166",
+      "canonical_ko": "함바",
+      "variants_ko": [],
+      "translate_as_ko": "현장식당",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "함바",
+        "현장식당"
+      ]
+    },
+    {
+      "id": "KS167",
+      "canonical_ko": "헤베",
+      "variants_ko": [],
+      "translate_as_ko": "평방미터",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "헤베",
+        "평방미터",
+        "m©÷"
+      ]
+    },
+    {
+      "id": "KS168",
+      "canonical_ko": "루베",
+      "variants_ko": [
+        "류베"
+      ],
+      "translate_as_ko": "입방미터",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "루베",
+        "입방미터",
+        "m©ø",
+        "류베"
+      ]
+    },
+    {
+      "id": "KS169",
+      "canonical_ko": "호리가다",
+      "variants_ko": [],
+      "translate_as_ko": "터파기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "호리가다",
+        "터파기"
+      ]
+    },
+    {
+      "id": "KS170",
+      "canonical_ko": "후꾸로바리",
+      "variants_ko": [],
+      "translate_as_ko": "띄워바름, 도배",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "후꾸로바리",
+        "띄워바름",
+        "도배"
+      ]
+    },
+    {
+      "id": "KS171",
+      "canonical_ko": "후렌지",
+      "variants_ko": [
+        "후렌찌"
+      ],
+      "translate_as_ko": "플렌지",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "후렌지",
+        "플렌지",
+        "Flange",
+        "후렌찌"
+      ]
+    },
+    {
+      "id": "KS172",
+      "canonical_ko": "후쿠",
+      "variants_ko": [],
+      "translate_as_ko": "후크, 갈고리, 훅",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "후쿠",
+        "후크",
+        "Hook",
+        "갈고리",
+        "뺑뺑이",
+        "훅"
+      ]
+    },
+    {
+      "id": "KS173",
+      "canonical_ko": "후쿠메타",
+      "variants_ko": [],
+      "translate_as_ko": "훅 온 미터, 후크 온 미터, 전류 측정 기기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "후쿠메타",
+        "훅 온 미터",
+        "후크 온 미터",
+        "Hook meter",
+        "전류 측정 기기"
+      ]
+    },
+    {
+      "id": "KS174",
+      "canonical_ko": "히꼬미",
+      "variants_ko": [],
+      "translate_as_ko": "파 넣음",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "히꼬미",
+        "파 넣음"
+      ]
+    },
+    {
+      "id": "KS175",
+      "canonical_ko": "히사시",
+      "variants_ko": [],
+      "translate_as_ko": "캐노피, 차양",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "히사시",
+        "캐노피",
+        "Canopy",
+        "차양"
+      ]
+    },
+    {
+      "id": "KS176",
+      "canonical_ko": "호네구미",
+      "variants_ko": [],
+      "translate_as_ko": "뼈대",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "호네구미",
+        "뼈대"
+      ]
+    },
+    {
+      "id": "KS177",
+      "canonical_ko": "와쿠",
+      "variants_ko": [],
+      "translate_as_ko": "테두리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "와쿠",
+        "테두리"
+      ]
+    },
+    {
+      "id": "KS178",
+      "canonical_ko": "요코",
+      "variants_ko": [
+        "요꼬"
+      ],
+      "translate_as_ko": "가로",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "요꼬",
+        "가로"
+      ]
+    },
+    {
+      "id": "KS179",
+      "canonical_ko": "다데",
+      "variants_ko": [
+        "다떼"
+      ],
+      "translate_as_ko": "세로",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "다데",
+        "세로",
+        "다떼"
+      ]
+    },
+    {
+      "id": "KS180",
+      "canonical_ko": "기리",
+      "variants_ko": [],
+      "translate_as_ko": "드릴, 드릴 날, 드릴 비트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기리",
+        "드릴",
+        "드릴 날",
+        "드릴 비트"
+      ]
+    },
+    {
+      "id": "KS181",
+      "canonical_ko": "기소",
+      "variants_ko": [],
+      "translate_as_ko": "기초",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기소",
+        "기초"
+      ]
+    },
+    {
+      "id": "KS182",
+      "canonical_ko": "기스",
+      "variants_ko": [],
+      "translate_as_ko": "흠집, 상처",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "기스",
+        "흠집",
+        "상처"
+      ]
+    },
+    {
+      "id": "KS183",
+      "canonical_ko": "곰방",
+      "variants_ko": [],
+      "translate_as_ko": "소운반, 고운반",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "곰방",
+        "소운반",
+        "고운반"
+      ]
+    },
+    {
+      "id": "KS184",
+      "canonical_ko": "공구리",
+      "variants_ko": [],
+      "translate_as_ko": "콘크리트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "공구리",
+        "콘크리트"
+      ]
+    },
+    {
+      "id": "KS185",
+      "canonical_ko": "갑빠",
+      "variants_ko": [],
+      "translate_as_ko": "천막",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "갑빠",
+        "천막"
+      ]
+    },
+    {
+      "id": "KS186",
+      "canonical_ko": "갓따",
+      "variants_ko": [],
+      "translate_as_ko": "커터칼",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "갓따",
+        "커터칼"
+      ]
+    },
+    {
+      "id": "KS187",
+      "canonical_ko": "갓쇼",
+      "variants_ko": [],
+      "translate_as_ko": "트러스",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "갓쇼",
+        "Truss"
+      ]
+    },
+    {
+      "id": "KS188",
+      "canonical_ko": "겐바",
+      "variants_ko": [],
+      "translate_as_ko": "현장",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "겐바",
+        "현장"
+      ]
+    },
+    {
+      "id": "KS189",
+      "canonical_ko": "겐칸",
+      "variants_ko": [],
+      "translate_as_ko": "현관",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "겐칸",
+        "현관"
+      ]
+    },
+    {
+      "id": "KS190",
+      "canonical_ko": "넨도",
+      "variants_ko": [],
+      "translate_as_ko": "점토",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "넨도",
+        "점토"
+      ]
+    },
+    {
+      "id": "KS191",
+      "canonical_ko": "노끼",
+      "variants_ko": [],
+      "translate_as_ko": "처마",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "노끼",
+        "처마"
+      ]
+    },
+    {
+      "id": "KS192",
+      "canonical_ko": "누노",
+      "variants_ko": [],
+      "translate_as_ko": "줄기초",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "누노",
+        "줄기초",
+        "기소"
+      ]
+    },
+    {
+      "id": "KS193",
+      "canonical_ko": "답빠",
+      "variants_ko": [],
+      "translate_as_ko": "높이",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "답빠",
+        "높이"
+      ]
+    },
+    {
+      "id": "KS194",
+      "canonical_ko": "당까",
+      "variants_ko": [
+        "단까"
+      ],
+      "translate_as_ko": "들것",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "당까",
+        "들것",
+        "단가",
+        "단까"
+      ]
+    },
+    {
+      "id": "KS195",
+      "canonical_ko": "뎀바",
+      "variants_ko": [],
+      "translate_as_ko": "꼭대기, 윗면",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "뎀바",
+        "꼭대기",
+        "윗면"
+      ]
+    },
+    {
+      "id": "KS196",
+      "canonical_ko": "도비",
+      "variants_ko": [],
+      "translate_as_ko": "비계공",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "도비",
+        "비계공"
+      ]
+    },
+    {
+      "id": "KS197",
+      "canonical_ko": "란마",
+      "variants_ko": [
+        "람마"
+      ],
+      "translate_as_ko": "고창, 환기창",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "란마",
+        "고창",
+        "환기창",
+        "람마"
+      ]
+    },
+    {
+      "id": "KS198",
+      "canonical_ko": "반생",
+      "variants_ko": [],
+      "translate_as_ko": "긴결철선, 굵은철사",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "반생",
+        "긴결철선",
+        "굵은철사"
+      ]
+    },
+    {
+      "id": "KS199",
+      "canonical_ko": "뷰다",
+      "variants_ko": [],
+      "translate_as_ko": "배전기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "뷰다",
+        "배전기"
+      ]
+    },
+    {
+      "id": "KS200",
+      "canonical_ko": "사칸",
+      "variants_ko": [],
+      "translate_as_ko": "미장이, 시멘트공",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "사칸",
+        "미장이",
+        "시멘트공"
+      ]
+    },
+    {
+      "id": "KS201",
+      "canonical_ko": "스데",
+      "variants_ko": [],
+      "translate_as_ko": "버리는 콘크리트",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "스데",
+        "버리는 콘크리트"
+      ]
+    },
+    {
+      "id": "KS202",
+      "canonical_ko": "쓰미",
+      "variants_ko": [],
+      "translate_as_ko": "조적, 쌓기",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "쓰미",
+        "조적",
+        "공",
+        "쌓기"
+      ]
+    },
+    {
+      "id": "KS203",
+      "canonical_ko": "우끼",
+      "variants_ko": [],
+      "translate_as_ko": "뜨개밸브, 부레, 플로트 스위치",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "우끼",
+        "뜨개밸브",
+        "부레",
+        "플로트 스위치",
+        "Float Switch"
+      ]
+    },
+    {
+      "id": "KS204",
+      "canonical_ko": "우마",
+      "variants_ko": [],
+      "translate_as_ko": "말비계",
+      "risk_level": "high",
+      "domain": "construction_slang",
+      "source_group": [
+        "우마",
+        "말비계"
+      ]
+    },
+    {
+      "id": "KS205",
+      "canonical_ko": "유까",
+      "variants_ko": [],
+      "translate_as_ko": "바닥",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "유까",
+        "바닥",
+        "Floor"
+      ]
+    },
+    {
+      "id": "KS206",
+      "canonical_ko": "하까",
+      "variants_ko": [],
+      "translate_as_ko": "결속선, 긴결 갈고리",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "하까",
+        "결속선",
+        "긴결 갈고리"
+      ]
+    },
+    {
+      "id": "KS207",
+      "canonical_ko": "후앙",
+      "variants_ko": [],
+      "translate_as_ko": "팬, 환풍기, 벤츌레이터",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "후앙",
+        "팬",
+        "fan",
+        "환풍기",
+        "벤츌레이터",
+        "ventilator",
+        "벤츄레타",
+        "흡출기",
+        "대형환풍기",
+        "벤치레다",
+        "벤틸레이터"
+      ]
+    },
+    {
+      "id": "KS208",
+      "canonical_ko": "히비",
+      "variants_ko": [],
+      "translate_as_ko": "균열",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "히비",
+        "균열"
+      ]
+    },
+    {
+      "id": "KS209",
+      "canonical_ko": "몽키",
+      "variants_ko": [],
+      "translate_as_ko": "몽키 스패너",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "몽키",
+        "몽키 스패너",
+        "Monkey Spanner"
+      ]
+    },
+    {
+      "id": "KS210",
+      "canonical_ko": "앙카",
+      "variants_ko": [],
+      "translate_as_ko": "앵커",
+      "risk_level": "normal",
+      "domain": "construction_slang",
+      "source_group": [
+        "앙카",
+        "앵커",
+        "anchor"
+      ]
+    }
+  ]
+}

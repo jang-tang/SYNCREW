@@ -3,7 +3,7 @@ import { SUPPORTED_LANGUAGES, type Lang } from "../../shared/languages";
 import type { BudgetGuard } from "../budget/budgetGuard";
 import { metered } from "../budget/metered";
 import type { UsageTokens } from "../budget/pricing";
-import type { TranslationContext } from "../domain/domainProcessor";
+import type { ContextTerm, TranslationContext } from "../domain/domainProcessor";
 import type { TranslateInput, TranslateOutput, Translator } from "./translator";
 
 // gpt-realtime-2.1 번역기 (docs/architecture.md 4-3)
@@ -32,6 +32,12 @@ export type RealtimeTranslatorOptions = {
 const languageName = (lang: Lang) => SUPPORTED_LANGUAGES.find((l) => l.code === lang)!.name;
 
 /** 기존 PoC 번역 프롬프트의 도메인 규칙을 옮기고, 현장 특화 처리 결과(용어·검증 문장)를 붙인다. */
+/** 용어 한 줄: `- 원문 → 번역: 뜻; 규칙` (번역·뜻이 없으면 생략) */
+export function formatTerm(term: ContextTerm): string {
+  const meaning = [term.meaning, term.rule].filter(Boolean).join("; ");
+  return `- ${term.source}${term.target ? ` → ${term.target}` : ""}${meaning ? `: ${meaning}` : ""}`;
+}
+
 export function buildInstructions(sourceLang: Lang, targetLang: Lang, context: TranslationContext): string {
   const lines = [
     "You are a fast interpreter for construction and manufacturing workplace communication.",
@@ -46,10 +52,7 @@ export function buildInstructions(sourceLang: Lang, targetLang: Lang, context: T
   ];
   if (context.terms.length > 0) {
     lines.push("Glossary (source → target: meaning):");
-    for (const term of context.terms) {
-      const meaning = [term.meaning, term.rule].filter(Boolean).join("; ");
-      lines.push(`- ${term.source}${term.target ? ` → ${term.target}` : ""}${meaning ? `: ${meaning}` : ""}`);
-    }
+    for (const term of context.terms) lines.push(formatTerm(term));
   }
   if (context.phrase) {
     lines.push(`Verified translation for this exact sentence (use it as is): "${context.phrase.target}"`);

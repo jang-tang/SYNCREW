@@ -19,6 +19,7 @@ export const normalizedDatasetSchema = z.object({
       asrCorrections: z.array(z.string()).default([]),
       translations: translationsSchema.default({}),
       meaning: z.string().optional(),
+      standardKo: z.string().min(1).optional(),
       rule: z.string().optional(),
       risk: z.enum(["critical", "high", "normal"]).optional(),
       core: z.boolean().optional(),

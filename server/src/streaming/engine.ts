@@ -1,6 +1,6 @@
 import type { Lang } from "../shared/languages";
-import type { StreamGlossary } from "../engine/domain/domainProcessor";
-import { buildInstructions } from "../engine/translation/realtimeTranslator";
+import type { ContextTerm, StreamGlossary } from "../engine/domain/domainProcessor";
+import { buildInstructions, formatTerm } from "../engine/translation/realtimeTranslator";
 
 // 스트리밍 통역 엔진 계약 (docs/streaming-plan.md 4절). 구현: realtimeStream.ts(OpenAI), fakeStream.ts(테스트·개발).
 // 연결 1개 = 화자 1명 × 대상 언어 1개. 통화 내내 열어 두고, 엔진이 말 끝을 감지할 때마다 "턴"이 하나 생긴다.
@@ -49,6 +49,11 @@ export type StreamOpenOptions = {
   events: StreamEngineEvents;
   /** 언어 쌍 기준 미리 넣는 현장 용어집 (DomainProcessor.streamGlossary). 없으면 용어 없이 */
   glossary?: StreamGlossary;
+  /**
+   * 말하는 도중 원문(전사 조각)에서 이번 턴 용어를 찾는 함수 (DomainProcessor.process → buildContext). 엔진 옵션 turnTerms 가 켜져
+   * 있을 때만 쓴다 (2026-10-24 실험, docs/field-terms.md 8절). 없으면 턴 용어 없이
+   */
+  turnTerms?: (partialOriginal: string) => ContextTerm[];
 };
 
 export interface StreamEngine {
@@ -58,21 +63,41 @@ export interface StreamEngine {
   open(options: StreamOpenOptions): Promise<StreamConnection>;
 }
 
-/** 스트리밍 지시문 전체 길이 상한 (글자). 용어 110개 + 검증 문장 12개 + 문맥 2줄이 이 안에 들어야 한다 — test/streamingEngine.test.ts 가 모든 언어 쌍에서 확인 */
-export const STREAM_INSTRUCTIONS_MAX_CHARS = 4_500;
+/**
+ * 스트리밍 지시문 전체 길이 상한 (글자). 용어 110개 + 은어 + 검증 문장 12개 + 문맥 2줄이 이 안에 들어야 한다 — test/streamingEngine.test.ts 가 모든 언어 쌍에서 확인.
+ * 2026-10-24 4,500 → 7,500: 은어 전체(약 230개)를 넣으려고. 지시문 앞부분은 2번째 턴부터 캐시 단가(1/10)라 늘어난 비용은 턴당 $0.001 미만
+ */
+export const STREAM_INSTRUCTIONS_MAX_CHARS = 7_500;
+
+/** 지시문의 은어 한 줄에 묶는 개수 */
+const SLANG_PER_LINE = 20;
 
 const EMPTY_GLOSSARY: StreamGlossary = { terms: [], phrases: [] };
 
 /**
- * 스트리밍 지시문 = [고정 부분] 번역 규칙(buildInstructions) + 언어 쌍 용어집 + 검증 문장 + 실시간 통화 안내
+ * 스트리밍 지시문 = [고정 부분] 번역 규칙(buildInstructions) + 언어 쌍 용어집 + 한국어 은어 뜻(원문 ko) + 검증 문장 + 실시간 통화 안내
  *                 + [턴마다 바뀌는 부분] 직전 턴 텍스트 문맥.
  * 용어집은 번역 전에 텍스트가 없어 언어 쌍 기준으로 고르고(DomainProcessor.streamGlossary, 상한 110개·문장 12개),
  * 지시문 **앞쪽**에 고정해 setContext 로 문맥이 바뀌어도 OpenAI 프롬프트 캐시(앞부분 일치)가 유지되게 한다 (2026-10-19).
  * 문맥은 참고용이며 다시 번역하거나 대답하지 않도록 명시한다.
+ * 턴 용어(turnTerms, 2026-10-24 실험): 말하는 도중 전사에서 찾은 이번 턴 용어(뜻·규칙 포함)를 맨 끝에 — 앞부분(캐시)은 그대로다.
  */
-export function buildStreamInstructions(sourceLang: Lang, targetLang: Lang, context: ContextLine[], glossary: StreamGlossary = EMPTY_GLOSSARY): string {
+export function buildStreamInstructions(
+  sourceLang: Lang,
+  targetLang: Lang,
+  context: ContextLine[],
+  glossary: StreamGlossary = EMPTY_GLOSSARY,
+  turnTerms: ContextTerm[] = [],
+): string {
   const base = buildInstructions(sourceLang, targetLang, { terms: glossary.terms });
   const lines = [base];
+  if (glossary.slang && glossary.slang.length > 0) {
+    // 은어는 많아서(2026-10-24 상한 확대) 한 줄에 여러 개를 "은어=표준어" 로 묶어 글자 수를 아낀다
+    lines.push("Korean site slang (slang=standard Korean meaning). Translate the meaning; never transliterate the slang:");
+    for (let i = 0; i < glossary.slang.length; i += SLANG_PER_LINE) {
+      lines.push(glossary.slang.slice(i, i + SLANG_PER_LINE).map((item) => `${item.source}=${item.standardKo}`).join("; "));
+    }
+  }
   if (glossary.phrases.length > 0) {
     lines.push("Verified sentence translations (when a turn says one of these, use the translation as is):");
     for (const phrase of glossary.phrases) lines.push(`- "${phrase.source}" → "${phrase.target}"`);
@@ -81,6 +106,10 @@ export function buildStreamInstructions(sourceLang: Lang, targetLang: Lang, cont
   if (context.length > 0) {
     lines.push("Recent turns, for reference only (pronouns, topic). Do NOT translate, repeat, or answer them again:");
     for (const line of context) lines.push(`- "${line.original}" → "${line.translation}"`);
+  }
+  if (turnTerms.length > 0) {
+    lines.push("Workplace terms heard in the current turn (source → target: meaning). Use them for this turn:");
+    for (const term of turnTerms) lines.push(formatTerm(term));
   }
   return lines.join("\n");
 }

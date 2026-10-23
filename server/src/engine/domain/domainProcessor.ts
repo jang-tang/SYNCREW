@@ -61,6 +61,11 @@ export type StreamGlossary = {
   terms: ContextTerm[];
   /** 검증 문장 (긴급 문장 우선): 턴이 그 문장과 같으면 그대로 쓰도록 */
   phrases: { source: string; target: string }[];
+  /**
+   * 한국어 현장 은어 → 표준 한국어 뜻 (원문이 ko 일 때만, 대상 언어 번역이 없는 은어). 언어별 번역 없이도 은어를 알게 한다
+   * (2026-10-23, docs/field-terms.md 0절). 없으면 빈 것으로 본다
+   */
+  slang?: { source: string; standardKo: string }[];
 };
 
 export type StreamGlossaryOptions = {
@@ -68,6 +73,10 @@ export type StreamGlossaryOptions = {
   maxTerms: number;
   /** 검증 문장 최대 수 */
   maxPhrases: number;
+  /** 은어(표준 한국어 뜻) 최대 수 */
+  maxSlang: number;
+  /** 용어 + 은어 합계 상한 (지시문 글자 수 상한을 지키려고. 용어가 많은 언어 쌍은 은어가 줄어든다) */
+  maxEntries: number;
 };
 
 /**
@@ -75,8 +84,10 @@ export type StreamGlossaryOptions = {
  * 턴마다 입력 텍스트 토큰으로 들어가지만 지시문 앞부분이 바뀌지 않아 2번째 턴부터는 캐시 단가(1/10)로 계산된다.
  * 110개인 이유 (ko→vi 데이터 기준): critical 64개 + high 중 안전·PPE·긴급·건설 안전 은어 분야 40개가 모두 들어가는 크기.
  * 60개로 자르면 critical 만 남아 안전모·장갑 같은 PPE 용어가 빠진다.
+ * 은어(2026-10-23 60개 → 2026-10-24 300개, 용어와 합쳐 420개): 은어 전체가 들어간다. 2026-10-24 실험에서 말하는 도중 자막으로
+ * 턴마다 은어를 찾는 방식(turnTerms)은 자막이 은어를 잘못 받아써 효과가 없어, 미리 넣는 목록을 넉넉하게 늘렸다 (docs/field-terms.md 8절).
  */
-export const DEFAULT_STREAM_GLOSSARY_OPTIONS: StreamGlossaryOptions = { maxTerms: 110, maxPhrases: 12 };
+export const DEFAULT_STREAM_GLOSSARY_OPTIONS: StreamGlossaryOptions = { maxTerms: 110, maxPhrases: 12, maxSlang: 300, maxEntries: 420 };
 
 /** 안전 분야 (데이터셋 domain 값: safety, ppe, safety_emergency, construction_safety_slang 등) */
 const SAFETY_DOMAIN = /safety|ppe|emergency/i;
@@ -236,10 +247,13 @@ export class DomainProcessor {
       const entry = this.entries.get(hit.entryId)!;
       const forms = formsOf(entry.lang, entry.canonical, entry.translations);
       const target = forms[targetLang];
+      // 은어는 표준 한국어 뜻을 앞에 붙인다 (대상 언어 번역이 없어도 뜻으로 번역하도록)
+      const meaning = [entry.standardKo ? `= ${entry.standardKo}` : undefined, entry.meaning].filter(Boolean).join(". ");
       terms.push({
-        source: forms[result.sourceLang] ?? hit.matched,
+        // 변형은 보정하지 않으므로 문장에 실제로 있는 표현으로 알려 준다
+        source: hit.kind === "variant" ? hit.matched : (forms[result.sourceLang] ?? hit.matched),
         ...(target ? { target } : {}),
-        ...(entry.meaning ? { meaning: entry.meaning } : {}),
+        ...(meaning ? { meaning } : {}),
         ...(entry.rule ? { rule: entry.rule } : {}),
       });
     }
@@ -259,10 +273,11 @@ export class DomainProcessor {
    * 스트리밍 통역 세션에 미리 넣을 용어집 (언어 쌍 기준, 결정적 순서).
    * 용어: 원문·대상 언어 표현이 모두 있는 항목만. 묶음(glossaryGroup: critical → high+안전 분야 → high+핵심 → high → …) → 원문 표현 코드 포인트 순.
    * 문장: 데이터셋 순서(긴급 문장이 앞) 그대로 원문·대상 표현이 모두 있는 것.
+   * 은어: 원문이 ko 일 때, 표준 한국어 뜻(standardKo)이 있고 용어에 이미 들어가지 않은 은어를 용어와 같은 순서로 (2026-10-23).
    */
   streamGlossary(sourceLang: Lang, targetLang: Lang, options: Partial<StreamGlossaryOptions> = {}): StreamGlossary {
-    const { maxTerms, maxPhrases } = { ...DEFAULT_STREAM_GLOSSARY_OPTIONS, ...options };
-    const key = `${sourceLang}→${targetLang}:${maxTerms}:${maxPhrases}`;
+    const { maxTerms, maxPhrases, maxSlang, maxEntries } = { ...DEFAULT_STREAM_GLOSSARY_OPTIONS, ...options };
+    const key = `${sourceLang}→${targetLang}:${maxTerms}:${maxPhrases}:${maxSlang}:${maxEntries}`;
     const cached = this.streamGlossaries.get(key);
     if (cached) return cached;
 
@@ -289,6 +304,24 @@ export class DomainProcessor {
         const target = forms[targetLang];
         if (source && target) glossary.phrases.push({ source, target });
       }
+
+      // 한국어 은어 → 표준 한국어: 위 용어집에 이미 들어간(대상 언어 번역이 있는) 은어는 빼고, 같은 우선순위 순서로
+      if (sourceLang === "ko") {
+        const inTerms = new Set(glossary.terms.map((term) => term.source));
+        const slang = this.dataset.lexicon
+          .filter((entry) => entry.lang === "ko" && entry.standardKo && !inTerms.has(entry.canonical))
+          .map((entry) => ({ source: entry.canonical, standardKo: entry.standardKo!, group: glossaryGroup(entry) }))
+          .sort((a, b) => a.group - b.group || compareCodePoints(a.source, b.source));
+        const seen = new Set<string>();
+        const limit = Math.max(0, Math.min(maxSlang, maxEntries - glossary.terms.length));
+        glossary.slang = [];
+        for (const { source, standardKo } of slang) {
+          if (glossary.slang.length >= limit) break;
+          if (seen.has(source)) continue;
+          seen.add(source);
+          glossary.slang.push({ source, standardKo });
+        }
+      }
     }
     this.streamGlossaries.set(key, glossary);
     return glossary;
@@ -305,11 +338,13 @@ export class DomainProcessor {
 }
 
 /**
- * 변형·오인식 표현을 표준 표현으로 바꾼다.
- * 단, 표준 표현으로 시작하는 변형(예: "오야지 하세요")은 활용형이므로 바꾸지 않는다.
+ * 받아쓰기 오인식 표현(asr)만 표준 표현으로 바꾼다 (예: "대수라" → "데스라").
+ * 변형(variant)은 감지만 한다 — 변형에 표준어·일상어가 섞여 있으면 "해체" 가 "바라시", "가로" 가 "요코" 로 바뀌어
+ * 말한 내용이 은어로 번역기에 들어가기 때문 (2026-10-23 사용자 결정 (나), docs/field-terms.md 7-4절). 뜻은 번역 문맥으로 전달된다.
+ * 표준 표현으로 시작하는 오인식형(예: "아시바해")은 활용형이므로 바꾸지 않는다.
  */
 function shouldCorrect(surface: Surface, lang: Lang): boolean {
-  if (surface.kind !== "variant" && surface.kind !== "asr") return false;
+  if (surface.kind !== "asr") return false;
   return !surface.key.startsWith(matchKey(surface.entry.canonical, lang));
 }
 

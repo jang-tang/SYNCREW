@@ -13,6 +13,11 @@ export type LexiconEntry = {
   asrCorrections: string[];
   /** 언어별 번역. 비어 있을 수 있다. */
   translations: Partial<Record<Lang, string>>;
+  /**
+   * 은어 항목의 표준 한국어 뜻 (예: 아시바 → "비계, 발판"). 언어별 번역이 없을 때도 번역 모델이 뜻을 알 수 있게 한다
+   * (2026-10-23 결정: 은어 → 표준 한국어 중심, docs/field-terms.md 0절)
+   */
+  standardKo?: string;
   /** 의미 설명 (번역 컨텍스트로 전달) */
   meaning?: string;
   /** 번역 규칙 (예: 음차 금지) */
