@@ -430,6 +430,37 @@ export interface DuplexAudio {
 - 권한·설정: iOS `NSMicrophoneUsageDescription`(있음), 블루투스 사용 문구, Android `RECORD_AUDIO`·`MODIFY_AUDIO_SETTINGS`·(Android 12+) `BLUETOOTH_CONNECT`. Expo config plugin으로 넣는다.
 - 백그라운드(화면 꺼짐) 유지는 이 계획 범위 밖 (별도 과제: iOS 백그라운드 오디오, Android 포그라운드 서비스). 화면 꺼짐 방지는 지금처럼.
 
+### 5-7. iPhone 실기기 확인: PR #12 뒤에도 스피커에서 에코 제거가 꺼짐 — 원인·시도·다음 (2026-10-24, 장태웅 iPhone 17 Pro, 현슈에게 전달)
+
+**결과 요약** (`docs/device-test-log.md` 10-24 행, 절차 `docs/testguide.md` 4-12절)
+- ✅ PR #12 수정 ②: 경로가 바뀌면(에어팟 → 스피커) 에코 제거를 다시 켬 / ✅ 통화 중 expo-audio 덮어쓰기 막음(`[audio-mode] skipped … playsInSilentMode` 1번, `session_overwritten` 0번)
+- ❌ **스피커에서 에코 제거가 2–4초 안에 꺼짐** (통화 시작·에어팟 → 스피커 전환 모두, 점검 화면에서도 1번). PR #12 의 원인(세션 덮어쓰기)과 **다른 원인**
+- ✅ **그래도 G(스피커 에코 루프, 실제 OpenAI) 통과**: 에코 제거가 꺼진 채로 되돌아간 턴 0 — 서버 반이중 차단(4-2절)이 통역 재생 중 조각 128개를 무음 처리. → **10/30 시연에 지장 없음**. 한계: 상대 통역이 나오는 동안 끼어든 말은 전달되지 않음. 시연은 에어팟·헤드셋이면 이 문제 자체가 없다
+
+**원인 (`[duplex-diag]`, `xcrun devicectl device process launch --console …` 로 무선 수집)**
+```
+session sampleRate=48000.0 ioBuffer=0.02 route=speaker
+buildEngine inFormat=1 ch, 48000 Hz … vp=true
+engine started isRunning=false … outHw=2 ch, 44100 Hz      ← vp=true 면 출력만 44.1kHz
+route change reason=8 (routeConfigurationChange) × 2
+configChange isRunning=false → recover: rebuilding engine (#1 … #4)   ← 약 0.5초 간격
+recover: restart loop with voice processing — suppressing it until the route changes
+buildEngine … vp=false → engine started isRunning=true … outHw=2 ch, 48000 Hz   ← vp 를 끄면 48kHz 로 안정
+```
+- voice processing 을 켜면 **출력(`engine.outputNode.outputFormat(forBus:0)`)만 44.1kHz**, 입력·세션은 48kHz → 엔진이 멈추고 다시 만들어도 같아서 반복. 10-17 iPhone 15 Pro Max 증상과 같다 — 그때 넣은 `setPreferredSampleRate(48_000)` 은 **출력에는 먹지 않는다**
+
+**해 본 것 (둘 다 효과 없어 되돌림, 커밋 안 함)**
+1. 반복 4번 뒤 에코 제거를 끄기 전에 `setPreferredSampleRate(출력 표본률 44100)` 후 재구성 → 입력이 48kHz 그대로
+2. 1 + 엔진 내리고 `setActive(false)` → 44.1kHz 로 `configureSession()` 다시 → `session sampleRate=48000.0` 그대로 (이 기기는 스피커에서 44.1kHz 요청을 무시)
+
+**다음 후보 (현슈)**
+- `mainMixerNode → outputNode` 를 입력과 같은 48kHz 형식으로 명시 연결 (`engine.connect(engine.mainMixerNode, to: engine.outputNode, format: 48kHz)`) — voice processing 을 켠 뒤, `prepare()` 전에
+- 세션 mode 를 `.voiceChat` 대신 `.default`(또는 `.videoChat`) 로 두고 AVAudioEngine voice processing 만 쓰기 — voiceChat 의 시스템 처리와 겹쳐 출력 형식이 바뀌는지 확인
+- `setPreferredIOBufferDuration(0.02)` 를 빼 보기 (설정 변경의 다른 원인 후보)
+- 재현: 점검 화면이 아니라 **스피커로 시작한 통화**에서 매번 난다 (`ENGINE=fake`, `call-peer.ts`, 비용 0)
+
+기타 관찰: 스피커 출력 음량이 조금 작다(점검 화면). 스트리밍 재연결은 Wi-Fi 다시 붙는 시간 포함 약 12초(Android 0.3초), 끊긴 동안 한 말은 전달 안 됨(설계상 한계). 걸려 온 전화는 그 현장 화면 안에서만 뜬다 — 시연 순서에 반영
+
 ## 6. 비용 추정
 
 단가(`pricing.ts`, USD/1M 토큰): `gpt-realtime-2.1` 입력 음성 32, 출력 음성 64, 텍스트 입력 4, 캐시 입력 0.4. 토큰 비율: 출력 음성 약 20토큰/초(**실측**: 7.2초 → 144토큰), 입력 음성 약 10토큰/초(**추정**, S0에서 측정).
