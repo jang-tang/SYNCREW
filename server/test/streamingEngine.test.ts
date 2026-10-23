@@ -8,7 +8,7 @@ import { LegacyWorkplaceAdapter } from "../src/engine/dataset/legacyWorkplaceAda
 import { DomainProcessor, type StreamGlossary } from "../src/engine/domain/domainProcessor";
 import { LANG_CODES } from "../src/shared/languages";
 import { buildStreamInstructions, STREAM_INSTRUCTIONS_MAX_CHARS, type StreamEngineEvents, type TurnEnd } from "../src/streaming/engine";
-import { RealtimeStreamEngine, realtimeUsage, transcribeEstimate, transcriptionKeywords, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
+import { hasSpeech, RealtimeStreamEngine, realtimeUsage, transcribeEstimate, transcriptionKeywords, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
 import { LinearResampler, rms } from "../src/streaming/resample";
 
 // Phase 7 S1: 스트리밍 엔진 단위 검증 (비용 0)
@@ -522,6 +522,102 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     ]);
     expect(new Set(rec.ends.map((x) => x.turnId)).size).toBe(2);
     expect(rec.log.filter((l) => l.type === "original").map((l) => l.data)).toEqual(["첫째", "둘째"]);
+    connection.close();
+  });
+
+  it("hasSpeech: 글자가 없거나 군소리(음·어·ừ·嗯)뿐이면 말이 아니다, 짧은 지시(멈춰·네)는 말이다", () => {
+    for (const text of ["", "  ", "음,", "어, 어…", "음음", "Ừ.", "嗯", "...", "э"]) expect(hasSpeech(text), text).toBe(false);
+    for (const text of ["멈춰!", "네", "아 네 그리고", "Tôi hiểu rồi.", "好啊", "12"]) expect(hasSpeech(text), text).toBe(true);
+  });
+
+  // 2026-10-24 S4 실측: 전사가 비거나 군소리뿐인 턴에서 번역 모델이 "멈춰!" 같은 지시를 지어냈다 → 내보내지 않는다
+  it("원문에 말이 없는 턴: 전사가 오기 전 번역 음성·자막은 붙잡아 두고, 빈 전사가 오면 버린다 (응답 취소 + EMPTY 실패)", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_e" });
+    server.send({ type: "response.created", response: { id: "resp_e" } });
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_e", delta: "Dừng lại ngay!" });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_e", delta: Buffer.alloc(960).toString("base64") });
+    await until(() => rec.log.some((l) => l.type === "start"));
+    await sleep(50);
+    expect(rec.log.map((l) => l.type)).toEqual(["start"]); // 전사 전: 붙잡아 둠
+    stt.send({ type: "input_audio_buffer.committed", item_id: "stt_e" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_e", transcript: "음,", usage: sttUsage });
+    await until(() => rec.ends.length === 1);
+    expect(rec.ends[0]!.result).toEqual({ status: "failed", code: "EMPTY" });
+    await until(() => server.received.some((r) => r.type === "response.cancel"));
+    expect(server.received.find((r) => r.type === "response.cancel")).toEqual({ type: "response.cancel", response_id: "resp_e" });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_e", delta: Buffer.alloc(960).toString("base64") });
+    server.send({ type: "response.done", response: { id: "resp_e", status: "cancelled", usage, output: [] } });
+    await sleep(50);
+    expect(rec.log.map((l) => l.type)).toEqual(["start"]);
+    expect(rec.ends).toHaveLength(1);
+
+    // 대조군: 다음 턴은 말이 있는 전사 → 붙잡아 둔 것을 순서대로 내보낸다
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_s" });
+    server.send({ type: "response.created", response: { id: "resp_s" } });
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_s", delta: "Ăn trưa lúc 12 giờ." });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_s", delta: Buffer.alloc(960).toString("base64") });
+    await sleep(50);
+    stt.send({ type: "input_audio_buffer.committed", item_id: "stt_s" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_s", transcript: "점심은 열두 시에", usage: sttUsage });
+    server.send({ type: "response.done", response: { id: "resp_s", status: "completed", usage, output: [] } });
+    await until(() => rec.ends.length === 2);
+    expect(rec.log.slice(1).map((l) => l.type)).toEqual(["start", "delta", "audio", "original"]);
+    expect(rec.ends[1]!.result).toMatchObject({ status: "done", original: "점심은 열두 시에", translation: "Ăn trưa lúc 12 giờ." });
+    connection.close();
+  });
+
+  it("빈 전사가 번역 응답보다 먼저 오면: 응답이 만들어지자마자 취소하고 시작을 알리지 않는다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    stt.send({ type: "input_audio_buffer.committed", item_id: "stt_e" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_e", transcript: "", usage: sttUsage });
+    await sleep(50);
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_e" });
+    server.send({ type: "response.created", response: { id: "resp_e" } });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_e", delta: Buffer.alloc(960).toString("base64") });
+    await until(() => server.received.some((r) => r.type === "response.cancel"));
+    server.send({ type: "response.done", response: { id: "resp_e", status: "cancelled", usage, output: [] } });
+    await sleep(50);
+    expect(rec.log).toEqual([]);
+    expect(rec.ends).toEqual([]);
+    connection.close();
+  });
+
+  it("말하는 도중 전사 조각에 말이 있으면 번역 음성은 붙잡지 않고 바로 나간다 (지연 없음)", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "stt_1", delta: "안전모" });
+    await until(() => rec.log.some((l) => l.type === "originalDelta"));
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    server.send({ type: "response.created", response: { id: "resp_1" } });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_1", delta: Buffer.alloc(960).toString("base64") });
+    await until(() => rec.log.some((l) => l.type === "audio")); // 전사 완성본 전
+    expect(rec.log.map((l) => l.type)).toEqual(["originalDelta", "start", "audio"]);
+    connection.close();
+  });
+
+  it("전사가 오지 않으면 SPEECH_HOLD_MS(2초) 뒤 붙잡아 둔 번역을 그대로 내보낸다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    server.send({ type: "response.created", response: { id: "resp_1" } });
+    server.send({ type: "response.output_audio.delta", response_id: "resp_1", delta: Buffer.alloc(960).toString("base64") });
+    await sleep(1500);
+    expect(rec.log.map((l) => l.type)).toEqual(["start"]);
+    await until(() => rec.log.some((l) => l.type === "audio"), 1500);
     connection.close();
   });
 
