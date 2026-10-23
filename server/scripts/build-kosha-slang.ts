@@ -57,7 +57,11 @@ const SPELLING_VARIANTS = new Set([
 const DROP_TOKENS = new Set(["오늘", "왈가닥", "기리바", "기소", "자동차 정비", "소각재", "단가", "히로시", "빠루", "반생", "공", "뺑뺑이", "방탄모", "세면"]);
 
 /** 묶음에 한글 표준어가 없거나(영어만) 고쳐 쓸 표준어 */
-const STANDARD_FIX: Record<string, string> = { 아나방: "유공강판(PSP)", 가시메: "리벳 작업", 갓쇼: "트러스" };
+// 데스라·마에가리: 2026-10-24 실측에서 "출력"이 xuất 로 직역되고 가불이 고유명사로 옮겨져 뜻을 풀어 씀 (docs/field-accuracy.md 7절)
+const STANDARD_FIX: Record<string, string> = {
+  아나방: "유공강판(PSP)", 가시메: "리벳 작업", 갓쇼: "트러스",
+  데스라: "오늘 출근한 작업 인원(출력 인원)", 마에가리: "가불(월급을 미리 받는 돈)",
+};
 
 /** 안전과 직접 관련된 은어의 위험도 (없으면 normal) */
 const RISK: Record<string, "critical" | "high"> = {

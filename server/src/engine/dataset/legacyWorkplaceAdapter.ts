@@ -20,6 +20,8 @@ type SlangTerm = {
 };
 /** 우리가 만든 보충 데이터 (supplement/, docs/field-terms.md 7절) — 원본 저장소 파일은 고치지 않는다 */
 type SupplementSlang = SlangTerm & { override?: boolean };
+/** 실측에서 틀리게 옮겨진 표준 용어 + vi·zh 번역 (2026-10-24, docs/field-accuracy.md 7절) */
+type MeasuredTerm = { id: string; canonical_ko: string; variants_ko?: string[]; translations: Record<string, string>; plain_ko?: string; risk_level?: string };
 type SupplementSentence = { id: string; ko: string } & Partial<Record<string, string>>;
 type ViTerm = { id: string; ko: string; vi: string; plain_ko?: string; risk_level?: string; priority?: string; domain?: string };
 type ViSentence = { id: string; ko: string; vi: string };
@@ -41,6 +43,7 @@ const FILES = {
   // 보충 (없으면 건너뜀)
   koshaSlang: "supplement/kosha_slang.json",
   moelSigns: "supplement/moel_safety_signs_2025.json",
+  measuredTerms: "supplement/measured_terms.json",
 } as const;
 
 /** 지원 언어의 번역만 남긴다 (th, id, ne, km 등은 버림). */
@@ -140,7 +143,7 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
   }
 
   async load(): Promise<Dataset> {
-    const [seed, manufacturing, slang, extendedSlang, vietnamese, koshaSlang, moelSigns] = await Promise.all([
+    const [seed, manufacturing, slang, extendedSlang, vietnamese, koshaSlang, moelSigns, measured] = await Promise.all([
       this.read<{ version: string; terms: SeedTerm[] }>(FILES.seed),
       this.read<{ version: string; terms: PackTerm[] }>(FILES.manufacturing),
       this.read<{ version: string; terms: SlangTerm[] }>(FILES.slang),
@@ -154,6 +157,7 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
       }>(FILES.vietnamese),
       this.readOptional<{ version: string; terms: SupplementSlang[] }>(FILES.koshaSlang),
       this.readOptional<{ version: string; sentences: SupplementSentence[] }>(FILES.moelSigns),
+      this.readOptional<{ version: string; terms: MeasuredTerm[] }>(FILES.measuredTerms),
     ]);
 
     const lexicon = new LexiconBuilder();
@@ -171,6 +175,20 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
 
     // 기존 seed 와 뜻이 달라 공단 사전 기준으로 바꾼 항목 (데스라·아나방, 2026-10-23 사용자 결정)
     for (const term of koshaSlang?.terms ?? []) if (term.override) lexicon.override(supplementEntry(term));
+    // 실측 오역 단어: 번역이 다른 데이터보다 우선하도록 가장 먼저 (같은 용어의 변형·오인식은 뒤 데이터와 합쳐진다)
+    for (const term of measured?.terms ?? []) {
+      lexicon.add({
+        id: term.id,
+        lang: "ko",
+        canonical: term.canonical_ko,
+        variants: term.variants_ko ?? [],
+        asrCorrections: [],
+        translations: pickSupported(term.translations),
+        meaning: term.plain_ko,
+        risk: toRiskLevel(term.risk_level),
+        domain: "measured_mistranslation",
+      });
+    }
 
     // 번역 값이 있는 데이터를 먼저 넣어 번역·의미가 우선 채택되게 한다.
     for (const term of [...extendedSlang.terms, ...slang.terms]) {
@@ -255,7 +273,7 @@ export class LegacyWorkplaceAdapter implements DatasetAdapter {
 
     return {
       name: this.name,
-      version: `seed-${seed.version}+vi-${vietnamese.version}${koshaSlang ? `+kosha-${koshaSlang.version}` : ""}${moelSigns ? `+moel-${moelSigns.version}` : ""}`,
+      version: `seed-${seed.version}+vi-${vietnamese.version}${koshaSlang ? `+kosha-${koshaSlang.version}` : ""}${moelSigns ? `+moel-${moelSigns.version}` : ""}${measured ? `+measured-${measured.version}` : ""}`,
       lexicon: lexicon.build(),
       phrases,
     };

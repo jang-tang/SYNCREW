@@ -673,7 +673,7 @@
       "id": "KS051",
       "canonical_ko": "데스라",
       "variants_ko": [],
-      "translate_as_ko": "출력 인원",
+      "translate_as_ko": "오늘 출근한 작업 인원(출력 인원)",
       "risk_level": "normal",
       "domain": "construction_slang",
       "override": true,
@@ -907,7 +907,7 @@
       "id": "KS068",
       "canonical_ko": "마에가리",
       "variants_ko": [],
-      "translate_as_ko": "가불",
+      "translate_as_ko": "가불(월급을 미리 받는 돈)",
       "risk_level": "normal",
       "domain": "construction_slang",
       "source_group": [

@@ -8,7 +8,8 @@
 //
 // 사용 (server 폴더에서, 먼저 npm run db:start):
 //   npx tsx scripts/field-accuracy.ts --dry-run                       # 음성 만들기·문장 수만 (비용 0)
-//   npx tsx scripts/field-accuracy.ts --target vi [--from s050] [--limit 5] [--max-usd 2.5]   # --from: 그 문장부터 (중간에 멈춘 뒤 이어서)
+//   npx tsx scripts/field-accuracy.ts --target vi [--from s050] [--limit 5] [--every 4] [--label fast] [--max-usd 2.5]
+//   설정 비교: STREAM_VAD_SILENCE_MS=350 TRANSLATION_REASONING=minimal npx tsx scripts/field-accuracy.ts --every 4 --label fast …   # --from: 그 문장부터 (중간에 멈춘 뒤 이어서)
 // 결과: stream-measure-output/field-accuracy-<대상>-<시각>.jsonl (문장마다 한 줄, git 제외)
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
@@ -42,6 +43,10 @@ const MAX_USD = Number(arg("--max-usd") ?? "2.5");
 const TARGET = (arg("--target") ?? "vi") as Lang;
 const LIMIT = Number(arg("--limit") ?? "0");
 const FROM = arg("--from");
+/** N 문장마다 1개만 (설정 비교용 표본, 갈래 비율 유지) */
+const EVERY = Number(arg("--every") ?? "1");
+/** 결과 파일 이름에 붙일 설정 이름 */
+const LABEL = arg("--label");
 const outDir = path.resolve("stream-measure-output");
 const audioDir = path.join(outDir, "field-accuracy-audio");
 const now = () => performance.timeOrigin + performance.now();
@@ -61,7 +66,8 @@ async function main() {
   const all = (JSON.parse(readFileSync(path.resolve("scripts/field-accuracy-sentences.json"), "utf8")) as { sentences: Sentence[] }).sentences;
   const start = FROM ? all.findIndex((s) => s.id === FROM) : 0;
   if (start < 0) throw new Error(`--from ${FROM}: 그런 문장이 없습니다`);
-  const sentences = LIMIT > 0 ? all.slice(start, start + LIMIT) : all.slice(start);
+  const picked = all.slice(start).filter((_, i) => i % EVERY === 0);
+  const sentences = LIMIT > 0 ? picked.slice(0, LIMIT) : picked;
   const env = loadEnv();
   const dataset = await createDatasetAdapter(env.DATASET_ADAPTER, env.DATASET_PATH).load();
   const glossary = new DomainProcessor(dataset).streamGlossary("ko", TARGET);
@@ -69,6 +75,7 @@ async function main() {
   const audio = new Map<string, Int16Array>();
   for (const s of sentences) audio.set(s.id, await prepare(s));
   const speechSeconds = [...audio.values()].reduce((sum, pcm) => sum + pcm.length / RATE, 0);
+  console.log(`[${LABEL ?? "기본"}] 무음 ${env.STREAM_VAD_SILENCE_MS}ms·추론 ${env.TRANSLATION_REASONING}`);
   console.log(`ko→${TARGET} ${sentences.length}문장, 말 ${speechSeconds.toFixed(0)}초, 예상 비용 약 $${(sentences.length * 0.011).toFixed(2)}, 이번 실행 상한 $${MAX_USD}`);
   if (DRY) return console.log("--dry-run: OpenAI 를 호출하지 않았습니다.");
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY 가 없습니다.");
@@ -80,7 +87,7 @@ async function main() {
   });
   const before = await budget.status();
   console.log(`한도 $${before.limitUsd}, 사용 $${before.spentUsd.toFixed(4)}, 남음 $${before.remainingUsd.toFixed(4)}`);
-  const file = path.join(outDir, `field-accuracy-${TARGET}-${new Date().toISOString().replace(/[:.]/g, "-")}.jsonl`);
+  const file = path.join(outDir, `field-accuracy-${LABEL ? `${LABEL}-` : ""}${TARGET}-${new Date().toISOString().replace(/[:.]/g, "-")}.jsonl`);
 
   let current: { turnId: string | null; firstAudioAt: number | null; delta: string; original: string; resolve: (end: TurnEnd) => void } | null = null;
   let connection: StreamConnection | null = null;
@@ -167,6 +174,7 @@ async function main() {
         terms: s.terms,
         meaning: s.meaning,
         target: TARGET,
+        config: { label: LABEL ?? null, silenceMs: env.STREAM_VAD_SILENCE_MS, reasoning: env.TRANSLATION_REASONING },
         status: result ? (result.status === "done" ? "done" : `failed:${result.code}`) : "timeout",
         original,
         translation,
@@ -176,6 +184,13 @@ async function main() {
         firstAudioMs: turn.firstAudioAt ? Math.round(turn.firstAudioAt - speechEndAt) : null,
       };
       appendFileSync(file, `${JSON.stringify(row)}\n`);
+      // 시간 초과: 그 턴의 늦은 결과가 다음 문장에 붙지 않게 연결을 닫고 다음 문장에서 새로 연다
+      // (2026-10-24 v3 측정에서 시간 초과 뒤 결과가 한 칸씩 밀렸다 — docs/field-accuracy.md 10절)
+      if (!result) {
+        current = null;
+        (connection as StreamConnection | null)?.close();
+        connection = null;
+      }
       console.log(`${s.id} ${row.status} 첫음성 ${row.firstAudioMs ?? "-"}ms 원문 "${original}" → "${translation}"`);
       if (result?.status === "done" && original) {
         history.push({ original, translation });
