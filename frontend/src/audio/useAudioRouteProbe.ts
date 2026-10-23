@@ -1,7 +1,8 @@
-import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from "expo-audio";
+import { RecordingPresets, requestRecordingPermissionsAsync, useAudioRecorder } from "expo-audio";
 import { useEffect, useRef, useState } from "react";
 import type { DeviceStatus } from "@shared/api";
 import { selectHeadsetInput } from "./audioDevice";
+import { setAudioMode } from "./audioMode";
 
 const CHECK_MS = 10_000;
 
@@ -34,7 +35,7 @@ export function useAudioRouteProbe(enabled: boolean, onDevice: (device: DeviceSt
         if (prepare) {
           const permission = await requestRecordingPermissionsAsync();
           if (!permission.granted) return report({ audioRoute: "unknown", inputName: null, micPermission: "denied" });
-          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
+          await setAudioMode({ allowsRecording: true, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
           await recorder.prepareToRecordAsync();
         }
         report({ ...(await selectHeadsetInput(recorder)), micPermission: "granted" });
@@ -47,7 +48,7 @@ export function useAudioRouteProbe(enabled: boolean, onDevice: (device: DeviceSt
     return () => {
       cancelled = true;
       clearInterval(timer);
-      void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+      void setAudioMode({ allowsRecording: false }).catch(() => undefined);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);

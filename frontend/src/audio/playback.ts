@@ -1,4 +1,5 @@
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
+import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { setAudioMode } from "./audioMode";
 import { playInCall, stopInCall } from "./duplex";
 import * as Speech from "expo-speech";
 import { Platform } from "react-native";
@@ -77,9 +78,9 @@ async function start(item: PlayItem) {
   usePlaybackStore.setState({ playingId: item.id });
   // 무음 모드에서도 재생(iOS 전용 의미). Android 에서는 부르지 않는다 — expo-audio 가 부를 때마다 일반 모드 + 스피커폰으로 바꿔
   // 통화 중이면 헤드셋(블루투스 SCO)으로 가던 소리를 스피커로 돌려 버렸다 (2026-10-23 Note 9 + WH-1000XM6)
+  // iOS 스트리밍 통화 중에는 건너뛴다(playback 범주로 바꾸면 통화 세션이 깨진다, sessionOwner.ts) → 통화가 끝난 뒤 재생할 때 다시 시도
   if (!audioModeReady && Platform.OS !== "android") {
-    await setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
-    audioModeReady = true;
+    audioModeReady = await setAudioMode({ playsInSilentMode: true }).catch(() => true);
   }
   if (!item.audioUrl) return speak(item);
 
