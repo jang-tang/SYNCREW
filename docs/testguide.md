@@ -251,6 +251,12 @@ Android 헤드셋 마이크가 켜졌는지: `adb shell dumpsys audio | grep mSc
 5. **문장 단위 회귀**: ① 스트리밍 통화 중 iPhone Wi-Fi 를 5초 껐다 켬 → 문장 단위로 넘어가면 말한 것이 상대 스크립트에 `◀ 기록 도착` 으로 옴(녹음됨) ② `frontend/.env` 에 `EXPO_PUBLIC_STREAMING=off` 로 Metro 재시작 → 문장 단위 통화에서 녹음·통역 재생이 됨 (스피커·에어팟). 끝나면 `.env` 원복
 6. 결과를 `docs/device-test-log.md` 에 표로 (회차별 `voiceProcessing`·`session_overwritten`·`skipped` 횟수). 모두 통과하면 실제 OpenAI 로 G·H (5장, 비용 승인 후)
 
+**10-24 실기기에서 알게 된 것** (결과: `docs/device-test-log.md` 10-24, 원인 정리: `docs/streaming-plan.md` 5-7절)
+- `call-peer.ts` 는 "E2E 현장 10120452" 로 건다 — 휴대폰은 **그 현장 화면**에 있어야 전화가 뜬다
+- **가짜 엔진은 문장 단위 통역 음성이 무음**(스트리밍만 삐 소리) → ⑤② 의 "통역 재생" 은 실제 OpenAI 로 본다 (2문장 약 $0.02)
+- ⑤① Wi-Fi 끄기: 휴대폰이 다른 Wi-Fi 에 자동으로 붙으면 PC 에 못 닿아 20초 뒤 통화가 끝난다 → 그 Wi-Fi 의 "자동 연결" 끄기
+- 무선으로 빌드 설치·네이티브 로그 수집이 된다: `xcrun devicectl device process launch --console --device <ID> --terminate-existing com.syncfield.syncrew > ios-console.log` (Wi-Fi 를 끄면 수집이 끊긴다)
+
 ### 4-11. 로그 보기 (문제가 생겼을 때)
 - iPhone 앱 로그: 터미널 3(Metro) 출력
 - Android 앱 로그: `adb logcat | grep ReactNativeJS`
