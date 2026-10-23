@@ -408,6 +408,18 @@ export interface DuplexAudio {
 - 관찰: 잘못 말한 첫 마디가 "Xe nâng đang đi qua!"(지게차가 지나갑니다)로 번역 — 스트리밍 지시문의 현장 용어집 영향 추정, 지켜볼 것. 스피커에서 받아쓰기 오류(비계→비에, 오후 세시→문제시), 헤드셋은 정확
 - 미검증: Android 12+ 기기(`setCommunicationDevice` 경로), S4 휴대폰 2대, iPhone 에서 이번 JS 변경 영향(Android 분기만이지만 확인 필요)
 
+### 5-6. iOS 에코 제거 꺼짐 수정 (2026-10-23, 현슈, 실기기 없이 — 장태웅 실기기 확인 전, 브랜치 `fix/ios-echo-cancellation`)
+
+5-4절 미해결 ①② 를 고쳤다. 실기기 확인 절차·통과 기준은 `docs/testguide.md` 4-12절.
+
+- **② 경로가 바뀌어도 다시 켜지지 않음 — 원인 확인(코드)**: 반복 보호(`recoverEngine`)가 앱의 요청 값 `echoCancellation` 자체를 false 로 바꿔, `start()` 전까지 `shouldUseVoiceProcessing()` 가 늘 false 였다. → 요청(`echoCancellation`)과 반복 보호(`vpSuppressed`)를 나눴다. 실제 장치 변경(경로 변경 이유 `newDeviceAvailable`·`oldDeviceUnavailable`·`override`)이나 세션 덮어쓰기 복구 뒤에는 `vpSuppressed` 를 풀고 다시 켜 본다. 다시 반복되면 반복 보호가 또 끈다
+- **① 통화에서만 꺼짐 — 원인 추정(실기기 로그로 확인할 것)**: expo-audio 의 `setAudioModeAsync` 는 iOS 에서 세션 범주·모드를 통째로 다시 정한다(`node_modules/expo-audio/ios/AudioModule.swift` `setAudioMode`: `{ allowsRecording: false }` → `soloAmbient` + 기본 모드, `{ playsInSilentMode: true }` → `playback`). 통화 화면에는 스트리밍 중에도 `useHandsFree`(꺼진 상태)가 붙어 있어 처음 뜰 때 `{ allowsRecording: false }` 를 부르고, 스트리밍이 못 들은 통화 발화가 오면 `playback.ts` 가 `{ playsInSilentMode: true }` 를 부른다. 이 중 하나가 이중 오디오가 잡은 `playAndRecord` + `voiceChat` 을 덮어쓰면 voice processing 엔진이 멈추고, 같은 세션으로 다시 만들어도 또 멈춰 반복 보호가 걸린다. 점검 화면에는 expo-audio 가 없어 켜져 있었던 것과 맞다
+  - 앱(JS): `src/audio/sessionOwner.ts` + `src/audio/audioMode.ts` — 이중 오디오가 `start` 부터 `stop` 이 끝날 때까지 세션을 쥔다고 표시하고, expo-audio 모드 변경은 모두 `setAudioMode()` 로 한다. iOS 에서 쥐고 있는 동안 녹음 끄기·재생용 변경은 건너뛰고, 녹음 켜기(스트리밍 → 문장 단위로 넘어간 직후)는 놓을 때까지(최대 3초) 기다렸다 적용한다. Android 는 그대로 적용(5-5절의 Android 처리 유지)
+  - 네이티브(안전장치): 통화 중 세션이 `playAndRecord`/`voiceChat` 이 아니게 되면(경로 변경 이유 `categoryChange`, 또는 엔진 설정 변경 복구 때) 세션을 되돌리고 엔진을 다시 만든다. `onError` `session_overwritten` 을 보내 Metro 에 남는다 → JS 막기가 새는 경로가 있는지 알 수 있다
+- 확인용 로그: `onRoute` 에 iOS 는 `voiceProcessing`(지금 엔진에 에코 제거가 켜졌는지)이 함께 오고, 개발 빌드는 Metro 에 `[duplex] route=… voiceProcessing=…` 를 찍는다. 건너뛴 모드 변경은 `[audio-mode] skipped …`
+- 시험: 앱 타입 검사, 단위 52 통과(새 `e2e/sessionOwner.test.mjs` 6개), Swift 컴파일(`SyncrewDuplex` 모듈만 기기용 Debug 빌드 성공, 서명 없이 — 앱 전체 빌드·설치는 안 함). **실기기 미확인** — 특히 ① 의 원인이 맞는지는 `session_overwritten`·`[audio-mode] skipped` 로그로 판단한다
+- 남은 위험: expo-audio 재생기가 재생을 마치면 `setActive(false)` 를 부른다(`deactivateSession`). 통화 중에 이것이 오면 엔진이 멈출 수 있다 — 반복 보호·복구가 다시 만들지만, 실기기에서 `restart_failed`·`restart_loop` 가 보이면 이 경로를 의심할 것
+
 ## 5. 앱 설계
 
 - `frontend/src/audio/duplex/`: `DuplexAudio` 인터페이스 + 구현 3개 (네이티브 라이브러리 어댑터 또는 자체 모듈, 웹 `AudioWorklet` 캡처 + Web Audio 재생). 웹 구현은 제품용이 아니라 **헤드리스 Chrome 자동 검증용**이다 (가짜 마이크 음성 파일로 전체 경로 확인 — 이번 Phase 6에서 쓴 방식).

@@ -325,6 +325,11 @@
 
 - **기준선 (2026-10-22, 이 PC, pull 직후)**: 서버 타입 검사 + 시험 248 통과·1 건너뜀, 앱 타입 검사 + 단위 46 통과. e2e 는 다시 돌리지 않음
 
+### iOS 에코 제거 꺼짐 수정 (2026-10-23 낮, 현슈, 실기기 없이, 브랜치 `fix/ios-echo-cancellation`, 상세: [streaming-plan.md](streaming-plan.md) 5-6절)
+- 네이티브 `SyncrewDuplexModule.swift`: 반복 보호를 앱 요청과 분리(`vpSuppressed`) → 헤드셋 연결·해제 등 실제 장치 변경 때 에코 제거를 다시 켬. 통화 세션(`playAndRecord`/`voiceChat`)이 덮어써지면 되돌리고 `onError` `session_overwritten`. `onRoute` 에 `voiceProcessing` 추가
+- 앱: `src/audio/sessionOwner.ts`·`audioMode.ts` — iOS 스트리밍 통화 중 expo-audio 모드 변경을 막음(녹음 켜기는 이중 오디오가 멈출 때까지 기다림). `useHandsFree`·`useVoiceRecorder`·`useAudioRouteProbe`·`playback` 이 `setAudioMode()` 를 쓴다
+- 시험: 앱 타입 검사, 단위 **52**(새 6), Swift 모듈 기기용 컴파일. 서버는 바뀌지 않음. **미검증: 실기기 전부** (`docs/testguide.md` 4-12절)
+
 ## 2. 다른 개발자 연결 지점
 
 | 담당 | 연결 지점 | 계약 |

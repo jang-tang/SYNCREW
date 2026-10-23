@@ -96,7 +96,14 @@ final class DuplexEngine {
   private var engine: AVAudioEngine?
   private var player: AVAudioPlayerNode?
   private var running = false
+  /** 앱이 요청한 에코 제거 (start 의 echoCancellation) */
   private var echoCancellation = true
+  /**
+   * 재시작 반복 보호가 voice processing 을 잠시 끈 상태. 요청(echoCancellation)과 따로 둔다 —
+   * 예전에는 요청 자체를 false 로 바꿔 통화가 끝날 때까지 다시 켜지지 않았다 (2026-10-17 iPhone 15 Pro Max: 에어팟 → 스피커로 바꿔도 꺼진 채).
+   * 헤드셋 연결·해제 같은 실제 경로 변경이나 세션 덮어쓰기 복구 뒤에는 다시 켜 본다.
+   */
+  private var vpSuppressed = false
   private var observers: [NSObjectProtocol] = []
   /** 탭·변환기를 만든 입력 형식. 설정 변경 알림 뒤 이 형식이 그대로면 엔진을 다시 만들지 않고 다시 시작만 한다 */
   private var tapFormat: AVAudioFormat?
@@ -160,6 +167,7 @@ final class DuplexEngine {
           throw DuplexError.format
         }
         self.echoCancellation = echoCancellation
+        self.vpSuppressed = false
         self.recoveries.removeAll()
         self.captureLock.lock()
         self.outFormat = format
@@ -219,8 +227,32 @@ final class DuplexEngine {
    * HFP 헤드셋은 마이크와 스피커가 귀에 붙어 있어 스피커폰 같은 되울림이 없고 헤드셋 자체 처리도 있으므로 끄고 쓴다.
    */
   private func shouldUseVoiceProcessing() -> Bool {
-    guard echoCancellation else { return false }
+    guard echoCancellation, !vpSuppressed else { return false }
     return (DuplexEngine.currentRoute()["route"] as? String) != "bluetooth"
+  }
+
+  /**
+   * 다른 코드(expo-audio 의 setAudioModeAsync·녹음기 준비 등)가 통화 중 세션 범주·모드를 바꿨으면 되돌린다. 되돌렸으면 true.
+   * expo-audio 는 iOS 에서 { allowsRecording: false } 를 받으면 soloAmbient + 기본 모드로 바꾼다 → voice processing 엔진이 멈추고
+   * 다시 만들어도 같은 세션이라 또 멈춰 반복 보호가 에코 제거를 껐던 것으로 본다 (2026-10-17 통화에서만 꺼짐, 점검 화면은 정상).
+   * 앱 JS 쪽도 통화 중에는 바꾸지 않게 막았다 (src/audio/sessionOwner.ts) — 이것은 그래도 새는 경우의 안전장치다.
+   */
+  private func ensureSession(_ why: String) -> Bool {
+    let session = AVAudioSession.sharedInstance()
+    guard session.category != .playAndRecord || session.mode != .voiceChat else { return false }
+    let found = "category=\(session.category.rawValue) mode=\(session.mode.rawValue)"
+    dlog("session overwritten (\(why)): \(found) — restoring playAndRecord/voiceChat")
+    emit("onError", ["code": "session_overwritten", "message": "통화 중 오디오 세션이 바뀌어 되돌렸습니다 (\(found))."])
+    do {
+      try configureSession()
+    } catch {
+      emit("onError", ["code": "session_restore_failed", "message": error.localizedDescription])
+      return false
+    }
+    // 덮어쓰기 때문에 반복 보호가 걸렸을 수 있으므로 에코 제거를 다시 켜 본다
+    vpSuppressed = false
+    recoveries.removeAll()
+    return true
   }
 
   /** 블루투스 헤드셋(HFP·LE) > 유선 헤드셋 마이크 순으로 입력을 고른다 (출력도 같은 헤드셋으로 바뀐다) */
@@ -326,6 +358,8 @@ final class DuplexEngine {
    * voice processing(에코 제거)을 끄고 한 번 더 만들고, 그래도 반복되면 멈추고 알린다.
    */
   private func recoverEngine() {
+    // 세션이 덮어써져 멈춘 것이면 세션부터 되돌린다 (그대로 다시 만들면 같은 이유로 또 멈춘다)
+    _ = ensureSession("config change")
     let now = Date()
     recoveries = recoveries.filter { now.timeIntervalSince($0) < DuplexEngine.recoveryWindow } + [now]
     if recoveries.count > DuplexEngine.maxRecoveries * 2 {
@@ -333,12 +367,12 @@ final class DuplexEngine {
       emit("onError", ["code": "restart_loop", "message": "오디오 엔진이 계속 다시 시작되어 멈췄습니다."])
       return
     }
-    if recoveries.count > DuplexEngine.maxRecoveries, echoCancellation {
-      dlog("recover: restart loop with voice processing — disabling it")
-      echoCancellation = false
+    if recoveries.count > DuplexEngine.maxRecoveries, echoCancellation, !vpSuppressed {
+      dlog("recover: restart loop with voice processing — suppressing it until the route changes")
+      vpSuppressed = true
       emit("onError", ["code": "voice_processing_loop", "message": "에코 제거를 끄고 오디오를 다시 시작합니다."])
     }
-    dlog("recover: rebuilding engine (#\(recoveries.count), vp=\(echoCancellation))")
+    dlog("recover: rebuilding engine (#\(recoveries.count), requested=\(echoCancellation) suppressed=\(vpSuppressed))")
     restartEngine()
   }
 
@@ -506,8 +540,11 @@ final class DuplexEngine {
     return ["route": "unknown", "name": nil]
   }
 
+  /** 경로와 함께 지금 엔진의 에코 제거(voice processing) 상태를 알린다 — 실기기 확인용으로 앱이 개발 빌드에서 Metro 에 찍는다 */
   private func emitRoute() {
-    emit("onRoute", DuplexEngine.currentRoute())
+    var body = DuplexEngine.currentRoute()
+    body["voiceProcessing"] = vpActive
+    emit("onRoute", body)
   }
 
   private func addObservers() {
@@ -518,7 +555,17 @@ final class DuplexEngine {
       let reason = raw.flatMap { AVAudioSession.RouteChangeReason(rawValue: $0) }
       self?.queue.async {
         guard let self, self.running else { return }
+        dlog("route change reason=\(raw.map { String($0) } ?? "nil") route=\(DuplexEngine.currentRoute()) vpActive=\(self.vpActive) suppressed=\(self.vpSuppressed)")
+        if reason == .categoryChange, self.engine != nil, self.ensureSession("route change") {
+          self.restartEngine()
+          return
+        }
         if reason == .newDeviceAvailable { self.preferHeadsetInput() }
+        // 실제 장치가 바뀌면(헤드셋 연결·해제, 출력 지정) 반복 보호로 꺼 둔 에코 제거를 다시 켜 본다
+        if reason == .newDeviceAvailable || reason == .oldDeviceUnavailable || reason == .override, self.vpSuppressed {
+          dlog("route change: device changed — retrying voice processing")
+          self.vpSuppressed = false
+        }
         // 헤드셋이 붙거나 떨어져 voice processing 을 켜야 할지가 바뀌면 엔진을 다시 만든다
         let wantVP = self.shouldUseVoiceProcessing()
         if wantVP != self.vpActive, self.engine != nil {
