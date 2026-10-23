@@ -58,6 +58,25 @@ const OPEN_TIMEOUT_MS = 10_000;
 const ORIGINAL_WAIT_MS = 4_000;
 /** 세션을 열 때 남아 있어야 하는 최소 한도 (말한 약 10초 분량) */
 const MIN_REMAINING_USD = 0.03;
+/** 원문에 말이 있는지 아직 모를 때 번역 음성·자막을 붙잡아 두는 최대 시간. 넘으면 그대로 내보낸다 (전사가 늦거나 안 올 때) */
+const SPEECH_HOLD_MS = 2_000;
+
+/** 말이 아닌 소리로 치는 낱말 (글자마다 이 안에 들면 군소리). 5개 언어의 흔한 군소리 */
+const FILLER_CHARS = new Set([..."음어아으흠엄에嗯啊呃哦唔额"]);
+const FILLER_WORDS = new Set(["ừ", "ờ", "à", "ơ", "ư", "ừm", "ờm", "hm", "hmm", "um", "uh", "э", "эм", "м", "мм", "ну"]);
+
+/**
+ * 원문 전사에 실제 말이 있는지: 글자가 없거나 군소리("음,", "어…", "ừ")뿐이면 false.
+ * 2026-10-24 S4 실측: 전사가 비거나 군소리뿐인 턴에서 번역 모델이 "멈춰!"·"안전모를 쓰세요" 같은 지시를 지어냈다 → 그런 턴은 내보내지 않는다
+ */
+export function hasSpeech(text: string): boolean {
+  for (const word of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (!word) continue;
+    if (FILLER_WORDS.has(word) || [...word].every((ch) => FILLER_CHARS.has(ch))) continue;
+    return true;
+  }
+  return false;
+}
 
 export type SessionKind = "conversation" | "transcription";
 export type TurnTermsMode = "off" | "update" | "create";
@@ -208,6 +227,10 @@ type Turn = {
   partial: string;
   /** 이 턴에 넣은 턴 용어의 원문 표현 (같으면 다시 보내지 않는다) */
   termsKey: string;
+  /** 원문에 말이 있는지: unknown 이면 번역 음성·자막을 held 에 붙잡아 두고, no 면 턴을 버린다 */
+  speech: "unknown" | "yes" | "no";
+  held: ({ audio: Buffer } | { text: string })[];
+  holdTimer: NodeJS.Timeout | null;
 };
 
 class RealtimeConnection implements StreamConnection {
@@ -466,6 +489,9 @@ class RealtimeConnection implements StreamConnection {
         firstDeltaSeen: false,
         partial: "",
         termsKey: "",
+        speech: "unknown",
+        held: [],
+        holdTimer: null,
       };
       this.turns.set(turn.id, turn);
     }
@@ -478,6 +504,8 @@ class RealtimeConnection implements StreamConnection {
   private forget(turn: Turn): void {
     if (turn.originalTimer) clearTimeout(turn.originalTimer);
     turn.originalTimer = null;
+    if (turn.holdTimer) clearTimeout(turn.holdTimer);
+    turn.holdTimer = null;
     this.turns.delete(turn.id);
     if (turn.convItemId) this.byConvItem.delete(turn.convItemId);
     if (turn.sttItemId) this.bySttItem.delete(turn.sttItemId);
@@ -525,14 +553,14 @@ class RealtimeConnection implements StreamConnection {
       }
       case "response.output_audio.delta": {
         const turn = this.turnOf(event.response_id);
-        if (turn && !turn.cancelled && event.delta) this.events.audio(turn.id, Buffer.from(event.delta, "base64"));
+        if (turn && !turn.cancelled && event.delta) this.output(turn, { audio: Buffer.from(event.delta, "base64") });
         break;
       }
       case "response.output_audio_transcript.delta": {
         const turn = this.turnOf(event.response_id);
         if (turn && !turn.cancelled && event.delta) {
           turn.translation += event.delta;
-          this.events.translationDelta(turn.id, event.delta);
+          this.output(turn, { text: event.delta });
         }
         break;
       }
@@ -607,15 +635,22 @@ class RealtimeConnection implements StreamConnection {
       if (!turn.cancelled && event.delta) {
         this.events.originalDelta(turn.id, event.delta);
         turn.partial += event.delta;
+        if (turn.speech === "unknown" && hasSpeech(turn.partial)) this.allowOutput(turn);
         // update 방식: 번역 세션이 아직 말 끝을 안 냈으면 찾은 용어를 바로 지시문에 넣는다
         if (this.turnTermsMode === "update" && turn.convItemId === null) this.updateTurnTerms(turn);
       }
       return;
     }
-    const text = event.type.endsWith("completed") ? (event.transcript ?? "").trim() : "";
+    const completed = event.type.endsWith("completed");
+    const text = completed ? (event.transcript ?? "").trim() : "";
     turn.original = text || null;
     turn.originalDone = true;
     turn.sttUsage = event.usage ?? null;
+    // 말이 있는지 판정: 전사가 실패(failed)한 것은 말이 없다는 뜻이 아니므로 그대로 내보낸다
+    if (turn.speech === "unknown") {
+      if (!completed || hasSpeech(text)) this.allowOutput(turn);
+      else this.dropNoSpeech(turn);
+    }
     // 완성본은 턴이 시작된(응답이 붙은) 뒤에만 올린다. 아직이면 response.created 에서 올린다
     if (turn.original && !turn.cancelled && turn.started) this.events.original(turn.id, turn.original);
     void this.commitStt(turn);
@@ -650,6 +685,44 @@ class RealtimeConnection implements StreamConnection {
     const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms);
     this.send({ type: "response.create", response: { instructions } });
     this.options.trace?.("conversation", "turnTerms.create", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
+  }
+
+  /** 번역 음성·자막 조각: 원문에 말이 있다고 확인된 턴은 바로, 아직 모르면 붙잡아 둔다 (SPEECH_HOLD_MS 넘으면 그대로 내보냄) */
+  private output(turn: Turn, piece: { audio: Buffer } | { text: string }): void {
+    if (turn.speech === "yes") {
+      if ("audio" in piece) this.events.audio(turn.id, piece.audio);
+      else this.events.translationDelta(turn.id, piece.text);
+      return;
+    }
+    turn.held.push(piece);
+    turn.holdTimer ??= setTimeout(() => {
+      turn.holdTimer = null;
+      this.options.log?.("원문 전사가 늦어 번역을 그대로 내보냄", { turnId: turn.id });
+      this.allowOutput(turn);
+    }, SPEECH_HOLD_MS);
+  }
+
+  private allowOutput(turn: Turn): void {
+    turn.speech = "yes";
+    if (turn.holdTimer) clearTimeout(turn.holdTimer);
+    turn.holdTimer = null;
+    const held = turn.held;
+    turn.held = [];
+    if (turn.cancelled) return;
+    for (const piece of held) this.output(turn, piece);
+  }
+
+  /** 원문에 말이 없는 턴: 번역을 내보내지 않고 응답을 취소한다 (이미 시작을 알렸으면 EMPTY 실패로 닫는다) */
+  private dropNoSpeech(turn: Turn): void {
+    turn.speech = "no";
+    if (turn.holdTimer) clearTimeout(turn.holdTimer);
+    turn.holdTimer = null;
+    turn.held = [];
+    if (turn.cancelled) return;
+    this.options.log?.("원문에 말이 없어 번역을 버림", { turnId: turn.id, original: turn.original, translation: turn.translation });
+    turn.cancelled = true;
+    if (turn.responseId && !turn.responseDone) this.send({ type: "response.cancel", response_id: turn.responseId });
+    if (turn.started) this.events.turnEnd(turn.id, { status: "failed", code: "EMPTY" });
   }
 
   private turnOf(responseId: string | undefined): Turn | undefined {
@@ -737,6 +810,8 @@ class RealtimeConnection implements StreamConnection {
   /** 번역 응답과 원문 전사가 모두 끝나면 턴을 닫고, 세션 안 항목을 지운다 */
   private maybeFinish(turn: Turn): void {
     if (!turn.responseDone || !turn.originalDone || !this.turns.has(turn.id)) return;
+    // 전사 없이 기다림이 끝난 턴(ORIGINAL_WAIT_MS): 붙잡아 둔 번역을 내보내고 끝낸다
+    if (turn.speech === "unknown") this.allowOutput(turn);
     this.forget(turn);
     for (const itemId of turn.itemIds) this.send({ type: "conversation.item.delete", item_id: itemId });
     if (turn.cancelled) return;
