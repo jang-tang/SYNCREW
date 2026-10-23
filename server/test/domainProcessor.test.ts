@@ -134,10 +134,10 @@ describe("DomainProcessor + 기존 저장소 데이터셋", () => {
   });
 
   it("은어는 대상 언어 번역이 없어도 표준 한국어 뜻을 전달한다 (2026-10-23)", () => {
-    // 데스라 = 출력 인원 (안전보건공단 사전 기준), STT 오인식 "대수라" 보정은 그대로
+    // 데스라 = 출력 인원 (안전보건공단 사전 기준, 2026-10-24 실측 뒤 "오늘 출근한 작업 인원"으로 풀어 씀), STT 오인식 "대수라" 보정은 그대로
     const desura = processor.process("대수라 몇 명이야", "ko");
     expect(desura.correctedText).toBe("데스라 몇 명이야");
-    expect(processor.buildContext(desura, "vi").terms[0]).toEqual({ source: "데스라", meaning: "= 출력 인원" });
+    expect(processor.buildContext(desura, "vi").terms[0]).toEqual({ source: "데스라", meaning: "= 오늘 출근한 작업 인원(출력 인원)" });
     // 기존 은어: 번역이 있는 언어는 번역 + 뜻, 없는 언어(zh)는 뜻만
     const ashiba = processor.buildContext(processor.process("아시바 위로 올라가", "ko"), "zh").terms[0]!;
     expect(ashiba).not.toHaveProperty("target");

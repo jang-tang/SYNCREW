@@ -87,13 +87,15 @@ export type StreamGlossaryOptions = {
  * 은어(2026-10-23 60개 → 2026-10-24 300개, 용어와 합쳐 420개): 은어 전체가 들어간다. 2026-10-24 실험에서 말하는 도중 자막으로
  * 턴마다 은어를 찾는 방식(turnTerms)은 자막이 은어를 잘못 받아써 효과가 없어, 미리 넣는 목록을 넉넉하게 늘렸다 (docs/field-terms.md 8절).
  */
-export const DEFAULT_STREAM_GLOSSARY_OPTIONS: StreamGlossaryOptions = { maxTerms: 110, maxPhrases: 12, maxSlang: 300, maxEntries: 420 };
+export const DEFAULT_STREAM_GLOSSARY_OPTIONS: StreamGlossaryOptions = { maxTerms: 125, maxPhrases: 12, maxSlang: 300, maxEntries: 420 };
 
 /** 안전 분야 (데이터셋 domain 값: safety, ppe, safety_emergency, construction_safety_slang 등) */
 const SAFETY_DOMAIN = /safety|ppe|emergency/i;
 
 /** 용어 우선순위 묶음 (낮을수록 먼저): critical → high+안전 분야 → high+핵심 → high → normal+핵심 → normal */
 function glossaryGroup(entry: LexiconEntry): number {
+  // 실측에서 틀리게 옮겨진 용어(supplement/measured_terms.json, 12개)는 용어집 상한(110)에 밀리지 않게 맨 앞
+  if (entry.domain === "measured_mistranslation") return -1;
   if (entry.risk === "critical") return 0;
   const base = riskRank(entry.risk) * 3;
   if (entry.domain && SAFETY_DOMAIN.test(entry.domain)) return base - 2;

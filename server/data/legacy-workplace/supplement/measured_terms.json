@@ -1,0 +1,20 @@
+{
+  "name": "measured-mistranslations",
+  "version": "2026.10.24",
+  "source": "2026-10-24 현장 용어 400문장 실측(docs/field-accuracy.md)에서 vi·zh 로 틀리게 옮겨진 표준 용어와 그와 헷갈린 말",
+  "note": "언어별 번역은 검증 문장·실측 오역 단어만 넣는다는 결정(2026-10-23, docs/field-terms.md 0절)에 따라 실측에서 틀린 단어만. vi·zh 번역은 Claude 작성, 원어민 검수 전. 이 파일의 번역이 다른 데이터의 같은 용어보다 우선한다",
+  "terms": [
+    { "id": "MT001", "canonical_ko": "슬래브", "translations": { "vi": "sàn bê tông", "zh": "楼板" }, "plain_ko": "콘크리트 바닥판 (배관용 '슬리브'와 다름)", "risk_level": "high", "measured": "vi·zh: 슬리브(sleeve·套管)로 옮김 (t042, zh n023)" },
+    { "id": "MT002", "canonical_ko": "슬리브", "translations": { "vi": "ống lồng (sleeve)", "zh": "套管" }, "plain_ko": "배관이 지나가도록 벽·바닥에 묻는 관 (슬래브와 다름)", "risk_level": "normal", "measured": "슬래브와 헷갈린 말" },
+    { "id": "MT003", "canonical_ko": "비계", "translations": { "vi": "giàn giáo", "zh": "脚手架" }, "plain_ko": "높은 곳 작업용 임시 발판 구조물 (기계 아님)", "risk_level": "critical", "measured": "vi·zh: 기계(máy·机器·设备)로 옮김 (t001, t059)" },
+    { "id": "MT004", "canonical_ko": "안전대", "translations": { "vi": "dây an toàn", "zh": "安全带" }, "plain_ko": "추락 방지용 안전벨트", "risk_level": "critical", "measured": "zh 용어집에 없던 핵심 용어 (vi 는 이미 같은 번역)" },
+    { "id": "MT005", "canonical_ko": "훅 해지장치", "variants_ko": ["훅 해지 장치", "해지장치"], "translations": { "vi": "chốt chống tuột móc", "zh": "吊钩防脱装置" }, "plain_ko": "훅에 건 줄이 빠지지 않게 막는 안전장치 (풀어 주는 장치가 아님)", "risk_level": "high", "measured": "vi·zh: 풀림 장치(nhả·释放)로 반대 뜻 (t046)" },
+    { "id": "MT006", "canonical_ko": "고압선", "translations": { "vi": "đường dây điện cao thế", "zh": "高压线" }, "plain_ko": "높은 전압이 흐르는 전선 (압력관 아님)", "risk_level": "high", "measured": "vi: 압력관(đường ống áp lực)으로 옮김 (t057)" },
+    { "id": "MT007", "canonical_ko": "낙하물 방지망", "translations": { "vi": "lưới chống vật rơi", "zh": "防落物网" }, "plain_ko": "위에서 떨어지는 물건을 받는 그물", "risk_level": "high", "measured": "zh: 물방울(防滴落) 방지망으로 옮김 (t023)" },
+    { "id": "MT008", "canonical_ko": "화기 작업", "translations": { "vi": "công việc phát sinh lửa (hàn, cắt)", "zh": "动火作业" }, "plain_ko": "용접·절단처럼 불꽃이 나는 작업", "risk_level": "high", "measured": "vi: '이 작업' 허가서로 화기가 빠짐 (t049)" },
+    { "id": "MT009", "canonical_ko": "신호수", "translations": { "vi": "người ra tín hiệu", "zh": "信号工" }, "plain_ko": "중장비·크레인에 손신호를 주는 사람", "risk_level": "high", "measured": "vi·zh: '신호하세요'를 보고하세요로 옮김 (t012) — 신호 관련 핵심 용어" },
+    { "id": "MT010", "canonical_ko": "비계공", "translations": { "vi": "thợ giàn giáo", "zh": "架子工" }, "plain_ko": "비계를 설치·해체하는 작업자", "risk_level": "normal", "measured": "은어 도비 → 사람 이름·중량물 반장으로 옮김 (s054)" },
+    { "id": "MT011", "canonical_ko": "말비계", "translations": { "vi": "giàn giáo chữ A (thang gấp)", "zh": "马凳脚手架" }, "plain_ko": "사다리 모양 다리 위에 발판을 얹은 낮은 작업대", "risk_level": "high", "measured": "은어 우마 → 사다리·운하로 옮김 (s025)" },
+    { "id": "MT012", "canonical_ko": "멍에", "translations": { "vi": "dầm đỡ chính (cốp pha)", "zh": "主楞" }, "plain_ko": "거푸집 장선을 받치는 굵은 각재", "risk_level": "normal", "measured": "은어 오비끼 → 받침관(ống đỡ)으로 옮김 (vi s055)" }
+  ]
+}

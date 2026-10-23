@@ -32,7 +32,7 @@ describe("LegacyWorkplaceAdapter", () => {
     const dataset = await new LegacyWorkplaceAdapter("data/legacy-workplace").load();
     const find = (canonical: string) => dataset.lexicon.find((entry) => entry.canonical === canonical)!;
     const desura = find("데스라");
-    expect(desura).toMatchObject({ standardKo: "출력 인원", translations: {}, variants: [] });
+    expect(desura).toMatchObject({ standardKo: "오늘 출근한 작업 인원(출력 인원)", translations: {}, variants: [] });
     expect(desura.asrCorrections).toContain("대수라");
     // 원본 파일들의 "난간" 뜻·번역·변형("데스리 난간" 등)은 합쳐지지 않는다
     expect(desura.meaning).toBeUndefined();

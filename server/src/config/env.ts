@@ -31,14 +31,15 @@ const envSchema = z.object({
   /** 번역 음성 생성 (off면 텍스트만, 앱은 기기 TTS로 읽음) */
   TRANSLATION_AUDIO: z.enum(["on", "off"]).default("on"),
   TRANSLATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
+  /** 추론 강도. 2026-10-24 minimal 을 시험했다가 은어 정확도가 4–5%p 떨어져 low 로 되돌림 (docs/field-accuracy.md 9·10절) */
   TRANSLATION_REASONING: z.enum(["minimal", "low", "medium", "high"]).default("low"),
   TRANSLATION_VOICE: z.string().default("marin"),
   /** 1:1 통화 스트리밍 통역 (docs/streaming-plan.md). off 면 앱은 발화 단위 방식만 쓴다 */
   STREAMING: z.enum(["on", "off"]).default("on"),
   /** 동시에 여는 스트리밍 엔진 연결 수 (화자 × 대상 언어). 넘으면 발화 단위 방식 */
   STREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(64).default(4),
-  /** OpenAI server_vad 말 끝 무음 (ms). S0 실측 기준 500, S6에서 300–400 실험 */
-  STREAM_VAD_SILENCE_MS: z.coerce.number().int().min(200).max(2000).default(500),
+  /** OpenAI server_vad 말 끝 무음 (ms). S0 실측 기준 500 → 2026-10-24 350 (지연 약 0.24초 단축, docs/field-accuracy.md 8절). 사람 목소리로 문장이 잘리는지 실기기 확인 전 */
+  STREAM_VAD_SILENCE_MS: z.coerce.number().int().min(200).max(2000).default(350),
   /**
    * 스트리밍 전사 전용 세션 (2026-10-19): on 이면 화자 스트림마다 OpenAI 전사 세션(intent=transcription)을 하나 더 열어
    * 원문 조각(original_partial)을 번역 응답과 따로, 말 끝 직후(0.1–0.4초)에 받는다. 번역 세션의 입력 전사는 끈다(받아쓰기 2번 청구 방지).

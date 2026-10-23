@@ -104,24 +104,30 @@ describe("스트리밍 용어집 (언어 쌍 기준 미리 넣기, 2026-10-19)",
     expect(second.length).toBeGreaterThan(first.length);
   });
 
-  it("크기 상한: 모든 언어 쌍의 지시문(문맥 2줄 포함)이 STREAM_INSTRUCTIONS_MAX_CHARS 안이다 (용어 ≤ 110개, 문장 ≤ 12개, 용어+은어 ≤ 420개)", () => {
+  it("크기 상한: 모든 언어 쌍의 지시문(문맥 2줄 포함)이 STREAM_INSTRUCTIONS_MAX_CHARS 안이다 (용어 ≤ 125개, 문장 ≤ 12개, 용어+은어 ≤ 420개)", () => {
     for (const source of LANG_CODES) {
       for (const target of LANG_CODES) {
         if (source === target) continue;
         const glossary = domain.streamGlossary(source, target);
-        expect(glossary.terms.length).toBeLessThanOrEqual(110);
+        expect(glossary.terms.length).toBeLessThanOrEqual(125);
         expect(glossary.phrases.length).toBeLessThanOrEqual(12);
         expect(glossary.terms.length + (glossary.slang?.length ?? 0)).toBeLessThanOrEqual(420);
         expect(buildStreamInstructions(source, target, context, glossary).length).toBeLessThanOrEqual(STREAM_INSTRUCTIONS_MAX_CHARS);
       }
     }
     // 용어 번역은 ko↔vi 만 있다. 다른 언어는 언어별 번역 대신 은어의 표준 한국어 뜻으로 (2026-10-23, docs/field-terms.md 0절)
-    expect(domain.streamGlossary("ko", "vi").terms.length).toBe(110);
+    // + 실측 오역 단어 12개(supplement/measured_terms.json, vi·zh 번역)는 맨 앞 (2026-10-24, docs/field-accuracy.md 7절)
+    const measured = ["고압선", "낙하물 방지망", "말비계", "멍에", "비계", "비계공", "슬래브", "슬리브", "신호수", "안전대", "화기 작업", "훅 해지장치"];
+    expect(domain.streamGlossary("ko", "vi").terms.length).toBe(125);
+    expect(domain.streamGlossary("ko", "vi").terms.slice(0, 12).map((term) => term.source)).toEqual(measured);
+    expect(domain.streamGlossary("ko", "vi").terms).toContainEqual({ source: "슬래브", target: "sàn bê tông" });
     // 은어는 전체가 들어간다 (2026-10-24 상한 확대): 표준어 뜻이 있는 은어 230개, ko→vi 는 용어에 이미 든 것을 뺀 나머지
     const slangTotal = domain.streamGlossary("ko", "ru").slang!.length;
     expect(slangTotal).toBeGreaterThanOrEqual(200);
     expect(domain.streamGlossary("ko", "vi").slang!.length).toBeLessThan(slangTotal);
-    expect(domain.streamGlossary("ko", "zh").terms).toEqual([]);
+    expect(domain.streamGlossary("ko", "zh").terms.map((term) => term.source)).toEqual(measured);
+    expect(domain.streamGlossary("ko", "zh").terms).toContainEqual({ source: "슬래브", target: "楼板" });
+    expect(domain.streamGlossary("ko", "ru").terms).toEqual([]);
     expect(domain.streamGlossary("ko", "zh").slang).toHaveLength(slangTotal);
   });
 
@@ -145,7 +151,7 @@ describe("스트리밍 용어집 (언어 쌍 기준 미리 넣기, 2026-10-19)",
     expect(domain.streamGlossary("ko", "uz").phrases[0]!.target).toBe("Qulash xavfi! Xavfsizlik kaska va xavfsizlik kamarini taqish majburiy");
     // 받아쓰기 keywords 에 은어도 들어간다 (2026-10-24, 말하는 도중 자막이 은어를 받아쓰게)
     const keywords = transcriptionKeywords(zh);
-    expect(keywords).toHaveLength(zh.slang!.length);
+    expect(keywords).toHaveLength(zh.terms.length + zh.slang!.length);
     expect(keywords).toEqual(expect.arrayContaining(["아시바", "호리가다", "데스리"]));
     // ko→vi: 번역 있는 용어가 먼저, 그 뒤 은어 (중복 없음)
     const viGlossary = domain.streamGlossary("ko", "vi");
