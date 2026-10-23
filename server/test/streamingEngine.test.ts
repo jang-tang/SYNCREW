@@ -104,19 +104,64 @@ describe("스트리밍 용어집 (언어 쌍 기준 미리 넣기, 2026-10-19)",
     expect(second.length).toBeGreaterThan(first.length);
   });
 
-  it("크기 상한: 모든 언어 쌍의 지시문(문맥 2줄 포함)이 STREAM_INSTRUCTIONS_MAX_CHARS 안이다 (용어 ≤ 110개, 문장 ≤ 12개)", () => {
+  it("크기 상한: 모든 언어 쌍의 지시문(문맥 2줄 포함)이 STREAM_INSTRUCTIONS_MAX_CHARS 안이다 (용어 ≤ 110개, 문장 ≤ 12개, 용어+은어 ≤ 420개)", () => {
     for (const source of LANG_CODES) {
       for (const target of LANG_CODES) {
         if (source === target) continue;
         const glossary = domain.streamGlossary(source, target);
         expect(glossary.terms.length).toBeLessThanOrEqual(110);
         expect(glossary.phrases.length).toBeLessThanOrEqual(12);
+        expect(glossary.terms.length + (glossary.slang?.length ?? 0)).toBeLessThanOrEqual(420);
         expect(buildStreamInstructions(source, target, context, glossary).length).toBeLessThanOrEqual(STREAM_INSTRUCTIONS_MAX_CHARS);
       }
     }
-    // 지금 데이터는 ko↔vi 만 번역이 있다 (다른 언어는 용어 0개 — 데이터 보강은 다른 팀원 몫)
+    // 용어 번역은 ko↔vi 만 있다. 다른 언어는 언어별 번역 대신 은어의 표준 한국어 뜻으로 (2026-10-23, docs/field-terms.md 0절)
     expect(domain.streamGlossary("ko", "vi").terms.length).toBe(110);
+    // 은어는 전체가 들어간다 (2026-10-24 상한 확대): 표준어 뜻이 있는 은어 230개, ko→vi 는 용어에 이미 든 것을 뺀 나머지
+    const slangTotal = domain.streamGlossary("ko", "ru").slang!.length;
+    expect(slangTotal).toBeGreaterThanOrEqual(200);
+    expect(domain.streamGlossary("ko", "vi").slang!.length).toBeLessThan(slangTotal);
     expect(domain.streamGlossary("ko", "zh").terms).toEqual([]);
+    expect(domain.streamGlossary("ko", "zh").slang).toHaveLength(slangTotal);
+  });
+
+  it("ko→zh·ru·uz: 은어는 표준 한국어 뜻으로 들어가고(위험도 순, 아시바가 앞), 안전표지 검증 문장이 들어간다 (2026-10-23)", () => {
+    const zh = domain.streamGlossary("ko", "zh");
+    expect(zh.slang![0]).toEqual({ source: "아시바", standardKo: "비계" });
+    expect(zh.slang).toContainEqual({ source: "데스리", standardKo: "난간" });
+    expect(zh.phrases[0]).toEqual({ source: "추락 위험! 안전모, 안전대 착용 필수", target: "当心坠落！必须佩戴安全帽及安全带" });
+    const text = buildStreamInstructions("ko", "zh", [], zh);
+    expect(text).toContain("Korean site slang (slang=standard Korean meaning). Translate the meaning; never transliterate the slang:");
+    // 한 줄에 20개씩 "은어=표준어; …"
+    expect(text).toContain("\n아시바=비계; ");
+    expect(text).toContain("데스리=난간");
+    expect(text).toContain("호리가다=터파기");
+    // 은어 → 검증 문장 → 실시간 안내 순서 (모두 고정 부분)
+    expect(text.indexOf("Korean site slang")).toBeLessThan(text.indexOf("Verified sentence translations"));
+    expect(text.indexOf("Verified sentence translations")).toBeLessThan(text.indexOf("Each user turn is live speech"));
+    // 러시아어판 안전표지는 없어 문장은 0개, 은어는 들어간다
+    expect(domain.streamGlossary("ko", "ru").phrases).toEqual([]);
+    expect(domain.streamGlossary("ko", "ru").slang!.length).toBeGreaterThanOrEqual(200);
+    expect(domain.streamGlossary("ko", "uz").phrases[0]!.target).toBe("Qulash xavfi! Xavfsizlik kaska va xavfsizlik kamarini taqish majburiy");
+    // 받아쓰기 keywords 에 은어도 들어간다 (2026-10-24, 말하는 도중 자막이 은어를 받아쓰게)
+    const keywords = transcriptionKeywords(zh);
+    expect(keywords).toHaveLength(zh.slang!.length);
+    expect(keywords).toEqual(expect.arrayContaining(["아시바", "호리가다", "데스리"]));
+    // ko→vi: 번역 있는 용어가 먼저, 그 뒤 은어 (중복 없음)
+    const viGlossary = domain.streamGlossary("ko", "vi");
+    const viKeywords = transcriptionKeywords(viGlossary);
+    expect(viKeywords.slice(0, 3)).toEqual(viGlossary.terms.slice(0, 3).map((term) => term.source));
+    expect(new Set(viKeywords).size).toBe(viKeywords.length);
+    expect(viKeywords).toContain("호리가다");
+  });
+
+  it("은어 목록: ko→vi 는 이미 용어(번역 있음)에 든 은어를 빼고, 원문이 외국어면 은어 목록이 없다", () => {
+    const vi = domain.streamGlossary("ko", "vi");
+    const termSources = new Set(vi.terms.map((term) => term.source));
+    expect(termSources.has("아시바")).toBe(true);
+    for (const item of vi.slang!) expect(termSources.has(item.source)).toBe(false);
+    expect(domain.streamGlossary("vi", "ko").slang).toBeUndefined();
+    expect(domain.streamGlossary("zh", "ko").slang).toBeUndefined();
   });
 
   it("순서가 결정적이다: 두 번 만들어도, 데이터셋을 다시 읽어도 같은 순서 (critical 용어가 앞)", async () => {
@@ -567,11 +612,16 @@ describe("RealtimeStreamEngine + gpt-live-transcribe (STREAM_STT_MODEL)", () => 
     connection.close();
   });
 
-  it("transcriptionKeywords: 용어집이 없거나 비면 keywords 를 보내지 않고, 50개를 넘으면 앞 50개만", async () => {
+  it("transcriptionKeywords: 용어집이 없거나 비면 keywords 를 보내지 않고, 400개를 넘으면 앞 400개만 (용어 → 은어 순)", async () => {
     expect(transcriptionKeywords(undefined)).toEqual([]);
-    const many: StreamGlossary = { terms: Array.from({ length: 70 }, (_, i) => ({ source: `용어${i}`, target: `t${i}` })), phrases: [] };
-    expect(transcriptionKeywords(many)).toHaveLength(50);
-    expect(transcriptionKeywords(many)[49]).toBe("용어49");
+    const many: StreamGlossary = {
+      terms: Array.from({ length: 300 }, (_, i) => ({ source: `용어${i}`, target: `t${i}` })),
+      phrases: [],
+      slang: Array.from({ length: 200 }, (_, i) => ({ source: `은어${i}`, standardKo: `표준${i}` })),
+    };
+    expect(transcriptionKeywords(many)).toHaveLength(400);
+    expect(transcriptionKeywords(many)[299]).toBe("용어299");
+    expect(transcriptionKeywords(many)[399]).toBe("은어99");
     const server = await fakeRealtime();
     const { engine: e } = engine(server.url, 5, live);
     const connection = await e.open({ sourceLang: "vi", targetLang: "ko", events: recorder().events });

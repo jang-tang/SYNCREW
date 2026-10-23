@@ -42,10 +42,13 @@ describe("DomainProcessor", () => {
     expect(result.hits).toMatchObject([{ entryId: "L1", kind: "asr", matched: "대수라", corrected: true }]);
   });
 
-  it("변형 표현을 보정하고 원문은 보존한다", () => {
+  it("변형 표현은 감지만 하고 글은 바꾸지 않는다 (보정은 받아쓰기 오인식형만, 2026-10-23)", () => {
     const result = processor.process("데스리 쪽으로 가지 마", "ko");
     expect(result.originalText).toBe("데스리 쪽으로 가지 마");
-    expect(result.correctedText).toBe("데스라 쪽으로 가지 마");
+    expect(result.correctedText).toBe("데스리 쪽으로 가지 마");
+    expect(result.hits).toMatchObject([{ entryId: "L1", kind: "variant", corrected: false }]);
+    // 뜻은 번역 문맥으로 전달된다 (문장에 있는 표현 그대로)
+    expect(processor.buildContext(result, "vi").terms[0]).toMatchObject({ source: "데스리", target: "lan can" });
   });
 
   it("표준 표현으로 시작하는 활용형은 바꾸지 않고 감지만 한다", () => {
@@ -124,10 +127,42 @@ describe("DomainProcessor + 기존 저장소 데이터셋", () => {
     processor = new DomainProcessor(await new LegacyWorkplaceAdapter("data/legacy-workplace").load());
   });
 
-  it("은어 STT 오인식을 보정한다 (대수라 → 데스라)", () => {
-    const result = processor.process("대수라 먼저 설치하고 올라가세요", "ko");
-    expect(result.correctedText).toBe("데스라 먼저 설치하고 올라가세요");
-    expect(processor.buildContext(result, "vi").terms[0]).toMatchObject({ source: "데스라", target: "lan can hoặc thanh chắn an toàn" });
+  it("은어 STT 오인식을 보정한다 (아씨봐 → 아시바)", () => {
+    const result = processor.process("아씨봐 위로 올라가세요", "ko");
+    expect(result.correctedText).toBe("아시바 위로 올라가세요");
+    expect(processor.buildContext(result, "vi").terms[0]).toMatchObject({ source: "아시바", target: "giàn giáo" });
+  });
+
+  it("은어는 대상 언어 번역이 없어도 표준 한국어 뜻을 전달한다 (2026-10-23)", () => {
+    // 데스라 = 출력 인원 (안전보건공단 사전 기준), STT 오인식 "대수라" 보정은 그대로
+    const desura = processor.process("대수라 몇 명이야", "ko");
+    expect(desura.correctedText).toBe("데스라 몇 명이야");
+    expect(processor.buildContext(desura, "vi").terms[0]).toEqual({ source: "데스라", meaning: "= 출력 인원" });
+    // 기존 은어: 번역이 있는 언어는 번역 + 뜻, 없는 언어(zh)는 뜻만
+    const ashiba = processor.buildContext(processor.process("아시바 위로 올라가", "ko"), "zh").terms[0]!;
+    expect(ashiba).not.toHaveProperty("target");
+    expect(ashiba.meaning).toMatch(/^= 비계\. /);
+    // 공단 사전에서 새로 들어온 은어
+    expect(processor.buildContext(processor.process("호리가다 먼저 해", "ko"), "ru").terms).toEqual([{ source: "호리가다", meaning: "= 터파기" }]);
+  });
+
+  it("일상 문장은 은어로 바뀌지 않는다 — 보정은 오인식형만 (나), 표준어·문장형 짧은 꼴 변형은 데이터에서 뺌 (가) (2026-10-23)", () => {
+    // 예전: "우리 오야지님 어디입니까 계세요" / "요코로 놓으세요" / "바라시하고 단도리 하세요"
+    for (const text of ["우리 반장님 어디 계세요", "가로로 놓으세요", "해체하고 준비 하세요", "점심은 현장 식당에서 먹어요", "천천히 하세요"]) {
+      expect(processor.process(text, "ko").correctedText).toBe(text);
+    }
+    const ids = (text: string) => processor.process(text, "ko").hits.map((hit) => hit.matched);
+    expect(ids("가로로 놓으세요")).toEqual([]);
+    expect(ids("해체하고 준비 하세요")).toEqual([]);
+    expect(ids("어디가 아파요")).toEqual([]);
+    // 은어 철자 변형은 그대로 감지된다
+    expect(processor.process("노가대 몇 명 왔어", "ko").hits).toMatchObject([{ matched: "노가대", kind: "variant", corrected: false }]);
+  });
+
+  it("고용노동부 안전표지 문장과 일치하면 중국어·우즈베크어 검증 번역을 쓴다", () => {
+    const result = processor.process("안전모 착용 필수!", "ko");
+    expect(processor.buildContext(result, "zh").phrase).toEqual({ source: "안전모 착용 필수", target: "必须佩戴安全帽" });
+    expect(processor.buildContext(result, "uz").phrase?.target).toBe("Xavfsizlik kaskasini taqish majburiy");
   });
 
   it("검증 문장(긴급 문장)과 일치하면 베트남어 문장 번역을 찾는다", () => {

@@ -4,7 +4,7 @@ import type { Lang } from "../shared/languages";
 import { BudgetExceededError, type BudgetGuard, type Reservation } from "../engine/budget/budgetGuard";
 import { durationUsage, type UsageTokens } from "../engine/budget/pricing";
 import { STT_PROMPT } from "../messaging/pipeline";
-import type { StreamGlossary } from "../engine/domain/domainProcessor";
+import type { ContextTerm, StreamGlossary } from "../engine/domain/domainProcessor";
 import {
   buildStreamInstructions,
   type ContextLine,
@@ -39,6 +39,9 @@ import {
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
 //   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
 //   - 언어 쌍 용어집(glossary)은 세션을 열 때 지시문 앞쪽에 고정 (2026-10-19, buildStreamInstructions)
+//   - 턴 용어(turnTerms, 2026-10-24 실험, 기본 off): 말하는 도중 전사 조각에서 이번 턴 용어(뜻·규칙)를 찾아 지시문 끝에 넣는다
+//       update: 찾는 즉시 session.update (자동 응답 그대로 — 말 끝 전에 도착해야 반영)
+//       create: 자동 응답을 끄고(create_response false) 말 끝(committed)에 response.create + 그 응답 전용 지시문으로 넣는다
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done / 전사 completed 사용량으로 기록 (BudgetGuard)
 //
 // 턴 짝짓기 (전사 세션 ↔ 번역 세션): 두 세션은 같은 음성·같은 VAD 설정이라 같은 자리에서 말 끝을 낸다고 가정하고,
@@ -57,6 +60,7 @@ const ORIGINAL_WAIT_MS = 4_000;
 const MIN_REMAINING_USD = 0.03;
 
 export type SessionKind = "conversation" | "transcription";
+export type TurnTermsMode = "off" | "update" | "create";
 
 export type RealtimeStreamOptions = {
   apiKey: string;
@@ -71,6 +75,8 @@ export type RealtimeStreamOptions = {
   budget: BudgetGuard;
   /** 전사 전용 세션을 열어 말하는 도중 원문 조각을 받는다 (기본 true). false 면 번역 세션이 전사까지 한다 (예전 동작) */
   liveTranscription?: boolean;
+  /** 턴 용어 넣는 방식 (2026-10-24 실험, docs/field-terms.md 8절). 기본 off. 쓰려면 open 에 turnTerms 함수도 넘긴다 */
+  turnTerms?: TurnTermsMode;
   /** 테스트용 엔드포인트 교체 */
   url?: string;
   log?: (message: string, detail?: Record<string, unknown>) => void;
@@ -102,16 +108,20 @@ export function isLiveTranscribeModel(model: string): boolean {
 /** 앱 언어 코드 → gpt-live-transcribe `languages` (ISO 639-1). 지금 5개 언어는 모두 ISO 639-1 과 같다 */
 const ISO_639_1: Record<Lang, string> = { ko: "ko", zh: "zh", vi: "vi", uz: "uz", ru: "ru" };
 
-/** 전사 세션 keywords 상한 (OpenAI 문서 기준 넉넉히) */
-const MAX_KEYWORDS = 50;
+/**
+ * 전사 세션 keywords 상한. OpenAI 문서에 개수 제한은 없다 (한 줄, `<` `>` 줄바꿈 금지만). 2026-10-24 50 → 400:
+ * 은어 전체(약 230개)를 넣어 말하는 도중 자막이 은어를 받아쓰게 한다 (docs/field-terms.md 9절)
+ */
+const MAX_KEYWORDS = 400;
 const MAX_KEYWORD_CHARS = 64;
 
-/** 용어집의 원문 언어 용어 → gpt-live-transcribe keywords: 한 줄짜리, `<` `>` 없는 것만, 중복 제거, 최대 50개 */
+/** 용어집의 원문 언어 용어 + 한국어 은어 → gpt-live-transcribe keywords: 한 줄짜리, `<` `>` 없는 것만, 중복 제거, 최대 400개 */
 export function transcriptionKeywords(glossary: StreamGlossary | undefined): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const term of glossary?.terms ?? []) {
-    const word = term.source.trim();
+  const words = [...(glossary?.terms ?? []).map((term) => term.source), ...(glossary?.slang ?? []).map((item) => item.source)];
+  for (const raw of words) {
+    const word = raw.trim();
     if (!word || word.length > MAX_KEYWORD_CHARS || /[\r\n<>]/.test(word) || seen.has(word)) continue;
     seen.add(word);
     out.push(word);
@@ -154,12 +164,12 @@ export class RealtimeStreamEngine implements StreamEngine {
 
   constructor(private readonly options: RealtimeStreamOptions) {}
 
-  async open({ sourceLang, targetLang, events, glossary }: StreamOpenOptions): Promise<StreamConnection> {
+  async open({ sourceLang, targetLang, events, glossary, turnTerms }: StreamOpenOptions): Promise<StreamConnection> {
     const status = await this.options.budget.status();
     if (status.remainingUsd < MIN_REMAINING_USD) {
       throw new BudgetExceededError(status.limitUsd, status.spentUsd, MIN_REMAINING_USD);
     }
-    const connection = new RealtimeConnection(this.options, sourceLang, targetLang, events, glossary);
+    const connection = new RealtimeConnection(this.options, sourceLang, targetLang, events, glossary, turnTerms);
     await connection.ready;
     return connection;
   }
@@ -194,6 +204,10 @@ type Turn = {
   /** 응답 뒤 원문을 기다리는 시간 / 전사만 있는 턴이 짝을 기다리는 시간 */
   originalTimer: NodeJS.Timeout | null;
   firstDeltaSeen: boolean;
+  /** 말하는 도중 전사 조각을 이어 붙인 것 (턴 용어 찾기용) */
+  partial: string;
+  /** 이 턴에 넣은 턴 용어의 원문 표현 (같으면 다시 보내지 않는다) */
+  termsKey: string;
 };
 
 class RealtimeConnection implements StreamConnection {
@@ -215,6 +229,9 @@ class RealtimeConnection implements StreamConnection {
   private readonly responseToTurn = new Map<string, Turn>();
   private bytesSinceCommit = 0;
   private context: ContextLine[] = [];
+  /** update 방식: 지금 세션 지시문 끝에 들어가 있는 턴 용어 */
+  private sessionTurnTerms: ContextTerm[] = [];
+  private readonly turnTermsMode: TurnTermsMode;
   private closedByUs = false;
   private failed = false;
 
@@ -224,7 +241,9 @@ class RealtimeConnection implements StreamConnection {
     private readonly targetLang: Lang,
     private readonly events: StreamEngineEvents,
     private readonly glossary?: StreamGlossary,
+    private readonly findTurnTerms?: (partialOriginal: string) => ContextTerm[],
   ) {
+    this.turnTermsMode = findTurnTerms ? (options.turnTerms ?? "off") : "off";
     const base = options.url ?? URL_BASE;
     const headers = { Authorization: `Bearer ${options.apiKey}` };
     const live = options.liveTranscription !== false;
@@ -299,7 +318,7 @@ class RealtimeConnection implements StreamConnection {
   }
 
   private sessionUpdate(full: boolean): object {
-    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary);
+    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, this.sessionTurnTerms);
     if (!full) return { type: "session.update", session: { type: "realtime", instructions } };
     const { options } = this;
     return {
@@ -313,7 +332,8 @@ class RealtimeConnection implements StreamConnection {
             format: { type: "audio/pcm", rate: RATE },
             // 전사 세션이 있으면 번역 세션은 전사하지 않는다 (받아쓰기 2번 청구 방지)
             ...(this.sttAlive ? {} : { transcription: this.transcriptionConfig() }),
-            turn_detection: this.turnDetection({ create_response: true, interrupt_response: false }),
+            // create 방식은 말 끝에 서버가 response.create 를 보낸다 (그 응답 전용 지시문에 턴 용어)
+            turn_detection: this.turnDetection({ create_response: this.turnTermsMode !== "create", interrupt_response: false }),
           },
           output: { format: { type: "audio/pcm", rate: RATE }, voice: options.voice },
         },
@@ -444,6 +464,8 @@ class RealtimeConnection implements StreamConnection {
         cancelled: false,
         originalTimer: null,
         firstDeltaSeen: false,
+        partial: "",
+        termsKey: "",
       };
       this.turns.set(turn.id, turn);
     }
@@ -472,7 +494,14 @@ class RealtimeConnection implements StreamConnection {
         // 서버 VAD 가 말 끝을 정해 확정함 → 턴 시작 (create_response 로 응답이 저절로 붙는다)
         // gpt-live-transcribe 전사 세션은 VAD 가 없어 같은 자리에서 서버가 commit 을 보내 그 턴의 전사 항목을 닫는다 (턴당 1번)
         if (this.sttAlive && this.liveStt) this.sendStt({ type: "input_audio_buffer.commit" });
-        if (event.item_id) void this.newTurn(event.item_id);
+        if (event.item_id) {
+          void this.newTurn(event.item_id);
+          if (this.turnTermsMode === "create") this.createResponse(this.turnFor("conversation", event.item_id));
+          else if (this.turnTermsMode === "update") {
+            const turn = this.turnFor("conversation", event.item_id);
+            this.options.trace?.("conversation", "turnTerms.atCommit", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
+          }
+        }
         break;
       case "response.created": {
         const turn = this.awaitingResponse.shift();
@@ -485,6 +514,11 @@ class RealtimeConnection implements StreamConnection {
         }
         turn.started = true;
         this.events.turnStart(turn.id);
+        // update 방식: 이 응답은 이미 만들어졌으므로 지시문 끝의 턴 용어를 비운다 (다음 턴에 남지 않게)
+        if (this.sessionTurnTerms.length > 0) {
+          this.sessionTurnTerms = [];
+          this.send(this.sessionUpdate(false));
+        }
         // 전사 세션이 번역 응답보다 먼저 완성본을 낸 경우: 턴이 시작된 지금 올린다 (듣는 사람 앱은 start 뒤의 자막만 받는다)
         if (turn.originalDone && turn.original) this.events.original(turn.id, turn.original);
         break;
@@ -570,7 +604,12 @@ class RealtimeConnection implements StreamConnection {
         turn.firstDeltaSeen = true;
         this.options.trace?.(source, `${event.type} (first)`, { itemId: event.item_id, turnId: turn.id, delta: event.delta });
       }
-      if (!turn.cancelled && event.delta) this.events.originalDelta(turn.id, event.delta);
+      if (!turn.cancelled && event.delta) {
+        this.events.originalDelta(turn.id, event.delta);
+        turn.partial += event.delta;
+        // update 방식: 번역 세션이 아직 말 끝을 안 냈으면 찾은 용어를 바로 지시문에 넣는다
+        if (this.turnTermsMode === "update" && turn.convItemId === null) this.updateTurnTerms(turn);
+      }
       return;
     }
     const text = event.type.endsWith("completed") ? (event.transcript ?? "").trim() : "";
@@ -591,6 +630,26 @@ class RealtimeConnection implements StreamConnection {
       return;
     }
     this.maybeFinish(turn);
+  }
+
+  /** update 방식: 이 턴 전사 조각에서 찾은 용어가 바뀌었으면 session.update 로 지시문 끝에 넣는다 */
+  private updateTurnTerms(turn: Turn): void {
+    const terms = this.findTurnTerms?.(turn.partial) ?? [];
+    const key = terms.map((term) => term.source).join("|");
+    if (key === turn.termsKey) return;
+    turn.termsKey = key;
+    this.sessionTurnTerms = terms;
+    this.send(this.sessionUpdate(false));
+    this.options.trace?.("conversation", "turnTerms.update", { turnId: turn.id, partial: turn.partial, terms: key });
+  }
+
+  /** create 방식: 말 끝에 지금까지의 전사 조각으로 턴 용어를 찾아 그 응답 전용 지시문으로 응답을 만든다 */
+  private createResponse(turn: Turn): void {
+    const terms = this.findTurnTerms?.(turn.partial) ?? [];
+    turn.termsKey = terms.map((term) => term.source).join("|");
+    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms);
+    this.send({ type: "response.create", response: { instructions } });
+    this.options.trace?.("conversation", "turnTerms.create", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
   }
 
   private turnOf(responseId: string | undefined): Turn | undefined {

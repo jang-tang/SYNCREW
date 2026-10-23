@@ -52,7 +52,8 @@
 2. **S3 실기기 시험 (iOS·Android)** — **Android: 10-23 Note 9 전부 통과(버그 6개 수정)**. iOS: 점검 화면·F 통과(10-17 밤), 10-19 2차 발견은 서버에서 수정. **남은 것(iOS): ⓪ 10-19–23 수정 뒤 iPhone 재확인(시드니 서버 포함) — 10/30 현장 시연 전 ① iOS 통화 시작 때 스피커에서도 에코 제거가 꺼지는 문제 확인·수정(가짜 엔진, 비용 0) ② 실제 OpenAI 로 iOS G·H(약 $0.5–1, 승인 후) ~~③ Android 전부~~ ✅ 10-23 Note 9 통과 (Android 12+ 기기는 미확인).** 상대는 `server/scripts/call-peer.ts`. 절차 `docs/HANDOFF.md` 7절. **iOS·Android 모두 확인**, 실기기에서 나오는 문제는 모듈 안에서 고친다
 3. **S4 1:1 통화(휴대폰 2대) → S6 실기기 튜닝** (지연 P50 ≤ 2.0초·P90 ≤ 3.0초, 무음 300–400ms·추론 minimal 실험, 헤드셋, 비용 약 $3–6 → 서버 한도 상향 전 금액 안내)
 4. 실기기에서만 확인 가능: 비밀번호 재설정 메일 링크 → 앱 열림, 사람 목소리로 받아쓰기("비계→기계" 재확인), 작업조·관리자 지정 화면의 네이티브 표시, 소리 품질·체감 지연
-5. 다른 팀원 몫: 노이즈 필터 — 스트리밍용 GTCRN 사이드카 연결 완료(10-19), 켤지 CER 비교로 결정(10/27)·발화 단위 `AUDIO_PREPROCESSOR` 남음, 현장 용어 데이터 보강(거푸집·안전모·안전고리 등, 중국어·러시아어·우즈베크어 번역)
+5. 다른 팀원 몫: 노이즈 필터 — 스트리밍용 GTCRN 사이드카 연결 완료(10-19), 켤지 CER 비교로 결정(10/27)·발화 단위 `AUDIO_PREPROCESSOR` 남음, ~~현장 용어 데이터 보강~~ → 5-2
+5-2. **현장 용어 데이터 (2026-10-23 장태웅 담당, `docs/field-terms.md`)**: 언어별 데이터셋 대신 **은어 → 표준 한국어** 중심 (사용자 결정). 다음: ① 스트리밍 한국어 뜻 용어집(코드, 비용 0) ② ko→zh 실측(약 $0.05–0.1, 승인 후) ③ 고용노동부 다국어 안전표지 → 검증 문장(이용 확인받음) ④ 은어 데이터 보강. **10-23 반영(미커밋)**: 공단 은어 210개 + 안전표지 검증 문장 19개 + 스트리밍 한국어 은어 뜻 → ko→zh·ru·uz 스트리밍 용어집 생김. 기존 seed 의 표준어→은어 보정 문제 해결(보정은 오인식형만 + 변형 정리). 서버 257 통과 (`docs/field-terms.md` 7절). **10-24**: 스트리밍 턴 용어 실험(효과 없음 — 자막이 은어를 잘못 받아씀, 기본 off) → 은어 230개 전부 미리 넣기(지시문 상한 7,500자), 은어 7문장 2→5 맞음 → 받아쓰기 keywords 에도 은어(자막 은어 0–1→4/11, 번역 6/7). OpenAI 누적 **$1.266** (`docs/field-terms.md` 8·9절)
 5-1. 보안 F12(LOW, 같은 언어 통화 대량 조각 → 앱 메모리) 미해결 / **10/31 AWS 시드니 자원 삭제** (`deploy/README.md` 8절)
 6. 나중에: UI 문구 원어민 검수, 업무용 메일 서비스(지금 개인 Gmail SMTP), 우즈베크어 통역 품질(보류), ~~용어집 지시문(보류)~~(2026-10-19 스트리밍에도 적용, `docs/streaming-plan.md` 4-2절), 백그라운드 통화 유지, 그룹 실시간 통역, 푸시 알림
 
@@ -69,7 +70,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**248개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**46개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**257개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**46개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
 4. **작업 환경(이 PC / 현슈 Mac)·연결된 기기·(이 PC 라면) 디스크 여유 15GB 이상을 먼저 확인**한다 (`df -h /System/Volumes/Data`, `docs/HANDOFF.md` 1·5·7절). 모자라거나 준비 전이면 그것부터 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $3 누적 중 약 $0.34 사용). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -106,7 +107,7 @@
 | 언어 | ko, zh, vi, uz, ru |
 | 번역 모델 | `gpt-realtime-2.1` (2026-10-12 `gpt-realtime-2`에서 교체, 같은 가격. 서버→OpenAI Realtime WebSocket, 음성+전사 출력). STT는 **`gpt-4o-transcribe`** (2026-10-14 mini 에서 교체 — 현장 용어·숫자가 더 정확, 용어 힌트는 오히려 나빠 쓰지 않음). 스트리밍 통화의 전사 전용 세션은 **`gpt-live-transcribe`**(`STREAM_STT_MODEL`, 2026-10-20, 말하는 도중 자막, $0.017/분). **번역 전용 `gpt-realtime-translate` 는 쓰지 않음** (2026-10-14 비교 측정 후 결정, 이유: `docs/s0-report.md` 4-3절) |
 | 비용 | BudgetGuard가 모든 호출을 감쌈. 서버 한도 **$3 누적** (10-12 $0.5 → 10-13 $3). 잔액 $80(10-14), 막 쓰지 않기 |
-| 현장 특화 처리 | 로직만 구현, 데이터셋은 어댑터로 교체 (기존 저장소 데이터는 샘플). 제조업 데이터여도 무방 |
+| 현장 특화 처리 | 로직만 구현, 데이터셋은 어댑터로 교체 (기존 저장소 데이터는 샘플). 제조업 데이터여도 무방. **2026-10-23: 은어 → 표준 한국어 중심, 언어별 번역은 검증 문장·실측 오역 단어만** (`docs/field-terms.md`) |
 | 노이즈 필터 / 보존 정책 | 다른 개발자가 구현 → 플러그인 인터페이스만 제공 (`server/src/plugins/`). **노이즈 필터는 서버에서 실행** (2026-10-14 결정) |
 | 블루투스 | 일반 헤드셋으로 취급 |
 | 제외 | 위험도 감지, 긴급 문장 원탭 전송, 구독·결제, 푸시 알림(추후) |
@@ -133,7 +134,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 248개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션(gpt-live-transcribe)·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
+cd server && npm run typecheck && npm test       # 테스트 257개 (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션(gpt-live-transcribe)·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)
