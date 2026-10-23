@@ -1,4 +1,5 @@
 import type { NativeRouteEvent, SyncrewDuplexNative } from "../../../modules/syncrew-duplex";
+import { holdSession, releaseSession } from "../sessionOwner";
 import { arrayBufferFromBase64, base64FromArrayBuffer } from "./base64";
 import { levelDbOf, type AudioFrame, type AudioRoute, type DuplexAudio } from "./types";
 
@@ -11,6 +12,8 @@ export function createNativeDuplex(native: SyncrewDuplexNative, requestPermissio
   const routeListeners = new Set<(route: AudioRoute, deviceName?: string) => void>();
   const playbackListeners = new Set<(state: { streamId: string | null; playing: boolean }) => void>();
   let lastRoute: { route: AudioRoute; name?: string } = { route: "unknown" };
+  /** 세션 표시(sessionOwner)를 마지막으로 잡은 start. 멈추는 사이 새 start 가 잡은 표시는 풀지 않는다 */
+  let holdToken = 0;
 
   native.addListener("onFrame", (event) => {
     if (frameListeners.size === 0) return;
@@ -25,6 +28,8 @@ export function createNativeDuplex(native: SyncrewDuplexNative, requestPermissio
   });
   native.addListener("onRoute", (event: NativeRouteEvent) => {
     lastRoute = { route: event.route, name: event.name ?? undefined };
+    // 실기기 확인용: iOS 는 에코 제거(voice processing)가 켜졌는지 함께 온다 (Android 는 없음)
+    if (__DEV__) console.log(`[duplex] route=${event.route} name=${event.name ?? "-"} voiceProcessing=${event.voiceProcessing ?? "n/a"}`);
     routeListeners.forEach((listener) => listener(lastRoute.route, lastRoute.name));
   });
   native.addListener("onPlayback", (event) => {
@@ -37,16 +42,24 @@ export function createNativeDuplex(native: SyncrewDuplexNative, requestPermissio
   return {
     async start(options) {
       if (!(await requestPermission().catch(() => false))) throw new Error("permission");
+      const token = ++holdToken;
+      holdSession();
       try {
         await native.start(options.sampleRate, options.frameMs, options.echoCancellation);
       } catch (error) {
+        if (token === holdToken) releaseSession();
         if ((error as { code?: string } | null)?.code === "permission") throw new Error("permission");
         throw error;
       }
     },
 
     async stop() {
-      await native.stop();
+      const token = holdToken;
+      try {
+        await native.stop();
+      } finally {
+        if (token === holdToken) releaseSession();
+      }
     },
 
     onFrame(listener) {

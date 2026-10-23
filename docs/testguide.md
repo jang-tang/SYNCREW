@@ -228,6 +228,29 @@ Android 헤드셋 마이크가 켜졌는지: `adb shell dumpsys audio | grep mSc
 - **Android 헤드셋(C)은 10-14 에 무음으로 실패했던 항목**이라 꼭 다시 본다: `EXPO_PUBLIC_STREAMING=off` 로 문장 단위에서 한 번, 스트리밍(F)에서 한 번.
 - 휴대폰 2대 동시 통화(다음 단계 S4)는 4-3의 "둘 다 무선" 구성이 먼저 필요하다.
 
+### 4-12. iPhone 에코 제거 확인 (2026-10-23 수정 뒤, 가짜 엔진 — 비용 0)
+고친 내용과 이유는 `docs/streaming-plan.md` 5-6절. **네이티브 코드가 바뀌었으므로 iPhone 개발 빌드(Debug)를 새로 설치**한다 (4-6). 서버는 `ENGINE=fake`, 휴대폰에는 관리자 e2e 계정, 상대는 4-8 스크립트(`npx tsx scripts/call-peer.ts`).
+
+**볼 로그 (Metro 출력, 터미널 3)**
+| 로그 | 뜻 |
+|---|---|
+| `[duplex] route=speaker name=… voiceProcessing=true` | 스피커인데 에코 제거가 켜짐 — **원하는 상태** |
+| `[duplex] route=bluetooth name=AirPods… voiceProcessing=false` | 에어팟일 때는 일부러 끈다 (정상) |
+| `[duplex] voice_processing_loop: …` | 재시작이 반복돼 에코 제거를 껐다 — **실패** |
+| `[duplex] restart_loop` / `restart_failed` | 오디오 엔진이 멈췄다 — **실패** |
+| `[duplex] session_overwritten: … (category=… mode=…)` | 앱의 다른 코드가 통화 세션을 바꿔서 되돌렸다. 되돌린 뒤 `voiceProcessing=true` 가 오면 통과지만, **괄호 안 값을 기록해 현슈에게 전달** (막지 못한 경로가 있다는 뜻) |
+| `[audio-mode] skipped while streaming call holds the session: …` | 통화 중 세션을 바꾸려던 호출을 막았다 (정상 — 이번 문제의 원인 후보가 실제로 불렸다는 증거라 **몇 번, 어떤 값이었는지 기록**) |
+
+더 자세한 네이티브 로그(`[duplex-diag]`)가 필요하면 앱을 `xcrun devicectl device process launch --console --device <기기 ID> --terminate-existing com.syncfield.syncrew` 로 켠다.
+
+**순서와 통과 기준**
+1. **점검 화면 회귀** (`syncrew:///audio-check`, 스피커): 시험음 중 마이크 최대가 말소리보다 충분히 낮다 (10-17: 말소리 약 -15dB, 시험음 중 약 -62dB)
+2. **스피커로 시작한 통화 5번** (에어팟 끄고): 걸기 → 받기 → 상대가 2–3번 말할 때까지 → 끊기. 통과 = **5번 모두** 통화 시작 뒤 `voiceProcessing=true` 가 오고 `voice_processing_loop`·`restart_loop` 가 한 번도 없음. 상대 스크립트의 `◀ 휴대폰 말` 이 상대가 말한 직후(통역 재생 중)에 생기지 않음
+3. **통화 중 전환**: 에어팟으로 시작(`voiceProcessing=false`) → 통화 중 에어팟을 케이스에 넣음 → 1–2초 안에 `route=speaker … voiceProcessing=true` → 다시 꺼내 연결 → `route=bluetooth … voiceProcessing=false`. 소리가 끊긴 뒤 계속 들림
+4. **2번에서 `voice_processing_loop` 가 났다면** (실패로 기록하고 이어서): 그 통화에서 에어팟을 연결했다 끊어 스피커로 돌아오면 `voiceProcessing=true` 로 다시 켜지는지 본다 — 이번 수정 ②(예전에는 끝까지 꺼져 있었음)
+5. **문장 단위 회귀**: ① 스트리밍 통화 중 iPhone Wi-Fi 를 5초 껐다 켬 → 문장 단위로 넘어가면 말한 것이 상대 스크립트에 `◀ 기록 도착` 으로 옴(녹음됨) ② `frontend/.env` 에 `EXPO_PUBLIC_STREAMING=off` 로 Metro 재시작 → 문장 단위 통화에서 녹음·통역 재생이 됨 (스피커·에어팟). 끝나면 `.env` 원복
+6. 결과를 `docs/device-test-log.md` 에 표로 (회차별 `voiceProcessing`·`session_overwritten`·`skipped` 횟수). 모두 통과하면 실제 OpenAI 로 G·H (5장, 비용 승인 후)
+
 ### 4-11. 로그 보기 (문제가 생겼을 때)
 - iPhone 앱 로그: 터미널 3(Metro) 출력
 - Android 앱 로그: `adb logcat | grep ReactNativeJS`

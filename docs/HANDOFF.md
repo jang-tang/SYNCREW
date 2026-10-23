@@ -17,6 +17,7 @@
 - 기능: 1:1 대화, 현장 그룹 대화, 관리자 일괄 지시(문자·실시간 음성) + 확인·완료 응답, **1:1 실시간 통역 통화**
 
 ### 현재 상태 (2026-10-23) — 한 줄 요약: **"Android(Note 9)는 스트리밍·문장 단위·헤드셋·스피커·에코·Wi-Fi 끊김까지 모두 통과했다(버그 6개 수정). 남은 것은 iPhone 재확인(에코 제거 문제 포함)과 휴대폰 2대 통화(S4) — 10/30 시연은 Android·iPhone 모두 쓴다"**
+- **2026-10-23 낮 iOS 에코 제거 꺼짐 수정 (현슈, 실기기 없이, 브랜치 `fix/ios-echo-cancellation`)** — `docs/streaming-plan.md` 5-6절: ① 반복 보호가 앱 요청 값을 지워 경로가 바뀌어도 다시 안 켜지던 것 → 요청과 반복 보호를 나누고 장치 변경 때 다시 켬(코드로 원인 확인) ② 통화에서만 꺼지던 것 → expo-audio `setAudioModeAsync` 가 통화 세션을 덮어쓴 것으로 추정, 앱은 통화 중 막고(`src/audio/sessionOwner.ts`·`audioMode.ts`) 네이티브는 감지해 되돌림(`session_overwritten`). 타입 검사·단위 52·Swift 모듈 컴파일 통과, **실기기 확인 전 → 장태웅이 `docs/testguide.md` 4-12절**
 - **10-22 결정 (사용자)**: 10/30 시연에 Android·iPhone 모두 사용, **모든 시험은 장태웅이 이 PC 에서** (현슈 Mac 아님)
 - **2026-10-19–22 현슈 작업 (PR #2–#10, `main` `3d72cad`)** — 상세는 2절 "보안 검사"·"말하는 도중 원문 자막"·"전사 전용 세션"·"반이중 메아리 차단"·"말 끝 판단 변경"
   - **AWS 시드니 배포** (#2, `deploy/README.md`): https://syncrew.hyunshu.com, EC2 + RDS + Docker Compose(Caddy). 운영 10/20–10/31, **10/30 현장 시연, 10/31 모두 삭제**. 로컬 PC 실행도 그대로 된다
@@ -438,7 +439,7 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 
 ### 실행 순서 — iOS (iPhone + AirPods)
 1. 서버 `ENGINE=fake` + DB, 네트워크·Metro·빌드는 아래 "실기기 실행 절차"대로 (**DEBUG 빌드** — `[duplex-diag]` 로그가 나와야 함)
-2. **통화 시작 때 에코 제거가 꺼지는 문제** (비용 0):
+2. **통화 시작 때 에코 제거가 꺼지는 문제** (비용 0) — **2026-10-23 현슈가 실기기 없이 고침(브랜치 `fix/ios-echo-cancellation`, `docs/streaming-plan.md` 5-6절). 확인 절차·볼 로그·통과 기준은 `docs/testguide.md` 4-12절** — 아래는 수정 전 메모:
    - 스피커(에어팟 끊고)로 `call-peer.ts` 통화를 3–5번 시작하며 `[duplex-diag]` 로그와 앱 `onError`(`voice_processing_loop`) 를 본다. 점검 화면(`/audio-check`)에서는 켜져 있었고 통화에서는 꺼졌으므로, **두 경우의 차이**(통화 화면이 먼저 다른 오디오 — expo-audio 재생·녹음 — 를 쓰고 있었는지, 세션 카테고리·샘플레이트가 바뀌는지, 시작 직후 경로 변경 알림이 오는지)를 로그로 비교한다
    - 고칠 후보 (원인을 보고 정한다): 엔진 시작 전 세션 설정을 끝내고 잠깐 기다리기, 설정 변경 알림 직후 재구성을 짧게 미뤄 묶기, 형식이 그대로면 재구성 대신 `engine.start()` 만 다시(코드에 `tapFormat` 이 준비돼 있으나 아직 안 씀), 통화 화면이 expo-audio 를 먼저 놓게 하기. 통화 도중 에어팟 → 스피커 전환에서도 에코 제거가 다시 켜지게
    - 완료 기준: 스피커로 시작한 통화 5번 모두 `voice_processing_loop` 없이 에코 제거가 켜진 상태(진단 로그 `vp=true`), 점검 화면의 시험음 중 마이크가 말소리보다 충분히 낮음

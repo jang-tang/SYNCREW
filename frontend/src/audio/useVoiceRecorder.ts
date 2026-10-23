@@ -1,12 +1,12 @@
 import {
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
   RecordingPresets,
   useAudioRecorder,
   type RecordingOptions,
 } from "expo-audio";
 import { useRef, useState } from "react";
 import { Platform } from "react-native";
+import { setAudioMode } from "./audioMode";
 import { preprocessRecording } from "./preprocess";
 import { stopPlayback } from "./playback";
 
@@ -35,7 +35,7 @@ export function useVoiceRecorder() {
     try {
       stopPlayback();
       starting.current = (async () => {
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setAudioMode({ allowsRecording: true, playsInSilentMode: true });
         await recorder.prepareToRecordAsync();
         recorder.record();
       })();
@@ -59,7 +59,7 @@ export function useVoiceRecorder() {
       await recorder.stop();
     } finally {
       setRecording(false);
-      await setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+      await setAudioMode({ allowsRecording: false }).catch(() => undefined);
     }
     if (durationMs < MIN_DURATION_MS) return "too_short";
     if (!recorder.uri) return "failed";

@@ -13,7 +13,12 @@ export type NativeFrameEvent = {
   timestamp: number;
 };
 
-export type NativeRouteEvent = { route: NativeRoute; name: string | null };
+export type NativeRouteEvent = {
+  route: NativeRoute;
+  name: string | null;
+  /** iOS: 지금 엔진에 에코 제거(voice processing)가 켜져 있는지. Android 는 보내지 않는다 */
+  voiceProcessing?: boolean;
+};
 export type NativePlaybackEvent = { streamId: string | null; playing: boolean };
 export type NativeErrorEvent = { code: string; message: string };
 

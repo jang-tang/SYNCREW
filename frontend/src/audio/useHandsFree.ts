@@ -1,7 +1,6 @@
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  setAudioModeAsync,
   useAudioRecorder,
   type RecordingOptions,
 } from "expo-audio";
@@ -9,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import type { DeviceStatus } from "@shared/api";
 import { selectHeadsetInput } from "./audioDevice";
+import { setAudioMode } from "./audioMode";
 import { enterCallRoute, exitCallRoute } from "./duplex";
 import { setMicLevel, setMicLevelDb } from "./micLevel";
 import { usePlaybackStore } from "./playback";
@@ -180,7 +180,7 @@ export function useHandsFree(options: {
         return;
       }
       try {
-        await setAudioModeAsync({
+        await setAudioMode({
           allowsRecording: true,
           playsInSilentMode: true,
           interruptionMode: "doNotMix",
@@ -206,11 +206,12 @@ export function useHandsFree(options: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active, shouldRecord, error]);
 
-  // 세션이 끝나면 녹음을 멈추고 녹음 모드·통화 경로를 푼다
+  // 세션이 끝나면 녹음을 멈추고 녹음 모드·통화 경로를 푼다.
+  // 통화 화면이 처음 뜰 때(아직 꺼진 상태)도 여기를 지나므로, iOS 에서 스트리밍 통화가 세션을 쓰는 중이면 setAudioMode 가 건너뛴다 (sessionOwner.ts)
   useEffect(() => {
     if (options.active) return;
     void stopSegment()
-      .then(() => setAudioModeAsync({ allowsRecording: false }).catch(() => undefined))
+      .then(() => setAudioMode({ allowsRecording: false }).catch(() => undefined))
       .then(() => exitCallRoute());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.active]);
