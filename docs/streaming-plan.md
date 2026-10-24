@@ -459,6 +459,8 @@ buildEngine … vp=false → engine started isRunning=true … outHw=2 ch, 48000
 - `setPreferredIOBufferDuration(0.02)` 를 빼 보기 (설정 변경의 다른 원인 후보)
 - 재현: 점검 화면이 아니라 **스피커로 시작한 통화**에서 매번 난다 (`ENGINE=fake`, `call-peer.ts`, 비용 0)
 
+**10-24 후보 시험 장치 (현슈, 실기기 없이)**: 위 후보 3개에 하나를 더해 빌드 하나로 바꿔 볼 수 있게 했다 — 기본값은 지금 동작 그대로, 개발 빌드에서 `EXPO_PUBLIC_DUPLEX_EXPERIMENTS` 로 켠다 (`connect48`·`connectHw`·`modeDefault`·`noIOBuffer`·`inPlace`, 절차 `docs/testguide.md` 4-13절). 더한 후보 `inPlace`: 지금 복구는 설정 변경마다 엔진을 버리면서 voice processing 을 끄고(`teardownEngine`) 새 엔진에서 다시 켠다. 이 토글 자체가 세션 입출력 설정을 다시 바꿔(로그의 `routeConfigurationChange` × 2) 다음 설정 변경을 부르는 것일 수 있다 → 같은 엔진을 voice processing 을 켠 채 다시 시작한다. 입력 형식이 바뀌었거나 시작에 실패하면 예전처럼 새로 만들고, 반복 보호도 그대로다. 진단 로그에 `outIn`(출력 노드 입력 형식)·세션 mode 를 더했다. Swift 모듈 컴파일·앱 타입 검사·단위 52 통과, **실기기 확인 전**
+
 기타 관찰: 스피커 출력 음량이 조금 작다(점검 화면). 스트리밍 재연결은 Wi-Fi 다시 붙는 시간 포함 약 12초(Android 0.3초), 끊긴 동안 한 말은 전달 안 됨(설계상 한계). 걸려 온 전화는 그 현장 화면 안에서만 뜬다 — 시연 순서에 반영
 
 ## 6. 비용 추정

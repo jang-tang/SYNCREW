@@ -1,4 +1,5 @@
 import type { NativeRouteEvent, SyncrewDuplexNative } from "../../../modules/syncrew-duplex";
+import { DUPLEX_EXPERIMENTS } from "../../config";
 import { holdSession, releaseSession } from "../sessionOwner";
 import { arrayBufferFromBase64, base64FromArrayBuffer } from "./base64";
 import { levelDbOf, type AudioFrame, type AudioRoute, type DuplexAudio } from "./types";
@@ -14,6 +15,11 @@ export function createNativeDuplex(native: SyncrewDuplexNative, requestPermissio
   let lastRoute: { route: AudioRoute; name?: string } = { route: "unknown" };
   /** 세션 표시(sessionOwner)를 마지막으로 잡은 start. 멈추는 사이 새 start 가 잡은 표시는 풀지 않는다 */
   let holdToken = 0;
+
+  if (__DEV__ && DUPLEX_EXPERIMENTS && native.setExperiments) {
+    native.setExperiments(DUPLEX_EXPERIMENTS);
+    console.log(`[duplex] experiments=${DUPLEX_EXPERIMENTS}`);
+  }
 
   native.addListener("onFrame", (event) => {
     if (frameListeners.size === 0) return;

@@ -45,6 +45,11 @@ export interface SyncrewDuplexNative {
    */
   playInCall?(url: string): Promise<boolean>;
   stopInCall?(): void;
+  /**
+   * iOS 실기기 시험용: 스피커 에코 제거 꺼짐(docs/streaming-plan.md 5-7절) 후보를 쉼표로 켠다 (다음 start 부터).
+   * inPlace·connect48·connectHw·modeDefault·noIOBuffer. Android 에는 없다
+   */
+  setExperiments?(raw: string): void;
   addListener(event: "onFrame", listener: (event: NativeFrameEvent) => void): Subscription;
   addListener(event: "onRoute", listener: (event: NativeRouteEvent) => void): Subscription;
   addListener(event: "onPlayback", listener: (event: NativePlaybackEvent) => void): Subscription;

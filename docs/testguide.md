@@ -257,6 +257,28 @@ Android 헤드셋 마이크가 켜졌는지: `adb shell dumpsys audio | grep mSc
 - ⑤① Wi-Fi 끄기: 휴대폰이 다른 Wi-Fi 에 자동으로 붙으면 PC 에 못 닿아 20초 뒤 통화가 끝난다 → 그 Wi-Fi 의 "자동 연결" 끄기
 - 무선으로 빌드 설치·네이티브 로그 수집이 된다: `xcrun devicectl device process launch --console --device <ID> --terminate-existing com.syncfield.syncrew > ios-console.log` (Wi-Fi 를 끄면 수집이 끊긴다)
 
+### 4-13. iPhone 스피커 에코 제거 후보 시험 (2026-10-24 추가, 가짜 엔진 — 비용 0)
+10-24 에 남은 문제(스피커에서 에코 제거가 2–4초 뒤 꺼짐, `docs/streaming-plan.md` 5-7절)의 후보 5개를 **개발 빌드 하나로** 바꿔 가며 본다. 네이티브는 한 번만 새로 설치하고(4-6), 후보는 `frontend/.env` 의 `EXPO_PUBLIC_DUPLEX_EXPERIMENTS` 로 고른다. 비워 두면 지금 동작 그대로다 (출시 빌드에는 영향 없음 — 앱은 개발 빌드에서만 넘긴다).
+
+| 값 | 바꾸는 것 |
+|---|---|
+| (빈 값) | 기준: 지금 동작 — 먼저 증상이 재현되는지 |
+| `inPlace` | 설정 변경으로 멈추면 엔진을 버리지 않고 그 자리에서 다시 시작 (재구성마다 에코 제거를 껐다 켜는 것이 다시 설정 변경을 부르는지) |
+| `connect48` | mainMixer → 출력을 48kHz 로 명시 연결 |
+| `connectHw` | mainMixer → 출력을 출력 장치 형식(44.1kHz 로 보이는 값)으로 명시 연결 |
+| `modeDefault` | 세션 mode 를 `voiceChat` 대신 `default` |
+| `noIOBuffer` | `setPreferredIOBufferDuration(0.02)` 를 부르지 않음 |
+
+**한 후보마다**
+1. `frontend/.env` 에 `EXPO_PUBLIC_DUPLEX_EXPERIMENTS=<값>` → Metro 를 `--clear` 로 다시 켠다 (값은 번들에 들어간다)
+2. 앱을 **완전히 끄고** 다시 켠다 — 세션 설정이 앱 프로세스에 남으므로 `xcrun devicectl device process launch --console --device <ID> --terminate-existing com.syncfield.syncrew > vp-<값>.log`
+3. Metro 에 `[duplex] experiments=<값>` 이 찍히는지 확인
+4. 에어팟을 끄고 **스피커로 통화 3번** (`call-peer.ts`, 상대가 2–3번 말할 때까지)
+
+**통과 기준**: 3번 모두 통화 시작 뒤 30초 동안 `voiceProcessing=true` 가 유지되고 `voice_processing_loop`·`restart_loop` 없음. `[duplex-diag]` 의 `recover:`·`inPlace:` 가 통화당 1번 이하. 통과한 후보가 있으면 점검 화면 회귀(4-12 ①)·에어팟 전환(4-12 ③)까지 보고, **실제 OpenAI 로 G** 를 한 번 더 한다 (5장, 비용 승인 후). 하나만으로 안 되면 `inPlace,connect48` 처럼 쉼표로 묶어 본다.
+
+**기록**: 후보마다 `docs/device-test-log.md` 에 한 줄로 (값, 통과 횟수/3, `recover:` 횟수). `vp-<값>.log` 의 `engine started … outHw=… outIn=…`·`inPlace:` 줄을 현슈에게 전달한다. 통과한 값은 코드 기본값으로 바꾸고(현슈) 이 환경 변수는 지운다. 끝나면 `.env` 에서 이 줄을 지운다.
+
 ### 4-11. 로그 보기 (문제가 생겼을 때)
 - iPhone 앱 로그: 터미널 3(Metro) 출력
 - Android 앱 로그: `adb logcat | grep ReactNativeJS`

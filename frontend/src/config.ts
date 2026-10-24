@@ -20,6 +20,9 @@ if (API_MODE === "live" && !__DEV__ && !isAllowedReleaseApiUrl(API_BASE_URL)) {
 /** 1:1 통화 스트리밍 통역 (기본 켜짐). off 면 항상 발화 단위 방식 — 서버 STREAMING=off 와 같은 효과 */
 export const STREAMING_ENABLED = process.env.EXPO_PUBLIC_STREAMING !== "off";
 
+/** iOS 실기기 시험용 이중 오디오 후보 (예: "inPlace,connect48", docs/streaming-plan.md 5-7절). 개발 빌드에서만 쓴다 */
+export const DUPLEX_EXPERIMENTS = process.env.EXPO_PUBLIC_DUPLEX_EXPERIMENTS ?? "";
+
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 export const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 
