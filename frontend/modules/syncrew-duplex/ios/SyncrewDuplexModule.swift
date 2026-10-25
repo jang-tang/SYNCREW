@@ -49,6 +49,11 @@ public class SyncrewDuplexModule: Module {
       self.duplex.stopPlayback()
     }
 
+    // 실기기 시험용: 스피커 에코 제거 꺼짐(docs/streaming-plan.md 5-7절) 후보를 켠다. 앱은 개발 빌드에서만 부른다
+    Function("setExperiments") { (raw: String) in
+      self.duplex.setExperiments(raw)
+    }
+
     // iOS 는 발화 단위 통화의 경로를 expo-audio(playAndRecord + 블루투스 HFP)가 잡는다 → 현재 경로만 알려 준다
     AsyncFunction("enterCallRoute") { () -> [String: Any] in
       DuplexEngine.currentRoute().mapValues { $0 ?? NSNull() }
@@ -113,6 +118,14 @@ final class DuplexEngine {
   private static let recoveryWindow: TimeInterval = 10
   /** 지금 엔진에 voice processing 을 실제로 켰는지 (블루투스 헤드셋에서는 끈다 — 아래 shouldUseVoiceProcessing) */
   private var vpActive = false
+  /**
+   * 실기기 시험용 후보 (docs/streaming-plan.md 5-7절, 기본은 비어 있음 = 지금 동작). 다음 start 부터 적용:
+   * - inPlace: 설정 변경으로 멈추면 엔진을 버리지 않고 그 자리에서 다시 시작 (재구성마다 voice processing 을 껐다 켜는 것이 다시 설정 변경을 부르는지)
+   * - connect48 / connectHw: mainMixer → output 을 48kHz / 출력 장치 형식으로 명시 연결
+   * - modeDefault: 세션 mode 를 voiceChat 대신 default (voiceChat 의 시스템 처리와 겹치는지)
+   * - noIOBuffer: setPreferredIOBufferDuration 을 부르지 않음
+   */
+  private var experiments: Set<String> = []
 
   // 캡처 (captureLock)
   private var outFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
@@ -154,6 +167,19 @@ final class DuplexEngine {
   }
 
   // MARK: - 시작·정지
+
+  /** 쉼표로 나눈 후보 이름 (위 experiments). 빈 문자열이면 모두 끈다 */
+  func setExperiments(_ raw: String) {
+    queue.async {
+      self.experiments = Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+      dlog("experiments=\(self.experiments.sorted())")
+    }
+  }
+
+  /** 통화 세션 mode (시험 후보 modeDefault 가 아니면 voiceChat) */
+  private var sessionMode: AVAudioSession.Mode {
+    experiments.contains("modeDefault") ? .default : .voiceChat
+  }
 
   func start(sampleRate: Double, frameMs: Int, echoCancellation: Bool, done: @escaping (Error?) -> Void) {
     queue.async {
@@ -211,13 +237,15 @@ final class DuplexEngine {
 #else
     options.insert(.allowBluetooth)
 #endif
-    try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
+    try session.setCategory(.playAndRecord, mode: sessionMode, options: options)
     // voice processing 을 켜면 출력이 44.1kHz, 입력은 48kHz 로 어긋나 iOS 가 설정을 계속 다시 잡는 일이 있었다
     // (2026-10-17 iPhone 15 Pro Max: 0.4초마다 엔진 재구성 반복) → 입출력을 48kHz 로 맞춰 둔다
     try? session.setPreferredSampleRate(48_000)
-    try? session.setPreferredIOBufferDuration(0.02)
+    if !experiments.contains("noIOBuffer") {
+      try? session.setPreferredIOBufferDuration(0.02)
+    }
     try session.setActive(true)
-    dlog("session sampleRate=\(session.sampleRate) ioBuffer=\(session.ioBufferDuration) route=\(DuplexEngine.currentRoute())")
+    dlog("session sampleRate=\(session.sampleRate) ioBuffer=\(session.ioBufferDuration) mode=\(session.mode.rawValue) route=\(DuplexEngine.currentRoute())")
     preferHeadsetInput()
   }
 
@@ -239,9 +267,9 @@ final class DuplexEngine {
    */
   private func ensureSession(_ why: String) -> Bool {
     let session = AVAudioSession.sharedInstance()
-    guard session.category != .playAndRecord || session.mode != .voiceChat else { return false }
+    guard session.category != .playAndRecord || session.mode != sessionMode else { return false }
     let found = "category=\(session.category.rawValue) mode=\(session.mode.rawValue)"
-    dlog("session overwritten (\(why)): \(found) — restoring playAndRecord/voiceChat")
+    dlog("session overwritten (\(why)): \(found) — restoring playAndRecord/\(sessionMode.rawValue)")
     emit("onError", ["code": "session_overwritten", "message": "통화 중 오디오 세션이 바뀌어 되돌렸습니다 (\(found))."])
     do {
       try configureSession()
@@ -301,6 +329,14 @@ final class DuplexEngine {
     let player = AVAudioPlayerNode()
     engine.attach(player)
     engine.connect(player, to: engine.mainMixerNode, format: playFormat)
+    let outHw = engine.outputNode.outputFormat(forBus: 0)
+    if experiments.contains("connect48") || experiments.contains("connectHw") {
+      let rate = experiments.contains("connect48") ? 48_000 : outHw.sampleRate
+      if rate > 0, let mixFormat = AVAudioFormat(standardFormatWithSampleRate: rate, channels: max(1, outHw.channelCount)) {
+        engine.connect(engine.mainMixerNode, to: engine.outputNode, format: mixFormat)
+        dlog("experiment: mainMixer -> output format=\(mixFormat) (outHw=\(outHw))")
+      }
+    }
     engine.prepare()
     do {
       try engine.start()
@@ -309,7 +345,7 @@ final class DuplexEngine {
       throw error
     }
     player.play()
-    dlog("engine started isRunning=\(engine.isRunning) route=\(DuplexEngine.currentRoute()) outHw=\(engine.outputNode.outputFormat(forBus: 0)) mixerOut=\(engine.mainMixerNode.outputFormat(forBus: 0))")
+    dlog("engine started isRunning=\(engine.isRunning) route=\(DuplexEngine.currentRoute()) outHw=\(engine.outputNode.outputFormat(forBus: 0)) outIn=\(engine.outputNode.inputFormat(forBus: 0)) mixerOut=\(engine.mainMixerNode.outputFormat(forBus: 0))")
     self.engine = engine
     self.player = player
   }
@@ -372,8 +408,41 @@ final class DuplexEngine {
       vpSuppressed = true
       emit("onError", ["code": "voice_processing_loop", "message": "에코 제거를 끄고 오디오를 다시 시작합니다."])
     }
+    if experiments.contains("inPlace"), vpActive == shouldUseVoiceProcessing(), restartInPlace() { return }
     dlog("recover: rebuilding engine (#\(recoveries.count), requested=\(echoCancellation) suppressed=\(vpSuppressed))")
     restartEngine()
+  }
+
+  /**
+   * 시험 후보 inPlace: 엔진을 버리지 않고(voice processing 도 그대로 둔 채) 다시 시작한다. 됐으면 true.
+   * 입력 형식이 바뀌었거나 시작에 실패하면 false → 예전처럼 엔진을 새로 만든다.
+   */
+  private func restartInPlace() -> Bool {
+    guard let engine, let player, let tapFormat else { return false }
+    let inFormat = engine.inputNode.outputFormat(forBus: 0)
+    guard inFormat == tapFormat else {
+      dlog("inPlace: input format changed \(tapFormat) -> \(inFormat), rebuilding")
+      return false
+    }
+    let playingId = currentStream
+    generation += 1
+    scheduled = 0
+    currentStream = nil
+    player.stop()
+    engine.prepare()
+    do {
+      try engine.start()
+    } catch {
+      dlog("inPlace: start failed \(error.localizedDescription), rebuilding")
+      return false
+    }
+    player.play()
+    dlog("inPlace: restarted (#\(recoveries.count)) isRunning=\(engine.isRunning) vp=\(engine.inputNode.isVoiceProcessingEnabled) outHw=\(engine.outputNode.outputFormat(forBus: 0))")
+    if let playingId {
+      emit("onPlayback", ["streamId": playingId, "playing": false])
+    }
+    emitRoute()
+    return true
   }
 
   // MARK: - 캡처 (탭 스레드)

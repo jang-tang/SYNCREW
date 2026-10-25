@@ -44,8 +44,8 @@ sudo -i                                                                 # EC2 �
 ```
 
 ```bash
-git clone https://github.com/jang-tang/SYNCREW.git /opt/syncrew
-cd /opt/syncrew/deploy
+git clone https://github.com/jang-tang/SYNCREW.git /opt/syncrew/app
+cd /opt/syncrew/app/deploy
 ./render-env.sh fake                              # .env 생성 (처음엔 가짜 엔진, 비용 0)
 docker compose build server                       # 서버 이미지 (c7g 에서 수 분)
 docker compose run --rm server npm run db:deploy  # 마이그레이션 (컨테이너 안 prisma migrate deploy → RDS)
@@ -69,7 +69,7 @@ aws ssm send-command --region ap-southeast-2 \
   --instance-ids <인스턴스 ID> \
   --document-name AWS-RunShellScript \
   --comment "syncrew update" \
-  --parameters 'commands=["set -e","cd /opt/syncrew","docker image inspect syncrew-server:latest >/dev/null 2>&1 && docker tag syncrew-server:latest syncrew-server:prev","git fetch origin","git checkout -q main","git pull --ff-only","cd deploy","docker compose build server","docker compose run --rm server npm run db:deploy","docker compose up -d","sleep 20","docker compose ps"]' \
+  --parameters 'commands=["set -e","cd /opt/syncrew/app","docker image inspect syncrew-server:latest >/dev/null 2>&1 && docker tag syncrew-server:latest syncrew-server:prev","git fetch origin","git checkout -q main","git pull --ff-only","cd deploy","docker compose build server","docker compose run --rm server npm run db:deploy","docker compose up -d","sleep 20","docker compose ps"]' \
   --query Command.CommandId --output text
 
 aws ssm get-command-invocation --region ap-southeast-2 \
@@ -77,13 +77,16 @@ aws ssm get-command-invocation --region ap-southeast-2 \
   --query '[Status,StandardOutputContent,StandardErrorContent]' --output text
 ```
 
+- 이 배포의 값: 인스턴스 `i-02fb59a8e7cc7da4d`(`syncrew-server`), 저장소 위치 `/opt/syncrew/app`. 내 PC 의 AWS CLI 는 `--profile syncrew`(로그인 `aws login --profile syncrew`, 세션이 만료되면 다시)
+- 설정 기본값이 바뀐 업데이트(예: 10-24 `STREAM_VAD_SILENCE_MS=350`)는 `docker compose build server` 앞에 `./render-env.sh <지금 엔진> <지금 필터>` 를 넣는다 (지금 값: `grep "^# ENGINE=" .env`). 새 마이그레이션이 없으면 `db:deploy` 는 건너뛰어도 된다 (`git diff --stat <서버 커밋> origin/main -- server/prisma`)
+- 2026-10-24: 계정이 지출 한도에 걸려 EC2 가 멈추고 RDS 가 `inaccessible-encryption-credentials-recoverable`(KMS 키 접근 불가)이 됐다. 한도를 푼 뒤에도 KMS 가 한동안 "account is not active" 로 거절했고, 그동안 EC2 시작은 `Client.InvalidKMSKey` 로 실패했다. KMS 가 풀린 뒤 RDS·EC2 를 시작하니 복구됐다 (RDS 는 이 상태로 약 7일이 지나면 복구 불가)
 - 서버를 바꾸는 동안 통화·업로드가 끊긴다 (서버는 진행 중 통역을 최대 5초 기다린 뒤 종료, 앱은 다시 연결한다). 시연 중에는 업데이트하지 않는다
 - `Caddyfile` 만 바꿨다면: `docker compose restart caddy` (또는 `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`)
 
 ## 4. 로그·상태 보기
 
 ```bash
-cd /opt/syncrew/deploy
+cd /opt/syncrew/app/deploy
 docker compose ps                          # 상태·healthcheck
 docker compose logs -f --tail=200 server   # 서버 (pino JSON)
 docker compose logs -f --tail=100 caddy    # 접속·인증서
@@ -97,7 +100,7 @@ df -h / && docker system df                # 디스크
 ## 5. ENGINE 전환 (fake ↔ openai)
 
 ```bash
-cd /opt/syncrew/deploy
+cd /opt/syncrew/app/deploy
 ./render-env.sh openai && docker compose up -d server   # 실제 OpenAI (비용 발생)
 ./render-env.sh fake   && docker compose up -d server   # 가짜 엔진으로 되돌리기 (비용 0)
 ```
@@ -111,13 +114,13 @@ cd /opt/syncrew/deploy
 ## 6. 롤백
 
 ```bash
-cd /opt/syncrew/deploy
+cd /opt/syncrew/app/deploy
 # A. 직전 이미지로 (3절 업데이트가 남긴 prev)
 docker tag syncrew-server:prev syncrew-server:latest
 docker compose up -d --no-build server
 
 # B. 특정 커밋으로 다시 빌드
-cd /opt/syncrew && git checkout -q <커밋> && cd deploy
+cd /opt/syncrew/app && git checkout -q <커밋> && cd deploy
 docker compose up -d --build server
 # 고친 뒤 main 으로 복귀: git checkout -q main && git pull --ff-only
 ```
@@ -133,7 +136,7 @@ docker compose up -d --build server
 켜기 (fake 엔진으로 먼저 확인, 비용 0):
 
 ```bash
-cd /opt/syncrew/deploy
+cd /opt/syncrew/app/deploy
 ./render-env.sh fake sidecar                    # .env: STREAM_AUDIO_FILTER=sidecar, DENOISE_URL='ws://denoise:8765'
 docker compose --profile denoise up -d --build  # denoise 와 server 를 함께 (server 는 .env 가 바뀌어 다시 만들어진다)
 ```
@@ -156,7 +159,7 @@ docker compose --profile denoise up -d --build  # denoise 와 server 를 함께 
 
 ```bash
 sudo -i
-cd /opt/syncrew/deploy
+cd /opt/syncrew/app/deploy
 mkdir -p /opt/syncrew-backup
 docker compose stop server                       # 쓰기 멈춤
 
