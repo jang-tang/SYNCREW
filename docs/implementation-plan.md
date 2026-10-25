@@ -323,14 +323,14 @@
 - 시험: 서버 248(1 건너뜀), 앱 타입 검사·단위 46
 - 남은 것: S4 휴대폰 2대, Android 12+ 기기, iPhone 에서 이번 변경 영향 확인
 
-### 현장 용어 데이터: 은어 → 표준 한국어 + 공식 자료 반영 (2026-10-23, 장태웅, 미커밋, 상세: [field-terms.md](field-terms.md) 7절)
+### 현장 용어 데이터: 은어 → 표준 한국어 + 공식 자료 반영 (2026-10-23, 장태웅, PR #13 병합, 상세: [field-terms.md](field-terms.md) 7절)
 - 방침(사용자 결정): 언어별 데이터셋 대신 은어 → 표준 한국어 중심, 언어별 번역은 검증 문장·실측 오역 단어만
 - 데이터 보충 (`server/data/legacy-workplace/supplement/`, 원본 파일은 그대로): 안전보건공단 유의어 사전 은어 210개(`kosha_slang.json`, 만드는 스크립트 `scripts/build-kosha-slang.ts`), 고용노동부 다국어 안전표지 검증 문장 19개 ko·vi·zh·uz(`moel_safety_signs_2025.json`). 데스라·아나방은 공단 기준으로 대체(사용자 결정)
 - 코드: 용어에 `standardKo`(표준 한국어 뜻), 문장 단위 번역 문맥에 `= 표준어` 추가, 스트리밍 용어집에 "한국어 은어 = 표준어" 목록(원문 ko, 최대 60개, 용어와 합쳐 130개) → **ko→zh·ru·uz 스트리밍 용어집이 0개에서 은어 60개(+zh·uz 안전표지 문장 12개)**. 가장 긴 지시문 ko→vi 4,265자(상한 4,500)
 - 발견·해결한 기존 문제: 원본 seed 가 표준어를 은어 변형으로 넣어 문장 단위 보정이 표준어를 은어로 바꿨다 (해체→바라시, 가로→요코, 반장→오야지, 어디→어디입니까 등). **보정은 받아쓰기 오인식형만(나) + 변형 목록에서 표준어·문장형 짧은 꼴 제거(가)** → 일상 문장 30개 중 바뀌는 문장 7 → 0. field-terms.md 7-4절
 - 시험: 서버 **257**(+9) 통과·1 건너뜀
 
-### 스트리밍 은어: 턴 용어 실험 → 은어 목록 전체로 (2026-10-24, 장태웅, 미커밋, 실제 OpenAI $0.407 → 누적 $1.157, 상세: [field-terms.md](field-terms.md) 8절)
+### 스트리밍 은어: 턴 용어 실험 → 은어 목록 전체로 (2026-10-24, 장태웅, PR #13 병합, 실제 OpenAI $0.407 → 누적 $1.157, 상세: [field-terms.md](field-terms.md) 8절)
 - 실험(`scripts/stream-turn-terms.ts`, 엔진 옵션 `turnTerms` 기본 off): 말하는 도중 자막에서 은어를 찾아 넣는 방식은 **자막(gpt-live-transcribe)이 은어를 잘못 받아써** 효과 없음 (목록 밖 은어 7문장: off 2 · update 1 · create 3 맞음)
 - 적용: 미리 넣는 은어를 60개 → **230개 전부**(한 줄 20개 묶음), 지시문 상한 4,500 → 7,500자 → 같은 문장 **5/7 맞음**, 첫 음성 중앙값 2.65초(늘지 않음, 9문장 1회)
 - 이어서 받아쓰기 keywords 에 은어 230개(상한 50 → 400, OpenAI 가 325개까지 받아들임 확인, $0.109 → 누적 $1.266): 원문 자막의 은어 0–1 → **4/11**, 번역 6/7. 부작용 후보(비슷한 은어로 끌림, 평범한 문장·ko→vi 미측정)는 S6 에서. 턴 용어는 지금 얻을 것이 적어 다시 하지 않음 (field-terms.md 9절)
@@ -347,6 +347,13 @@
 - 네이티브 `SyncrewDuplexModule.swift`: 반복 보호를 앱 요청과 분리(`vpSuppressed`) → 헤드셋 연결·해제 등 실제 장치 변경 때 에코 제거를 다시 켬. 통화 세션(`playAndRecord`/`voiceChat`)이 덮어써지면 되돌리고 `onError` `session_overwritten`. `onRoute` 에 `voiceProcessing` 추가
 - 앱: `src/audio/sessionOwner.ts`·`audioMode.ts` — iOS 스트리밍 통화 중 expo-audio 모드 변경을 막음(녹음 켜기는 이중 오디오가 멈출 때까지 기다림). `useHandsFree`·`useVoiceRecorder`·`useAudioRouteProbe`·`playback` 이 `setAudioMode()` 를 쓴다
 - 시험: 앱 타입 검사, 단위 **52**(새 6), Swift 모듈 기기용 컴파일. 서버는 바뀌지 않음. **미검증: 실기기 전부** (`docs/testguide.md` 4-12절)
+
+### S4·현장 용어 정확도·시드니 배포·에코 제거 후보 장치 (2026-10-24 낮 – 10-25, PR #15–#17 · `main` `9e0487f`, 상세: [HANDOFF.md](HANDOFF.md) 1절, [field-accuracy.md](field-accuracy.md))
+- ✅ S4 휴대폰 2대 통화 (Note 9 ↔ iPhone 17 Pro, 이 PC 서버, 실제 OpenAI), 말 없는 턴 버리기(PR #15)
+- ✅ 현장 문장 400개 측정 3회 → 기본값 무음 350ms·추론 low, 정확도 90.7%, 지연 vi 1.89·zh 1.85초 (PR #16). OpenAI 누적 $17.26
+- ✅ 시드니 서버 `bf22f8b` 배포 (10-24 오후, 조현수)
+- 🟡 iOS 스피커 에코 제거 후보 5개 시험 장치 (PR #17, 현슈, `EXPO_PUBLIC_DUPLEX_EXPERIMENTS`, DEBUG 빌드만) — **실기기 확인 전**, `docs/testguide.md` 4-13절
+- 기준선 (10-25, 이 PC): 서버 262 통과·1 건너뜀, 앱 단위 52 통과. 이 PC 서버 OpenAI 한도 $20 (사용자 지시)
 
 ## 2. 다른 개발자 연결 지점
 
