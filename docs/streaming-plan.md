@@ -461,6 +461,8 @@ buildEngine … vp=false → engine started isRunning=true … outHw=2 ch, 48000
 
 **10-24 후보 시험 장치 (현슈, 실기기 없이)**: 위 후보 3개에 하나를 더해 빌드 하나로 바꿔 볼 수 있게 했다 — 기본값은 지금 동작 그대로, 개발 빌드에서 `EXPO_PUBLIC_DUPLEX_EXPERIMENTS` 로 켠다 (`connect48`·`connectHw`·`modeDefault`·`noIOBuffer`·`inPlace`, 절차 `docs/testguide.md` 4-13절). 더한 후보 `inPlace`: 지금 복구는 설정 변경마다 엔진을 버리면서 voice processing 을 끄고(`teardownEngine`) 새 엔진에서 다시 켠다. 이 토글 자체가 세션 입출력 설정을 다시 바꿔(로그의 `routeConfigurationChange` × 2) 다음 설정 변경을 부르는 것일 수 있다 → 같은 엔진을 voice processing 을 켠 채 다시 시작한다. 입력 형식이 바뀌었거나 시작에 실패하면 예전처럼 새로 만들고, 반복 보호도 그대로다. 진단 로그에 `outIn`(출력 노드 입력 형식)·세션 mode 를 더했다. Swift 모듈 컴파일·앱 타입 검사·단위 52 통과, **실기기 확인 전**
 
+**10-25 실기기 결과 (장태웅, 이 PC, iPhone 17 Pro, `docs/testguide.md` 4-13절, 기록 `docs/device-test-log.md` 10-25)**: 기준(후보 없음) 스피커 통화 1/3 통과(증상 재현) · `connect48` 1번째에 실패(출력을 처음부터 48kHz 로 맞춰도 반복 → 표본률 어긋남만이 원인은 아님) · **`inPlace` 3/3 통과**(통화마다 `inPlace` 1번 뒤 에코 제거 유지), 점검 화면·에어팟↔스피커 양방향 전환 통과, **실제 OpenAI G 통과**(되돌아간 턴 0, $0.048). 나머지 후보(`connectHw`·`modeDefault`·`noIOBuffer`)는 시험하지 않음. → **`inPlace` 를 기본값으로 바꿀지 현슈 결정**. 새로 발견한 문제 2개 (현슈): ① 에어팟 → 스피커 전환 때 엔진을 새로 만든 직후 앱 종료 1/3(signal 11, `EXC_BAD_ACCESS` `objc_release ← objc_autoreleasePoolPop`, 스레드 `app.syncrew.duplex` — `inPlace` 코드는 안 돎, 기존 `restartEngine` 경로) ② 엔진이 `isRunning=false` 로 시작했는데 `configChange` 알림이 오지 않아 통화 내내 소리·마이크가 없음(기준 1/3) — `inPlace` 도 알림이 있어야 동작하므로 이 경우는 못 막을 수 있음(시작 직후 `isRunning` 을 다시 확인하는 방안)
+
 기타 관찰: 스피커 출력 음량이 조금 작다(점검 화면). 스트리밍 재연결은 Wi-Fi 다시 붙는 시간 포함 약 12초(Android 0.3초), 끊긴 동안 한 말은 전달 안 됨(설계상 한계). 걸려 온 전화는 그 현장 화면 안에서만 뜬다 — 시연 순서에 반영
 
 ## 6. 비용 추정

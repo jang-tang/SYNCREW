@@ -1,6 +1,6 @@
 # SYNCREW 인수인계 문서 (작업 재개 기준)
 
-작성 2026-10-14 (커밋 `12831ff` 기준), **최종 갱신 2026-10-24 (로컬 S4 휴대폰 2대 통화 통과·말 없는 턴 버리기 수정·현장 용어 400문장 정확도 측정 — `docs/field-accuracy.md`. 그 전 새벽: iPhone 17 Pro 실기기 확인 끝, 현장 용어 은어 보강·스트리밍 은어 확대 — `docs/field-terms.md`, PR #11–#13 병합. **새 세션은 1절 "▶ 새 세션은 여기부터" 를 먼저 읽는다**. 그 전 10-23: Android S3 실기기 시험 끝 — Note 9 + WH-1000XM6, 버그 6개 수정. 그 전: 10-22 PR #2–#10 병합 `3d72cad`, 10-18 S3 iOS `4fd2d9d`)**. 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
+작성 2026-10-14 (커밋 `12831ff` 기준), **최종 갱신 2026-10-25 (PR #16·#17 `main` 병합 `9e0487f` 반영, 이 PC 서버 OpenAI 한도 $20, 다음 = iPhone 에코 제거 후보 시험. 그 전 10-24: 로컬 S4 휴대폰 2대 통화 통과·말 없는 턴 버리기 수정·현장 용어 400문장 정확도 측정 — `docs/field-accuracy.md`. 그 전 새벽: iPhone 17 Pro 실기기 확인 끝, 현장 용어 은어 보강·스트리밍 은어 확대 — `docs/field-terms.md`, PR #11–#13 병합. **새 세션은 1절 "▶ 새 세션은 여기부터" 를 먼저 읽는다**. 그 전 10-23: Android S3 실기기 시험 끝 — Note 9 + WH-1000XM6, 버그 6개 수정. 그 전: 10-22 PR #2–#10 병합 `3d72cad`, 10-18 S3 iOS `4fd2d9d`)**. 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
 더 자세한 근거는 각 절에 적은 문서·파일에 있다. 작업 규칙의 원본은 루트 `CLAUDE.md`.
 
 표기: ✅ 완료(실제로 실행·확인함) · 🟡 진행 중/부분 완료 · ⬜ 미완료(아직 안 함) · ❓ 미확인(상태를 확인하지 못함)
@@ -16,15 +16,16 @@
 - 언어: 한국어(ko)·중국어(zh)·베트남어(vi)·우즈베크어(uz)·러시아어(ru)
 - 기능: 1:1 대화, 현장 그룹 대화, 관리자 일괄 지시(문자·실시간 음성) + 확인·완료 응답, **1:1 실시간 통역 통화**
 
-### ▶ 새 세션은 여기부터 — 지금 상태와 남은 일 (2026-10-24 기준, 10/30 시연까지 6일)
+### ▶ 새 세션은 여기부터 — 지금 상태와 남은 일 (2026-10-25 기준, 10/30 시연까지 5일)
 
 **한 줄 요약**: "Android(Note 9)·iPhone(17 Pro) 모두 실기기 시험을 거의 끝냈다. 둘 다 스트리밍·문장 단위·헤드셋·스피커·Wi-Fi 끊김이 되고, iPhone 스피커에서 에코 제거가 꺼지는 문제는 남았지만 서버 반이중 차단 덕분에 에코 루프(G)는 통과해 시연에 지장 없다. 현장 은어 데이터도 보강했다. 10-24 낮 이 PC 서버(같은 Wi-Fi)로 **휴대폰 2대 통화(S4)도 통과**했고, 현장 문장 400개 실측 **정확도 89.5%·지연 중앙값 1.9초**(발표용, `docs/field-accuracy.md`). 남은 핵심은 **시드니 배포 → 시드니 서버로 짧은 리허설**."
 
 **코드·브랜치 상태**
-- `main` 에 들어간 것: Android S3 수정(PR #11), iPhone 에코 제거 수정(PR #12, 현슈), 현장 용어 보강·스트리밍 은어 확대(PR #13)
-- 브랜치 `android-s3-device-fixes` 에만 있는 것: **10-24 iPhone 시험 기록 문서**(`001ce26` 이후, 문서만, PR #14) + **10-24 낮 미커밋**: 말 없는 턴 버리기(`server/src/streaming/realtimeStream.ts` `hasSpeech`·테스트 5개), 측정 스크립트 `server/scripts/field-accuracy.ts`·문장 200개, `docs/field-accuracy.md`·`docs/field-accuracy-results.csv`
+- **모두 `main` 에 들어갔다 (10-25 `9e0487f`, 미커밋 작업 없음)**: Android S3 수정(PR #11), iPhone 에코 제거 수정(PR #12, 현슈), 현장 용어 보강·스트리밍 은어 확대(PR #13), 10-24 iPhone 시험 기록(PR #14), S4·말 없는 턴 버리기·400문장 측정(PR #15), 실측 오역 단어 보충·무음 350ms·재측정(PR #16), **iOS 에코 제거 후보 시험 장치·시드니 배포 기록(PR #17, 현슈 — 실기기 확인 전)**
+- 10-25 기준선 (이 PC, pull 직후, 비용 0): 서버 타입 검사 + 시험 **262 통과·1 건너뜀**, 앱 타입 검사 + 단위 **52 통과**. e2e 는 다시 돌리지 않음
+- **PR #17 로 iOS 네이티브(Swift)가 바뀌었다 → iPhone 개발 빌드를 다시 설치해야 한다** (`docs/testguide.md` 4-6절)
 - 시드니 서버(https://syncrew.hyunshu.com): **10-24 오후 `main` `bf22f8b` 배포 완료 (조현수)** — `ENGINE=openai`·필터 passthrough·한도 $20 그대로, `.env` 를 다시 만들어 무음 350ms·추론 low 반영, `/health` 정상(데이터셋 kosha·moel·measured 포함). 그 전에 AWS 계정이 지출 한도에 걸려 EC2·RDS 가 멈췄던 것을 복구함 (`deploy/README.md` 3절)
-- OpenAI 누적 **$12.78** (10-24 S4 약 $0.34 + 400문장 측정 $3.84 + 설정 비교 $2.55 + 새 설정 400문장 재측정 $4.74, 사용자 승인). 재측정 결과: 지연 중앙값 1.91 → 1.60초, 정확도 89.5 → 87.75% (은어 ↓, 표준 용어 ↑) — `docs/field-accuracy.md` 9절. **사용자 결정으로 추론 low 로 되돌려 3차 측정($4.47, 누적 $17.26): 정확도 90.7%(가장 높음), 지연 vi 1.89·zh 1.85초 — 지금 기본값 = 무음 350ms·추론 low** (10절) / `server/.env` 한도는 여전히 $3 — 측정 때는 실행할 때만 `OPENAI_BUDGET_USD=7.5` 로 올렸다. **다음 실제 호출 전에 한도를 누적+여유로 올려야 한다(금액 먼저 안내)**
+- OpenAI 누적 **$12.78** (10-24 S4 약 $0.34 + 400문장 측정 $3.84 + 설정 비교 $2.55 + 새 설정 400문장 재측정 $4.74, 사용자 승인). 재측정 결과: 지연 중앙값 1.91 → 1.60초, 정확도 89.5 → 87.75% (은어 ↓, 표준 용어 ↑) — `docs/field-accuracy.md` 9절. **사용자 결정으로 추론 low 로 되돌려 3차 측정($4.47, 누적 $17.26): 정확도 90.7%(가장 높음), 지연 vi 1.89·zh 1.85초 — 지금 기본값 = 무음 350ms·추론 low** (10절) / **10-25 사용자 지시로 이 PC `server/.env` 한도 $3 → $20** (누적 $17.26, 10-25 저녁 G 뒤 누적 $17.306, 남은 여유 약 $2.69 — 넘을 작업이면 금액 먼저 안내). 시드니 서버 한도는 따로 $20
 
 **10-24 낮 한 일**
 - **S4 휴대폰 2대 통화 (이 PC 서버·같은 Wi-Fi·실제 OpenAI)**: Note 9(구성원 Nguyen, vi) ↔ iPhone 17 Pro(관리자, ko), 양방향 걸기·받기·통역 통과 (`docs/device-test-log.md` 10-24). 두 휴대폰을 같은 계정으로 쓰면 안 됨 — Note 9 를 `syncrew-e2e-member` 로 다시 로그인(비밀번호는 `server/.e2e-accounts.json` 에서 adb 로 입력)
@@ -40,12 +41,17 @@
   - ❌ 스피커에서 에코 제거가 2–4초 뒤 꺼짐: voice processing 출력만 44.1kHz(입력 48kHz) → 재구성 반복. 표본률 수정 2번 효과 없음(되돌림) → **조현수에게 넘김** (5-7절에 로그·다음 후보)
   - 알려진 한계: Wi-Fi 끊긴 동안 한 말은 전달 안 됨(스트리밍 설계), 통역 재생 중 끼어든 말은 서버 반이중 차단으로 막힘, 스피커 출력 음량 조금 작음
 
-**남은 일 (우선순위 순)**
+**10-25 저녁 한 일 — iPhone 에코 제거 후보 시험 (장태웅, 이 PC, iPhone 17 Pro, 상세 `docs/device-test-log.md` 10-25·`docs/streaming-plan.md` 5-7절)**
+- **`inPlace` 후보가 답**: 스피커 통화 3/3 통과(기준 1/3, `connect48` 실패), 점검 화면·에어팟↔스피커 전환 통과, **실제 OpenAI G 통과**(되돌아간 턴 0, $0.048 → 누적 $17.306). 아직 코드 기본값은 그대로 — **기본값으로 바꾸는 것은 현슈**
+- 새로 발견 (현슈에게): ① 에어팟 → 스피커 전환 때 앱 종료 1/3(signal 11, 기존 엔진 재구성 경로) ② 엔진이 멈춘 채 시작했는데 알림이 없어 통화 내내 무음 1/3(기준 시험). 로그·충돌 보고서는 장태웅 PC 에 있음(전달 필요)
+- 이 PC 상태: 서버·DB·Metro 종료, `frontend/.env` mock 으로 되돌림, iPhone 에는 PR #17 개발 빌드 설치됨
+
+**남은 일 (우선순위 순)** — 10-25 사용자 결정: 5번 iPhone 에코 제거 후보 시험부터 → **10-25 끝(위)** → 2번 시드니 리허설도 10-25 밤 끝, **다음은 3번 시연 진행 순서 확정**
 1. ~~**`main` PR → 시드니 배포** (조현수)~~ ✅ 10-24 오후 `bf22f8b` (실기기로 시드니 접속 확인은 2번에서)
-2. **시드니 리허설**: 로컬 S4 는 10-24 통과 — 시드니 서버에서는 접속(https)·지연만 짧게 다시 확인 (약 $0.1–0.2, 승인 후). 두 휴대폰은 서로 다른 계정, 가까이 두면 서로 소리가 들어가니 헤드셋
+2. ~~**시드니 리허설**~~ ✅ **10-25 밤 통과** (iPhone 17 Pro 관리자 ↔ Note 9 구성원, https://syncrew.hyunshu.com, 실제 OpenAI, 통화 4번): 양방향 걸기·받기·통역, 빠름(체감). 시드니 현장 이름 **"E2E 시드니 시험 현장"**(e2e 두 계정 모두 소속). **이어서 Note 9 에 우리 시제품("Eiger Opera OpenTalk X8")을 끼우고 다시 통과**(시제품 마이크·스피커로 통화, SCO 확인). 배운 것: **iPhone 통화 음량이 낮으면 에어팟에서 안 들림 → 시연 전 통화 중 음량 올리기**, Note 9 는 Wi-Fi 를 켜야 함(유심 없음), 네트워크 오류 때 로그인 화면이 "비밀번호 틀림"으로 표시(작은 문구 문제) — `docs/device-test-log.md` 10-25
 3. **시연 진행 순서 확정**: 걸려 온 전화는 **받는 사람이 그 현장 화면 안에 있어야** 뜬다(앱을 고칠지 결정). 시드니 서버면 같은 Wi-Fi 불필요(LTE 가능). 끼어드는 장면이 있으면 에어팟·헤드셋
 4. 시연용 은어 뜻을 현장 사람에게 확인 (비용 0)
-5. 조현수 몫: iPhone 스피커 에코 제거(5-7절) — **10-24 후보 5개를 빌드 하나로 바꿔 볼 수 있게 함(기본값은 그대로), iPhone 으로 `docs/testguide.md` 4-13절 시험 필요**, 노이즈 필터 켤지 결정(10/27)
+5. iPhone 스피커 에코 제거(5-7절) — ✅ 10-25 시험 끝: **`inPlace` 통과 → 현슈가 기본값으로 바꾸기 + 새 문제 2개(앱 종료·무음 시작) 고치기**, 바뀌면 장태웅이 iPhone 으로 다시 확인(가짜 엔진, 비용 0). 노이즈 필터 켤지 결정(10/27, 조현수)
 6. **10/31 AWS 시드니 자원 삭제** (`deploy/README.md` 8절)
 7. 시연 뒤: S6 지연 튜닝(약 $3–6, 서버 한도 상향 필요), Android 12+ 기기, 현장 용어 후속(field-terms.md 7–9절 "남은 것"), 보안 F12, 간헐 실패 사이드카 시험
 
@@ -276,7 +282,7 @@
 | `server/scripts/` | **`call-peer.ts`(실기기 시험용 통화 상대, 7절)**, `stream-measure.ts`, `translate-compare.ts`, `stt-hint-compare.ts`, `openai-check.ts`, `e2e-accounts.ts`, `db.ts` |
 
 ### 설정 (값은 적지 않는다 — 비밀 값은 `.env` 에만)
-- `server/.env` 키: `HOST PORT DATABASE_URL OPENAI_API_KEY OPENAI_BUDGET_USD(=3) OPENAI_BUDGET_PERIOD(=total) STT_MODEL(=gpt-4o-transcribe) TRANSLATION_MODEL(=gpt-realtime-2.1) SUPABASE_URL SUPABASE_JWKS_URL SUPABASE_SECRET_KEY AUDIO_PREPROCESSOR DATASET_* RETENTION_*` 등. 스트리밍 설정 `STREAMING STREAM_MAX_SESSIONS STREAM_VAD_SILENCE_MS STREAM_AUDIO_FILTER` 는 기본값 사용(`server/.env.example` 참고)
+- `server/.env` 키: `HOST PORT DATABASE_URL OPENAI_API_KEY OPENAI_BUDGET_USD(=20, 10-25) OPENAI_BUDGET_PERIOD(=total) STT_MODEL(=gpt-4o-transcribe) TRANSLATION_MODEL(=gpt-realtime-2.1) SUPABASE_URL SUPABASE_JWKS_URL SUPABASE_SECRET_KEY AUDIO_PREPROCESSOR DATASET_* RETENTION_*` 등. 스트리밍 설정 `STREAMING STREAM_MAX_SESSIONS STREAM_VAD_SILENCE_MS STREAM_AUDIO_FILTER` 는 기본값 사용(`server/.env.example` 참고)
 - `frontend/.env` 키: `EXPO_PUBLIC_API_MODE`(**지금 `mock`** = 데모 모드), `EXPO_PUBLIC_API_BASE_URL`(**지금 `http://10.0.2.2:4000`** = Android 에뮬레이터에서 본 PC), `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, (선택) `EXPO_PUBLIC_STREAMING=off`
 - 앱: 이름 SYNCREW, Android 패키지·iOS 번들 `com.syncfield.syncrew`, URL scheme `syncrew`, 권한: 마이크(expo-audio 문구)·카메라(QR) (`frontend/app.json`). Android 오디오 권한은 S3 모듈 매니페스트가 넣는다(`MODIFY_AUDIO_SETTINGS`, Android 11 이하 `BLUETOOTH`). `BLUETOOTH_CONNECT` 는 넣지 않았다 — Android 12+ `setCommunicationDevice` 에는 필요 없다고 보고 구현함, **실기기에서 확인**
 - Supabase 프로젝트 `hjatiacukflqxkbqomtp`, Redirect URL `syncrew://reset-password` 등록됨, SMTP = 사용자 Gmail (`docs/operations.md` 8절)
@@ -336,7 +342,7 @@ lsof -nP -iTCP:4000 -sTCP:LISTEN; lsof -nP -iTCP:5433 -sTCP:LISTEN   # 둘 다 �
 ### T5. S6 실기기 튜닝 ⬜ — 선행: T4
 - 무엇: 20회 이상 지연 측정(P50·P90), 무음 판단 300–400ms(`STREAM_VAD_SILENCE_MS`)·추론 minimal(`TRANSLATION_REASONING`) 실험, 현장 소음, 블루투스, 배터리·발열
 - 완료 기준: P50 ≤ 2.0초·P90 ≤ 3.0초 결과표, `docs/live-interpretation.md`·운영 문서 갱신
-- 주의: 비용 약 $3–6 → 서버 한도(`OPENAI_BUDGET_USD`, 지금 $3, 누적 약 $0.34) 상향 전 금액 안내·승인
+- 주의: 비용 약 $3–6 → 서버 한도(`OPENAI_BUDGET_USD`, 10-25 $20, 누적 $17.26) 상향 전 금액 안내·승인
 
 ### T6. 실기기 전용 확인 묶음 ⬜ — 선행: T1 (T2 와 함께)
 - 비밀번호 재설정 메일 링크 → 앱 열림 → 새 비밀번호 저장 (요청한 같은 휴대폰에서 메일을 열어야 함 — PKCE)
@@ -412,7 +418,7 @@ ipconfig getifaddr en0                                 # PC 의 Wi-Fi IP
 
 ### 바꾸면 안 되는 결정 (사용자 결정, 근거 문서)
 - 단계마다 멈추고 승인받는다. 커밋·푸시는 사용자가 요청할 때만 (`CLAUDE.md`)
-- **OpenAI 비용**: 충전 잔액 $80 이지만 "막 쓰지 말 것". 서버 한도 `OPENAI_BUDGET_USD=3`(누적, 2026-10-14 누적 약 $0.34). **실제 호출 전 예상 비용을 말하고 실행 상한을 건다.** 한도를 올릴 때는 금액을 먼저 알린다. 흐름 확인은 `ENGINE=fake`
+- **OpenAI 비용**: 충전 잔액 $80 이지만 "막 쓰지 말 것". 서버 한도 `OPENAI_BUDGET_USD=20`(누적, 10-25 상향, 누적 $17.26). **실제 호출 전 예상 비용을 말하고 실행 상한을 건다.** 한도를 올릴 때는 금액을 먼저 알린다. 흐름 확인은 `ENGINE=fake`
 - 번역 모델 **`gpt-realtime-2.1` 유지**, 번역 전용 `gpt-realtime-translate` 는 쓰지 않음 (현장 용어·숫자 오역 6/9, 지시문·용어집 불가, 우즈베크어 출력 불가 — `docs/s0-report.md` 4절)
 - 받아쓰기 `gpt-4o-transcribe`, 현장 용어 힌트는 쓰지 않음 (오히려 나빠짐 — `docs/streaming-plan.md` 5-2절)
 - 스트리밍은 **1:1 통화만**, 일괄 지시는 문장 단위 유지. 같은 언어 통화는 OpenAI 없이 음성 직접 전달. 실패한 문장은 기록 안 함. **스트림으로 들은 문장은 다시 재생하지 않음**
