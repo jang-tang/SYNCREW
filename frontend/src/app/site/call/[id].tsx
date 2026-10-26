@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useMemo, useState, type ComponentProps } from "react";
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, type ListRenderItem } from "react-native";
 import type { MessageView, SessionEndReason } from "@shared/api";
+import { useCallCycle } from "@/audio/useCallCycle";
 import { useHandsFree } from "@/audio/useHandsFree";
 import type { MyCaption } from "@/audio/myCaptions";
 import { useStreamingCall, type Caption, type StreamMode } from "@/audio/useStreamingCall";
@@ -33,6 +34,7 @@ const keyOf = (item: MessageView) => item.id;
 
 // 1:1 실시간 통역 통화 (docs/live-interpretation.md 3절)
 // 울림(건 사람: 부르는 중 / 받는 사람: 받기·거절) → 통화 중(핸즈프리: 말하면 자동 통역, 받은 통역 자동 재생) → 종료
+// 통화 중·거는 중에는 음량 버튼 두 번으로 다음(증가)·이전(감소) 멤버에게 바꿔 건다 (audio/useCallCycle.ts, C1 2026-10-26)
 // 통화 중에는 먼저 스트리밍 통역(말하는 동안 전송, docs/streaming-plan.md)을 시도하고, 안 되면 발화 단위 방식으로 한다.
 // 저사양 폰 (2026-10-20): 마이크 음량은 음량 막대만 구독하고(audio/micLevel), 자막 조각은 100ms 로 모으며,
 // 자막·말풍선·상태 부품은 memo 로 감싸 통화 중 화면 전체가 다시 그려지는 횟수를 줄였다 (docs/perf-app-2026-10-20.md).
@@ -92,6 +94,7 @@ export default function CallScreen() {
     onDevice: reportDevice,
   });
   const mic = streamingOn ? streaming : handsFree;
+  useCallCycle(data, myId);
 
   const list = useMemo(() => [...(messages.data ?? [])].sort((a, b) => b.seq - a.seq), [messages.data]);
   const profile = me.data;

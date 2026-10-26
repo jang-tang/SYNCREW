@@ -11,11 +11,17 @@ public class SyncrewDuplexModule: Module {
   private lazy var duplex = DuplexEngine { [weak self] name, body in
     self?.sendEvent(name, body)
   }
+  /** 통화 중 음량 버튼으로 상대 바꾸기 (C1) — VolumeKeys.swift */
+  private lazy var volumeKeys = VolumeKeys { [weak self] direction in
+    self?.sendEvent("onVolumeKey", ["direction": direction])
+  }
+  /** 앱이 음량 버튼 지켜보기를 원하는지. 앱이 뒤로 가면 잠시 멈추고(다른 앱 음량을 되돌리지 않게) 앞으로 오면 다시 켠다 */
+  private var volumeKeysWanted = false
 
   public func definition() -> ModuleDefinition {
     Name("SyncrewDuplex")
 
-    Events("onFrame", "onRoute", "onPlayback", "onError")
+    Events("onFrame", "onRoute", "onPlayback", "onError", "onVolumeKey")
 
     AsyncFunction("start") { (sampleRate: Double, frameMs: Int, echoCancellation: Bool, promise: Promise) in
       DuplexEngine.requestRecordPermission { granted in
@@ -23,7 +29,10 @@ public class SyncrewDuplexModule: Module {
           promise.reject("permission", "마이크 권한이 없습니다.")
           return
         }
+        // 통화 오디오로 바뀌면 음량이 저절로 바뀐다 (통화·일반 음량이 따로) → 음량 버튼 판정을 잠시 멈추고 기준값을 다시 잡는다
+        self.volumeKeys.settle("duplex start")
         self.duplex.start(sampleRate: sampleRate, frameMs: frameMs, echoCancellation: echoCancellation) { error in
+          self.volumeKeys.settle("duplex started")
           if let error {
             promise.reject("start_failed", error.localizedDescription)
           } else {
@@ -34,7 +43,38 @@ public class SyncrewDuplexModule: Module {
     }
 
     AsyncFunction("stop") { (promise: Promise) in
-      self.duplex.stop { promise.resolve() }
+      self.duplex.stop {
+        // 이중 오디오가 세션을 껐다 → 음량 버튼을 지켜보는 중이면 다시 켠다 (상대를 바꾸는 사이 울림 중에도 버튼을 받게)
+        self.volumeKeys.sessionReleased()
+        promise.resolve()
+      }
+    }
+
+    // 음량 버튼 지켜보기 (C1): 누를 때마다 onVolumeKey 를 보내고 음량은 곧바로 되돌린다. 한 번 누름은 JS 가 stepVolume 으로
+    Function("startVolumeKeys") {
+      self.volumeKeysWanted = true
+      self.volumeKeys.start()
+    }
+
+    Function("stopVolumeKeys") {
+      self.volumeKeysWanted = false
+      self.volumeKeys.stop(deactivate: !self.duplex.isRunning)
+    }
+
+    OnAppEntersBackground {
+      if self.volumeKeysWanted { self.volumeKeys.stop(deactivate: false) }
+    }
+
+    OnAppEntersForeground {
+      if self.volumeKeysWanted { self.volumeKeys.start() }
+    }
+
+    // iOS: 한 번 누름은 시스템이 이미 한 칸 바꿨으므로 아무것도 하지 않는다 (VolumeKeys.swift)
+    Function("stepVolume") { (_: String) in }
+
+    // 두 번 누름으로 판정됐을 때: 처음 누르기 전 음량으로 되돌린다
+    Function("restoreVolume") {
+      self.volumeKeys.restore()
     }
 
     Function("enqueue") { (streamId: String, pcmBase64: String, sampleRate: Double) in
@@ -62,6 +102,7 @@ public class SyncrewDuplexModule: Module {
     AsyncFunction("exitCallRoute") {}
 
     OnDestroy {
+      self.volumeKeys.stop(deactivate: false)
       self.duplex.stop {}
     }
   }
@@ -101,6 +142,8 @@ final class DuplexEngine {
   private var engine: AVAudioEngine?
   private var player: AVAudioPlayerNode?
   private var running = false
+  /** 음량 버튼 지켜보기를 멈출 때 세션을 꺼도 되는지 보려고 (이 큐 밖에서만 부른다) */
+  var isRunning: Bool { queue.sync { running } }
   /** 앱이 요청한 에코 제거 (start 의 echoCancellation) */
   private var echoCancellation = true
   /**

@@ -21,6 +21,8 @@ export type NativeRouteEvent = {
 };
 export type NativePlaybackEvent = { streamId: string | null; playing: boolean };
 export type NativeErrorEvent = { code: string; message: string };
+/** 음량 버튼 한 번 누름 (C1). 음량은 네이티브가 이미 되돌렸다(또는 바뀌지 않았다) */
+export type NativeVolumeKeyEvent = { direction: "up" | "down" };
 
 type Subscription = { remove(): void };
 
@@ -50,10 +52,21 @@ export interface SyncrewDuplexNative {
    * inPlace·connect48·connectHw·modeDefault·noIOBuffer. Android 에는 없다
    */
   setExperiments?(raw: string): void;
+  /**
+   * 통화 중 음량 버튼으로 상대 바꾸기 (C1): 지켜보는 동안 누를 때마다 onVolumeKey. JS 가 판정한 뒤
+   * 한 번 누름 → stepVolume (Android: 한 칸 바꿈 / iOS: 시스템이 이미 바꿨으므로 아무것도 안 함),
+   * 두 번 누름 → restoreVolume (iOS: 처음 누르기 전 음량으로 / Android: 누름마다 막거나 되돌렸으므로 아무것도 안 함).
+   * Android 휴대폰 버튼은 입력을 가로채고, Android 헤드셋 버튼은 바뀐 음량을 곧바로 되돌린다. 이 기능 전에 빌드된 앱에는 없다
+   */
+  startVolumeKeys?(): void;
+  stopVolumeKeys?(): void;
+  stepVolume?(direction: "up" | "down"): void;
+  restoreVolume?(): void;
   addListener(event: "onFrame", listener: (event: NativeFrameEvent) => void): Subscription;
   addListener(event: "onRoute", listener: (event: NativeRouteEvent) => void): Subscription;
   addListener(event: "onPlayback", listener: (event: NativePlaybackEvent) => void): Subscription;
   addListener(event: "onError", listener: (event: NativeErrorEvent) => void): Subscription;
+  addListener(event: "onVolumeKey", listener: (event: NativeVolumeKeyEvent) => void): Subscription;
 }
 
 /** 네이티브 모듈 (웹, 또는 이 모듈 없이 빌드된 앱이면 null → 통화는 발화 단위 방식) */

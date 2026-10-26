@@ -36,10 +36,10 @@
 - Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
 - Phase 5 실시간 통역: `docs/live-interpretation.md` (핸즈프리 발화 단위 방식, 세션 API, VAD, 이어폰 처리, 검증·미검증). 세션 서비스 `server/src/sessions/liveSessions.ts`, 앱 `frontend/src/audio/useHandsFree.ts`.
 - 검증 완료(2026-10-12): 실제 OpenAI 5개 언어 왕복, 서버 경로 지연(업로드 → 상대 수신 5.1초, 말 끝 기준 약 6초), live 모드 2인 e2e 27개(웹 빌드 + 실제 Supabase 계정 + 실제 서버), 에뮬레이터 일괄 지시·통화, iOS 시뮬레이터 실행.
-- 테스트 계정(사용자 허락, 2026-10-12): `syncrew-e2e-manager@example.com`, `syncrew-e2e-member@example.com`. 비밀번호는 `server/.e2e-accounts.json`(git 제외). 삭제는 `npx tsx scripts/e2e-accounts.ts --delete`.
+- 테스트 계정(사용자 허락, 2026-10-12): `syncrew-e2e-manager@example.com`, `syncrew-e2e-member@example.com`. **+ `syncrew-e2e-member2@example.com`(2026-10-26 허락, "Li E2E" zh, 통화 상대 바꾸기 C1 시험용 — 로컬 서버 "E2E 현장 10120452" 가입은 `server/scripts/e2e-add-member2.ts`, 상대 역할 `call-peer.ts --as member2 --answer`)**. 비밀번호는 `server/.e2e-accounts.json`(git 제외). 삭제는 `npx tsx scripts/e2e-accounts.ts --delete`.
 - 실기기(2026-10-14–15): 네이티브 앱 live 모드(휴대폰 → PC 서버) 확인, 문장 단위 통화 양쪽 통과, iPhone 헤드셋 통과. **2026-10-17 밤: iPhone 15 Pro Max 스트리밍(F) 통과(가짜 엔진)**. **2026-10-23: Galaxy Note 9(Android 10) + WH-1000XM6 S3 전부 통과**(헤드셋 마이크 SCO·스트리밍·문장 단위·G 에코·H Wi-Fi 끊김). **2026-10-24: iPhone 17 Pro F·G·H·문장 단위 통과**(스피커 에코 제거 꺼짐만 미해결). 미검증: Android 12+ 기기, 휴대폰 2대 동시 통화(S4), D·E 시나리오.
 - **작업 환경 두 곳** (2026-10-18): 이 PC(장태웅, 서버 DB·`.env`·e2e 계정 파일, T2 때 Galaxy S22·iPhone 17 Pro) / 현슈 Mac(iPhone 15 Pro Max + AirPods Pro, **Android 없음**, iOS 개인 팀 서명·번들 ID `com.syncfield.syncrew.hyeonsyu`). 새 세션은 어느 쪽인지 먼저 확인 (`docs/HANDOFF.md` 1절 표).
-- **이 PC 디스크 (2026-10-25)**: 약 14GB 여유 — 네이티브 빌드에는 15GB 이상 권장. 10-25 iPhone 증분 빌드는 14GB 에서 됐다. 빌드 전 `df -h /System/Volumes/Data` 로 확인.
+- **이 PC 디스크 (2026-10-26)**: 9.9GB → 안 쓰는 Gradle 버전(9.3.1 만 남김)·NDK 27.0 삭제로 **약 24GB 여유** — 네이티브 빌드에는 15GB 이상 권장. 더 필요하면 에뮬레이터 AVD(7.7GB)·iOS 26.0 시뮬레이터 런타임(7.5GB)이 다음 후보. iOS DeviceSupport·DerivedData 는 지우지 말 것(iPhone 디버깅·증분 빌드). 빌드 전 `df -h /System/Volumes/Data` 로 확인.
 
 ## 남은 일 (우선순위 순, 2026-10-25 밤 갱신)
 
@@ -72,7 +72,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**262개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**52개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**262개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**64개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
 4. **작업 환경(이 PC / 현슈 Mac)·연결된 기기·(이 PC 라면) 디스크 여유 15GB 이상을 먼저 확인**한다 (`df -h /System/Volumes/Data`, `docs/HANDOFF.md` 1·5·7절). 모자라거나 준비 전이면 그것부터 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $20 누적 중 $17.26 사용, 10-25). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -144,11 +144,11 @@ cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측
 # 앱
 cd frontend && npm run typecheck && npm run doctor
 cd frontend && npm run bundle:android            # Android 번들 빌드 확인
-cd frontend && npm run test:unit                 # 단위 테스트 52개 (VAD·대상 선택·작업조·이중 오디오 base64·내 말 자막·재생 신호·배치 상태·마이크 음량·통화 세션 표시 + 출시 빌드 API 주소 검사 4)
-cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 99개 자동 검증 (통화·일괄 지시·대상 선택·작업조·관리자 지정 포함)
+cd frontend && npm run test:unit                 # 단위 테스트 64개 (통화 상대 바꾸기 판정·순서 12·VAD·대상 선택·작업조·이중 오디오 base64·내 말 자막·재생 신호·배치 상태·마이크 음량·통화 세션 표시 + 출시 빌드 API 주소 검사 4)
+cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 107개 자동 검증 (통화·음량 버튼으로 상대 바꾸기·일괄 지시·대상 선택·작업조·관리자 지정 포함)
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
-cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 43개 (통화는 스트리밍, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
+cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 49개 (통화는 스트리밍, 현장 목록에서 전화 받기·바꿀 사람 없음 안내, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
 cd frontend && E2E_MIXED=1 npm run e2e:live      # 한쪽만 스트리밍하는 통화 18개 (서버를 ENGINE=fake STREAM_MAX_SESSIONS=1 로 실행 중이어야 함)
 cd server && npx tsx scripts/call-peer.ts        # 실기기 시험용 통화 상대 (e2e 계정, 합성 음성 말하기·휴대폰 소리 음량/wav). --answer·--utterance·--as manager·--listen·--continuous(말 사이에도 잡음 계속). ENGINE=fake 면 비용 0

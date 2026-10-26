@@ -78,9 +78,11 @@ const check = async (name, text, timeout = 6000) => {
   try {
     await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout }, text);
     pass++; console.log("  ✓", name);
+    return true;
   } catch {
     fail++; console.log("  ✗", name, `(\"${text}\" 없음)`);
     await page.screenshot({ path: path.join(outDir, `fail-${name.replace(/\W+/g, "_")}.png`) });
+    return false;
   }
 };
 // 화면에서 글자로 버튼 누르기 (가장 안쪽 일치 요소의 누를 수 있는 조상)
@@ -362,6 +364,42 @@ await wait(1000);
   else { fail++; console.log("  ✗ 대화 기록에 통화 발화 표시", { url: page.url(), tags }); }
 }
 await page.screenshot({ path: path.join(outDir, "flow-7-history.png") });
+
+console.log("7-1) 음량 버튼 두 번으로 통화 상대 바꾸기 (웹: 화살표 위·아래, C1 2026-10-26)");
+{
+  // A동 현장 순서(나 제외, 관리자 먼저): 김민준 → Nguyễn → 李伟 → Aziz(접속 안 함) → Иван
+  // 헤드리스 Chrome 은 비밀번호 입력 뒤 실제 키 이벤트를 잃는다(CLAUDE.md) → keydown 을 직접 보낸다
+  const key = (name) => page.evaluate((k) => window.dispatchEvent(new KeyboardEvent("keydown", { key: k })), name);
+  const double = async (name) => {
+    await key(name);
+    await wait(120);
+    await key(name);
+  };
+  await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
+  await tap("Nguyễn Văn An");
+  await tap("통역 통화");
+  await check("거는 중", "Nguyễn Văn An 님을 부르는 중…");
+  await double("ArrowUp");
+  if (!(await check("거는 중에 위 두 번 → 다음(李伟)", "李伟 님을 부르는 중…", 6000))) {
+    console.log("    cycle:", await page.evaluate(() => JSON.stringify(window.__syncrewCycle)));
+  }
+  await check("상대가 받으면 통화 중", "통화 중", 6000);
+  await double("ArrowUp");
+  await check("통화 중 위 두 번 → 접속 안 한 Aziz 건너뛰고 Иван", "Иван Петров 님을 부르는 중…", 6000);
+  await double("ArrowUp");
+  await check("끝에서 다음 → 처음(김민준)", "김민준 님을 부르는 중…", 6000);
+  await double("ArrowDown");
+  await check("처음에서 이전 → 끝(Иван)", "Иван Петров 님을 부르는 중…", 6000);
+  // 대조군: 한 번만 누르면 상대가 바뀌지 않는다 (위에서 같은 키 두 번은 바뀌었다)
+  await key("ArrowUp");
+  await wait(1500);
+  const stayed = await page.evaluate(() => document.body.innerText.includes("Иван Петров") && !document.body.innerText.includes("김민준 님을 부르는 중…"));
+  if (stayed) { pass++; console.log("  ✓ 한 번 누름은 상대를 바꾸지 않음"); }
+  else { fail++; console.log("  ✗ 한 번 누름은 상대를 바꾸지 않음"); }
+  await page.screenshot({ path: path.join(outDir, "flow-7-1-cycle.png") });
+  await tap("끊기");
+  await check("바꾼 통화 끊기", "통화가 끝났어요");
+}
 
 console.log("8) 관리자 실시간 일괄 지시 (여러 언어)");
 await page.goto(base + "/site/instructions", { waitUntil: "networkidle0" });

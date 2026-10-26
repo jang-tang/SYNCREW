@@ -1,4 +1,5 @@
 // live 모드 확인용 Supabase 테스트 계정(관리자 1, 구성원 1)을 준비한다. (2026-10-12 사용자 허락)
+// 구성원 2(member2)는 통화 상대 바꾸기(C1) 실기기 시험용 — 걸 사람이 2명 이상 필요 (2026-10-26 사용자 허락). 현장 가입은 scripts/e2e-add-member2.ts
 // 관리자 API로 만들어 이메일 확인을 건너뛴다 (메일 발송 없음). 이미 있으면 비밀번호만 새로 정한다.
 // 결과(이메일·비밀번호)는 .e2e-accounts.json 에 저장한다 (gitignore). 앱 e2e(frontend/e2e/live.mjs)가 읽는다.
 // 사용: npx tsx scripts/e2e-accounts.ts          계정 준비
@@ -11,6 +12,7 @@ const FILE = ".e2e-accounts.json";
 const ACCOUNTS = [
   { role: "manager", email: "syncrew-e2e-manager@example.com" },
   { role: "member", email: "syncrew-e2e-member@example.com" },
+  { role: "member2", email: "syncrew-e2e-member2@example.com" },
 ] as const;
 
 const url = process.env.SUPABASE_URL;

@@ -5,7 +5,7 @@ import { AppState } from "react-native";
 import type { LiveSession, MessageView, Profile } from "@shared/api";
 import { enqueue } from "@/audio/playback";
 import { debug as playbackDebug, wasStreamed } from "@/audio/streamed";
-import { qk } from "@/hooks/queries";
+import { cacheSession as cacheSessionData, qk } from "@/hooks/queries";
 import { translate } from "@/i18n";
 import { services } from "@/services";
 import { useSessionStore } from "@/stores/session";
@@ -15,7 +15,7 @@ import { toast } from "@/stores/toast";
  * 실시간 이벤트(docs/realtime-protocol.md)를 받아 화면 데이터(쿼리 캐시)에 반영한다.
  * - 새 메시지: 목록에 추가, 수신 확인 전송, 자동 재생
  * - 재연결: 현장 재구독 후 전체 다시 불러오기 (누락 동기화)
- * - 실시간 통역 세션: 통화가 오거나 일괄 지시가 시작되면 해당 화면을 연다. 세션 발화는 설정과 무관하게 자동 재생한다.
+ * - 실시간 통역 세션: 통화가 오거나 일괄 지시가 시작되면 해당 화면을 연다 (통화는 다른 현장·현장 목록에 있어도). 세션 발화는 설정과 무관하게 자동 재생한다.
  *   (스트리밍 통화에서 이미 들은 문장은 제외 — audio/streamed.ts)
  */
 export function RealtimeBridge() {
@@ -41,10 +41,7 @@ export function RealtimeBridge() {
       }
     });
 
-    const cacheSession = (session: LiveSession) => {
-      client.setQueryData(qk.session(session.id), session);
-      void client.invalidateQueries({ queryKey: qk.openSessions(session.siteId) });
-    };
+    const cacheSession = (session: LiveSession) => cacheSessionData(client, session);
 
     const offs = [
       realtime.on("message:new", ({ message }) => {
@@ -107,7 +104,13 @@ export function RealtimeBridge() {
       realtime.on("sync:required", () => void client.invalidateQueries()),
       realtime.on("session:invite", ({ session }) => {
         cacheSession(session);
-        if (session.siteId !== siteRef.current) return;
+        if (session.siteId !== siteRef.current) {
+          // 걸려 온 전화는 어느 화면에 있든 받을 수 있게 그 현장으로 바꿔서 연다 (현장 목록·다른 현장, 2026-10-26 C1).
+          // 실시간 지시는 지금 현장 것만 연다 (다른 현장 일을 하는 중에 화면이 바뀌지 않게)
+          if (session.mode !== "call") return;
+          siteRef.current = session.siteId;
+          setSiteId(session.siteId);
+        }
         router.push(session.mode === "call" ? `/site/call/${session.id}` : `/site/broadcast/${session.id}`);
       }),
       realtime.on("session:updated", ({ session }) => cacheSession(session)),

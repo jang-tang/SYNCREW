@@ -504,6 +504,14 @@ export const STRINGS = {
     uz: "Hozir bajarib boʻlmaydi. Qarshi tomon onlayn ekanini tekshiring.",
     ru: "Сейчас невозможно. Проверьте, в сети ли собеседник.",
   },
+  "call.cycle.calling": { ko: "{name} 님에게 전화합니다", zh: "正在呼叫{name}", vi: "Đang gọi {name}", uz: "{name} ga qoʻngʻiroq qilinmoqda", ru: "Звоним: {name}" },
+  "call.cycle.none": {
+    ko: "통화할 수 있는 멤버가 없어요",
+    zh: "没有可以通话的成员",
+    vi: "Không có thành viên nào để gọi",
+    uz: "Qoʻngʻiroq qilish mumkin boʻlgan aʼzo yoʻq",
+    ru: "Нет участников, которым можно позвонить",
+  },
   "call.start": { ko: "통역 통화", zh: "翻译通话", vi: "Gọi phiên dịch", uz: "Tarjimali qoʻngʻiroq", ru: "Звонок с переводом" },
   "call.ringingOut": {
     ko: "{name} 님을 부르는 중…",

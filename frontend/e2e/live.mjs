@@ -329,6 +329,16 @@ try {
   }
   await manager.shot("live-3-call-manager");
   await member.shot("live-3-call-member");
+  if (!REAL && !MIXED) {
+    // C1: 현장에 다른 사람이 없으면 음량 버튼 두 번(웹: 화살표 위)으로도 통화가 그대로 (안내만)
+    // 헤드리스 Chrome 은 비밀번호 입력 뒤 실제 키 이벤트를 잃는다 → keydown 을 직접 보낸다
+    const up = () => manager.page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" })));
+    await up();
+    await wait(120);
+    await up();
+    await manager.check("관리자: 바꿀 사람 없음 안내", "통화할 수 있는 멤버가 없어요", 5000);
+    await manager.check("관리자: 통화는 그대로", "통화 중");
+  }
   if (!REAL) await manager.tap("끊기");
   await manager.check("관리자: 통화 종료", "통화가 끝났어요");
   await member.check("구성원: 통화 종료 알림", "Cuộc gọi đã kết thúc", 10000);
@@ -374,6 +384,20 @@ try {
     await manager.check("관리자: 직접 전달 통화 종료", "통화가 끝났어요");
     await member.check("구성원: 직접 전달 통화 종료", "Cuộc gọi đã kết thúc", 10000);
     await setMemberLang("Tiếng Việt"); // 원래대로 (뒤 단계는 베트남어 통역을 확인한다)
+  }
+
+  if (!ONLY_CALL) {
+  console.log("5-2) 현장 밖(현장 목록, 고른 현장 없음)에서도 걸려 온 전화가 뜬다 (C1, 2026-10-26)");
+  await member.page.evaluate(() => localStorage.removeItem("syncrew.siteId"));
+  await member.go("/sites");
+  await member.check("구성원: 현장 목록(고른 현장 없음)", "Công trường của tôi", 10000);
+  await manager.go("/site/members");
+  await manager.tap(MEMBER_NAME);
+  await manager.tap("통역 통화");
+  await member.check("구성원: 현장 목록에서 수신 화면", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
+  await member.tap("Từ chối");
+  await manager.check("관리자: 거절됨", "통화를 받지 않았어요", 10000);
+  await member.check("구성원: 거절 후 종료 화면", "Cuộc gọi bị từ chối", 10000);
   }
 
   if (!ONLY_CALL) {

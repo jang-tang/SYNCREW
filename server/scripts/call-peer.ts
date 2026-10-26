@@ -10,6 +10,8 @@
 //   npx tsx scripts/call-peer.ts                       # 구성원 계정으로 관리자 계정(휴대폰)에게 전화 → 수락되면 8초마다 말하기
 //   npx tsx scripts/call-peer.ts --answer              # 휴대폰이 걸어 오는 전화를 기다렸다가 받기
 //   npx tsx scripts/call-peer.ts --as manager          # 이 스크립트가 관리자 계정 (휴대폰은 구성원 계정)
+//   npx tsx scripts/call-peer.ts --as member2 --answer # 세 번째 계정(구성원 2)으로 받기만 — 휴대폰 2대(관리자·구성원)와 함께 통화 상대 바꾸기(C1) 시험
+//                                                      #   (--peer manager|member: 누구와 함께 속한 현장을 쓸지·누구에게 걸지, 기본 manager)
 //   옵션: --server http://localhost:4000  --every 8  --count 0(무한)  --listen(말하지 않고 듣기만)  --utterance(스트리밍 쓰지 않음)  --text "문장"
 //         --continuous(말 사이에도 작은 잡음을 계속 보냄 — 휴대폰 앱처럼 마이크가 늘 켜진 상황. 2026-10-23 원문 밀림 재현용)
 // 끝내기: Ctrl+C (통화를 끊고 종료). 받은 음성: server/call-peer-output/
@@ -42,8 +44,10 @@ const option = (name: string, fallback: string) => {
   return i >= 0 && argv[i + 1] ? argv[i + 1]! : fallback;
 };
 const SERVER = option("server", "http://localhost:4000").replace(/\/$/, "");
-const AS: "member" | "manager" = option("as", "member") === "manager" ? "manager" : "member";
-const PEER = AS === "member" ? "manager" : "member";
+type AccountRole = "member" | "manager" | "member2";
+const asOption = option("as", "member");
+const AS: AccountRole = asOption === "manager" || asOption === "member2" ? asOption : "member";
+const PEER: AccountRole = AS === "member2" ? (option("peer", "manager") === "member" ? "member" : "manager") : AS === "member" ? "manager" : "member";
 const EVERY_MS = Number(option("every", "8")) * 1000;
 const COUNT = Number(option("count", "0"));
 const LISTEN_ONLY = flag("listen");
@@ -55,9 +59,10 @@ mkdirSync(outDir, { recursive: true });
 
 const root = path.resolve(import.meta.dirname, "..", "..");
 const accounts = JSON.parse(readFileSync(path.join(root, "server/.e2e-accounts.json"), "utf8")) as Record<
-  "member" | "manager",
+  AccountRole,
   { email: string; password: string; id: string }
 >;
+if (!accounts[AS]) throw new Error(`${AS} 계정이 없습니다 — npx tsx scripts/e2e-accounts.ts 먼저`);
 const appEnv = parseEnv(readFileSync(path.join(root, "frontend/.env"), "utf8"));
 const SUPABASE_URL = appEnv["EXPO_PUBLIC_SUPABASE_URL"];
 const PUBLISHABLE_KEY = appEnv["EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
