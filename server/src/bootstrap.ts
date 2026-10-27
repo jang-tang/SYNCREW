@@ -68,6 +68,7 @@ export async function createContext(
     // 실제 말소리 기준: 무음 판단은 OpenAI 설정과 같게, 첫 조각 0.8초·조각 100ms 간격 (S0 실측과 비슷한 체감)
     streamEngine = new FakeStreamEngine({ silenceMs: env.STREAM_VAD_SILENCE_MS, firstChunkDelayMs: 800, chunkIntervalMs: 100 });
   } else if (env.OPENAI_API_KEY) {
+    stt = new OpenAiStt(env.OPENAI_API_KEY, env.STT_MODEL, budget);
     streamEngine = new RealtimeStreamEngine({
       apiKey: env.OPENAI_API_KEY,
       model: env.TRANSLATION_MODEL,
@@ -78,12 +79,18 @@ export async function createContext(
       reasoning: env.TRANSLATION_REASONING,
       silenceMs: env.STREAM_VAD_SILENCE_MS,
       liveTranscription: env.STREAM_LIVE_TRANSCRIPTION === "on",
+      // 글자 기반 통역 (2026-10-28): 원문 글자만 넣어 통역 + 예측 시작 + 긴 말 나누기 (docs/streaming-plan.md 4-4절)
+      translateFrom: env.STREAM_TRANSLATE_FROM,
+      speculative: env.STREAM_SPECULATIVE === "on",
+      segmentAfterMs: env.STREAM_SEGMENT_AFTER_MS,
+      segmentPauseMs: env.STREAM_SEGMENT_PAUSE_MS,
+      // 확정 자막 (2026-10-28): 말 끝마다 그 턴 음성을 문장 단위 방식과 같은 받아쓰기(STT_MODEL)로 다시 받아써 원문으로 (docs/streaming-plan.md 4-5절)
+      ...(env.STREAM_FINAL_STT === "on" ? { finalStt: stt, finalSttMode: env.STREAM_FINAL_STT_MODE } : {}),
       budget,
       log: (message, detail) => logger.warn(detail ?? {}, message),
       // STREAM_DEBUG=1: 두 세션(번역·전사)의 이벤트를 모두 남긴다 (원문 누락·턴 짝짓기 진단)
       ...(env.STREAM_DEBUG === "1" ? { trace: (session, type, detail) => logger.info({ session, type, ...detail }, "스트리밍 엔진 이벤트") } : {}),
     });
-    stt = new OpenAiStt(env.OPENAI_API_KEY, env.STT_MODEL, budget);
     translator = new RealtimeTranslator({
       apiKey: env.OPENAI_API_KEY,
       model: env.TRANSLATION_MODEL,
