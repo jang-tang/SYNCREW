@@ -310,7 +310,7 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
       audio: {
         input: {
           format: { type: "audio/pcm", rate: 24_000 },
-          turn_detection: { type: "server_vad", silence_duration_ms: 500, prefix_padding_ms: 300, create_response: true, interrupt_response: false },
+          turn_detection: { type: "server_vad", silence_duration_ms: 500, prefix_padding_ms: 300, create_response: false, interrupt_response: false },
         },
         output: { format: { type: "audio/pcm", rate: 24_000 }, voice: "marin" },
       },
@@ -577,7 +577,7 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     connection.close();
   });
 
-  it("빈 전사가 번역 응답보다 먼저 오면: 응답이 만들어지자마자 취소하고 시작을 알리지 않는다", async () => {
+  it("빈 전사가 말 끝보다 먼저 오면: 응답을 요청하지 않고 그 항목을 지우며 시작을 알리지 않는다 (2026-10-27 서버가 응답 요청)", async () => {
     const server = await fakeRealtime();
     const { engine: e } = engine(server.url);
     const rec = recorder();
@@ -587,6 +587,24 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_e", transcript: "", usage: sttUsage });
     await sleep(50);
     server.send({ type: "input_audio_buffer.committed", item_id: "item_e" });
+    await until(() => server.received.some((r) => r.type === "conversation.item.delete" && r["item_id"] === "item_e"));
+    expect(server.received.filter((r) => r.type === "response.create")).toHaveLength(0);
+    expect(rec.log).toEqual([]);
+    expect(rec.ends).toEqual([]);
+    connection.close();
+  });
+
+  it("빈 전사가 응답 요청 뒤에 오면: 응답이 만들어지자마자 취소하고 시작을 알리지 않는다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_e" });
+    await until(() => server.received.some((r) => r.type === "response.create"));
+    stt.send({ type: "input_audio_buffer.committed", item_id: "stt_e" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "stt_e", transcript: "", usage: sttUsage });
+    await sleep(50);
     server.send({ type: "response.created", response: { id: "resp_e" } });
     server.send({ type: "response.output_audio.delta", response_id: "resp_e", delta: Buffer.alloc(960).toString("base64") });
     await until(() => server.received.some((r) => r.type === "response.cancel"));
@@ -594,6 +612,55 @@ describe("RealtimeStreamEngine (OpenAI Realtime 스트리밍)", () => {
     await sleep(50);
     expect(rec.log).toEqual([]);
     expect(rec.ends).toEqual([]);
+    connection.close();
+  });
+
+  it("응답 요청은 그 턴 항목만 가리키고(item_reference) 한 번에 하나씩: 앞 응답이 끝나야 다음을 요청한다. 거절(이미 진행 중)되면 다시 줄 세워 요청 — 턴 짝이 밀리지 않는다 (2026-10-27 시드니: 예전 말이 다시 전달)", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url);
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    const creates = () => server.received.filter((r) => r.type === "response.create") as Record<string, unknown>[];
+    const said = (n: number, text: string) => {
+      stt.send({ type: "input_audio_buffer.committed", item_id: `stt_${n}` });
+      stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: `stt_${n}`, transcript: text, usage: sttUsage });
+    };
+    // 1번 말 끝 → 1번 항목만 가리킨 요청
+    said(1, "물 가져와");
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => creates().length === 1);
+    const first = creates()[0]!;
+    expect((first["response"] as { input: unknown[] }).input).toEqual([{ type: "item_reference", id: "item_1" }]);
+    server.send({ type: "response.created", response: { id: "resp_1" } });
+    // 1번 번역이 나오는 중에 2번 말이 끝남 → 아직 요청하지 않는다 (예전: OpenAI 가 자동 응답을 거절해 짝이 밀렸다)
+    said(2, "3층으로 가");
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_2" });
+    await sleep(50);
+    expect(creates()).toHaveLength(1);
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Mang nước" });
+    server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [{ id: "out_1" }] } });
+    // 1번이 끝나면 2번 항목만 가리켜 요청
+    await until(() => creates().length === 2);
+    const second = creates()[1]!;
+    expect((second["response"] as { input: unknown[] }).input).toEqual([{ type: "item_reference", id: "item_2" }]);
+    // 다른 응답이 진행 중이라 거절되면 다시 줄 세우고, 진행 중이던 응답이 끝나면 같은 2번을 다시 요청한다
+    server.send({ type: "error", error: { code: "conversation_already_has_active_response", message: "busy", event_id: second["event_id"] } });
+    await sleep(50);
+    expect(creates()).toHaveLength(2);
+    server.send({ type: "response.done", response: { id: "resp_other", status: "completed", usage, output: [] } });
+    await until(() => creates().length === 3);
+    expect((creates()[2]!["response"] as { input: unknown[] }).input).toEqual([{ type: "item_reference", id: "item_2" }]);
+    server.send({ type: "response.created", response: { id: "resp_2" } });
+    server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_2", delta: "Lên tầng 3" });
+    server.send({ type: "response.done", response: { id: "resp_2", status: "completed", usage, output: [{ id: "out_2" }] } });
+    await until(() => rec.ends.length === 2);
+    // 원문과 번역이 같은 턴끼리 짝지어진다 (밀림 없음)
+    const done = rec.ends.map((end) => end.result).filter((r) => r.status === "done") as { original: string | null; translation: string }[];
+    expect(done.map((r) => [r.original, r.translation])).toEqual([
+      ["물 가져와", "Mang nước"],
+      ["3층으로 가", "Lên tầng 3"],
+    ]);
     connection.close();
   });
 
@@ -709,7 +776,7 @@ describe("RealtimeStreamEngine + gpt-live-transcribe (STREAM_STT_MODEL)", () => 
     expect(update.session.audio.input.transcription).not.toHaveProperty("language");
     // 번역 세션은 바뀌지 않는다 (server_vad, 전사 없음)
     const conv = (server.received[0] as unknown as SttUpdate).session.audio.input;
-    expect(conv.turn_detection).toMatchObject({ type: "server_vad", create_response: true });
+    expect(conv.turn_detection).toMatchObject({ type: "server_vad", create_response: false });
     expect(conv).not.toHaveProperty("transcription");
     connection.close();
   });
