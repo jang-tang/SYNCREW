@@ -32,8 +32,15 @@ export async function requireParticipant(prisma: PrismaClient, conversationId: s
 }
 
 /** 조회자에게 보이는 메시지: 본인이 보냈거나 수신자인 것 */
+/** 말한 사람에게 숨기는 스트리밍 기록의 clientMessageId 앞부분 (streaming/persistTurn.ts) */
+export const HIDDEN_FROM_SENDER_PREFIX = "gcopy-";
+
 export const visibleTo = (userId: string) => ({
-  OR: [{ senderId: userId }, { recipients: { some: { userId } } }],
+  OR: [
+    // 현장 전체 연결의 언어별 기록 중 대표가 아닌 것은 말한 사람에게 숨긴다 (streaming/persistTurn.ts)
+    { senderId: userId, NOT: { clientMessageId: { startsWith: HIDDEN_FROM_SENDER_PREFIX } } },
+    { recipients: { some: { userId } } },
+  ],
 });
 
 /** 조회자 기준 대화 요약 목록 (group 먼저, 그다음 최근 메시지 순) */

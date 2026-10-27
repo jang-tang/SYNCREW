@@ -223,8 +223,12 @@ export type InboxItem = MessageView & {
 // ─── 실시간 통역 세션 (1:1 통화, 관리자 일괄 지시) ──────
 // docs/live-interpretation.md
 
-/** call: 1:1 통역 통화 / broadcast: 관리자 → 여러 구성원 실시간 일괄 지시 */
-export type SessionMode = "call" | "broadcast";
+/**
+ * call: 1:1 통역 통화 / broadcast: 관리자 → 여러 구성원 실시간 일괄 지시
+ * group: 현장 전체 연결 (2026-10-27) — 현장마다 하나, 누구나 열고 각자 눌러서 들어온다. 누가 말하든 나머지 사람에게 각자 언어로 실시간 통역,
+ *        기록은 현장 그룹 대화에. 마지막 사람이 나가면 끝난다
+ */
+export type SessionMode = "call" | "broadcast" | "group";
 export type SessionStatus = "ringing" | "active" | "ended";
 /** 연결 전환(C2)으로 끝난 연결도 hangup 이다 (DB 의 종료 사유 제약을 바꾸지 않으려고, 2026-10-26) */
 export type SessionEndReason = "hangup" | "declined" | "missed" | "cancelled" | "connection_lost" | "removed";
@@ -236,7 +240,7 @@ export type SessionEndReason = "hangup" | "declined" | "missed" | "cancelled" | 
 export type CallStartInput = { userId: string; connect?: boolean };
 /** 연결 전환: 지금 연결을 끝내고 다른 사람과 바로 연결한다 (상대가 다른 연결 중·접속 안 함이면 지금 연결은 그대로) */
 export type CallSwitchInput = { userId: string };
-export type SessionRole = "caller" | "callee" | "speaker" | "listener";
+export type SessionRole = "caller" | "callee" | "speaker" | "listener" | "participant";
 
 export type SessionParticipant = {
   userId: string;

@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
+import { goHome, openOverHome } from "@/lib/nav";
 import { memo, useSyncExternalStore, type ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { DeviceStatus, LiveSession } from "@shared/api";
@@ -109,7 +109,7 @@ export function InfoNotice({ text, tone = "warning" }: { text: string; tone?: "w
 
 /**
  * 탭 화면 상단: 연결 끊김 + 진행 중인 1:1 연결·실시간 지시로 돌아가기.
- * hideConnection: 연결 화면(멤버 탭)은 연결 패널이 있으므로 1:1 연결 배너를 숨긴다.
+ * hideConnection: 연결 화면(멤버 탭)은 연결 패널이 있으므로 1:1·현장 전체 연결 배너를 숨긴다.
  */
 export function SiteBanners({ hideConnection = false }: { hideConnection?: boolean }) {
   const { t } = useT();
@@ -117,15 +117,20 @@ export function SiteBanners({ hideConnection = false }: { hideConnection?: boole
   const me = useMe();
   const open = useOpenSessions(siteId);
   const live = open.data?.find(
-    (s) => (s.status === "active" || (s.status === "ringing" && s.startedBy !== me.data?.id)) && !(hideConnection && s.mode === "call"),
+    (s) => (s.status === "active" || (s.status === "ringing" && s.startedBy !== me.data?.id)) && !(hideConnection && s.mode !== "broadcast"),
   );
   const peer = live?.participants.find((p) => p.userId !== me.data?.id);
+  const label = !live
+    ? ""
+    : live.mode === "call"
+      ? t("conn.banner", { name: peer?.displayName ?? "" })
+      : live.mode === "group"
+        ? t("conn.groupBanner", { n: live.participants.filter((p) => !p.leftAt).length })
+        : t("bc.banner");
   return (
     <>
       <ConnectionBanner />
-      {live && (
-        <LiveBanner session={live} label={live.mode === "call" ? t("conn.banner", { name: peer?.displayName ?? "" }) : t("bc.banner")} />
-      )}
+      {live && <LiveBanner session={live} label={label} />}
     </>
   );
 }
@@ -134,7 +139,7 @@ function LiveBanner({ session, label }: { session: LiveSession; label: string })
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => (session.mode === "call" ? router.navigate("/site") : router.push(`/site/broadcast/${session.id}`))}
+      onPress={() => (session.mode === "broadcast" ? openOverHome(`/site/broadcast/${session.id}`) : goHome())}
       style={styles.banner}
     >
       <View style={styles.liveDot} />

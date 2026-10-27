@@ -87,6 +87,10 @@ export interface ApiService {
   /** 연결 전환 (C2): 지금 1:1 연결을 끝내고 다른 사람과 바로 연결 → 새 세션. 상대가 다른 연결 중이면 BUSY, 접속 안 함이면 CONFLICT (지금 연결은 그대로) */
   switchCall(sessionId: string, userId: string): Promise<LiveSession>;
   startBroadcast(siteId: string, target: InstructionTarget): Promise<LiveSession>;
+  /** 지금 열린 현장 전체 연결 (2026-10-27, 참여하지 않아도 본다). 없으면 null */
+  currentGroup(siteId: string): Promise<LiveSession | null>;
+  /** 현장 전체 연결에 들어가기 (없으면 연다). 1:1 연결 중이었으면 그 연결은 끝난다. 나가기는 endSession */
+  joinGroup(siteId: string): Promise<LiveSession>;
   getSession(sessionId: string): Promise<LiveSession>;
   /** 내가 참여 중인 울림·진행 중 세션 */
   listOpenSessions(siteId: string): Promise<LiveSession[]>;

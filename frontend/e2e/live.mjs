@@ -366,23 +366,29 @@ try {
     await member.go("/site"); // 페이지를 새로 열면 재생 기록(window.__syncrewPlayback)도 새로 시작한다
     const before = await member.page.evaluate(() => ({ ...window.__syncrewPlayback, streamed: [...window.__syncrewPlayback.streamed] }));
     await manager.go("/site");
+    const managerBefore = await manager.page.evaluate(() => window.__syncrewPlayback.streamChunks);
     await manager.tap(MEMBER_NAME, { last: false }); // 멤버 줄 (아래 1:1 메시지 줄이 아니라)
     await member.check("구성원: 연결 화면", `Đang kết nối với ${MANAGER_NAME}`, 10000);
     await manager.check("관리자: 같은 언어 → 직접 전달 방식", "같은 언어 · 음성 그대로 전달", 15000);
     await member.check("구성원: 같은 언어 → 직접 전달 방식", "Cùng ngôn ngữ · truyền giọng nói trực tiếp", 15000);
     // (예전에는 메아리 차단 때문에 여기서 구성원 마이크를 껐다 — C2 는 마이크 끄기 버튼이 없다(10-27). 끄지 않아도 통과 확인)
     await wait(1500);
-    // 관리자 마이크 음성(가짜 마이크)이 구성원에게 조각으로 도착하는지, 기록(번역 메시지)은 생기지 않는지
-    const got = await member.page
-      .waitForFunction((n) => window.__syncrewPlayback.streamChunks > n + 10, { timeout: 30000 }, before.streamChunks)
-      .then(() => true, () => false);
+    // 상대 음성(가짜 마이크)이 조각으로 도착하는지, 기록(번역 메시지)은 생기지 않는지.
+    // 두 브라우저의 가짜 마이크가 동시에 계속 말하므로 반이중 메아리 차단으로 먼저 들린 쪽만 전달된다 → 어느 방향이든 도착하면 통과 (2026-10-27)
+    const arrived = (page, n) =>
+      page.waitForFunction((m) => (window.__syncrewPlayback?.streamChunks ?? 0) > m + 10, { timeout: 30000 }, n).then(() => true, () => false);
+    const got = await Promise.race([
+      arrived(member.page, before.streamChunks),
+      arrived(manager.page, managerBefore),
+    ]);
     const after = await member.page.evaluate(() => window.__syncrewPlayback);
+    const managerAfter = await manager.page.evaluate(() => window.__syncrewPlayback.streamChunks);
     if (got && after.streamed.length === before.streamed.length) {
       pass++;
-      console.log(`  ✓ [구성원] 직접 전달: 음성 조각 ${after.streamChunks - before.streamChunks}개 받음, 기록 메시지 없음 (streamed 그대로)`);
+      console.log(`  ✓ 직접 전달: 음성 조각 구성원 ${after.streamChunks - before.streamChunks}개·관리자 ${managerAfter - managerBefore}개 받음, 기록 메시지 없음 (streamed 그대로)`);
     } else {
       fail++;
-      console.log("  ✗ [구성원] 직접 전달", { got, before: before.streamChunks, after: after.streamChunks, streamedBefore: before.streamed.length, streamedAfter: after.streamed.length });
+      console.log("  ✗ 직접 전달", { got, member: after.streamChunks - before.streamChunks, manager: managerAfter - managerBefore, streamedBefore: before.streamed.length, streamedAfter: after.streamed.length });
     }
     await manager.shot("live-3b-relay-manager");
     await member.shot("live-3b-relay-member");
@@ -406,13 +412,44 @@ try {
   await manager.check("관리자: 상대가 나가면 연결 끝", "사람을 누르면 바로 연결돼요", 10000);
   }
 
+  if (STREAMING && !ONLY_CALL) {
+    console.log("5-3) 현장 전체 연결 (2026-10-27): 각자 들어가기 → 실시간 통역 → 한 명 나가도 계속 → 마지막 사람이 나가면 끝");
+    await member.go("/site");
+    await manager.go("/site");
+    await manager.tap("들어가기");
+    await manager.check("관리자: 현장 전체 연결 패널", "현장 전체 연결 · 1명", 10000);
+    await manager.check("관리자: 혼자일 때 안내", "아직 혼자예요", 5000);
+    await member.check("구성원: 참여하지 않아도 연결 중 인원 표시(실시간)", "1 người đang kết nối", 10000);
+    await member.tap("Tham gia");
+    await member.check("구성원: 들어감", "Kết nối cả công trường · 2 người", 10000);
+    await manager.check("관리자: 인원 갱신", "현장 전체 연결 · 2명", 10000);
+    // 두 가짜 마이크가 동시에 말하므로 방 전체 반이중으로 먼저 들린 쪽만 통역된다 → 어느 방향이든 통역 자막이 오면 통과
+    const heard = await Promise.race([
+      member.page.waitForFunction(() => document.body.innerText.includes("[vi] [음성 ko]"), { timeout: 30000 }).then(() => "구성원이 관리자 말을 베트남어로", () => null),
+      manager.page.waitForFunction(() => document.body.innerText.includes("[ko] [음성 vi]"), { timeout: 30000 }).then(() => "관리자가 구성원 말을 한국어로", () => null),
+    ]);
+    if (heard) { pass++; console.log(`  ✓ 현장 전체 연결 통역: ${heard} 받음`); }
+    else { fail++; console.log("  ✗ 현장 전체 연결 통역 자막 없음"); }
+    await manager.shot("live-3c-group-manager");
+    await member.shot("live-3c-group-member");
+    await member.tap("Thoát");
+    await member.check("구성원: 나가면 다시 들어가기 카드", "Tham gia", 10000);
+    await manager.check("관리자: 한 명이 나가도 계속", "현장 전체 연결 · 1명", 10000);
+    await manager.tap("나가기");
+    await manager.check("관리자: 마지막 사람이 나가면 끝", "누가 말하든 모두에게 각자 언어로 실시간 통역", 10000);
+    await member.check("구성원: 연결이 끝나면 인원 표시 없음", "Ai nói thì mọi người đều nghe bằng ngôn ngữ của mình", 10000);
+  }
+
   if (!ONLY_CALL) {
   console.log("6) 관리자 실시간 일괄 지시 → 구성원 자동 수신");
   await member.go("/site");
   await manager.go("/site/instructions");
-  await manager.tap("실시간 지시 시작");
-  await manager.check("대상 선택 화면", "실시간 일괄 지시");
-  await manager.tap("1명에게 실시간 지시 시작");
+  // 지시 탭 첫 화면에서 바로 시작 (2026-10-27): 구성원이 처음부터 모두 골라져 있다. 이 현장의 구성원 수에 따라 "N명에게 …"
+  await manager.check("관리자: 지시 탭에 받는 사람 목록", MEMBER_NAME);
+  const startLabel = await manager.page.evaluate(() =>
+    [...document.querySelectorAll("div,span")].map((n) => n.innerText?.trim()).find((t) => /^\d+명에게 실시간 지시 시작$/.test(t ?? "")),
+  );
+  await manager.tap(startLabel ?? "실시간 지시 시작");
   await manager.check("지시 중 화면", "구성원 연결 상태", 10000);
   await member.check("구성원: 수신 화면 자동 열림", `Chỉ thị trực tiếp từ ${MANAGER_NAME}`, 10000);
   await member.check("구성원: 관리자 말이 베트남어로 도착", "[vi] [음성 ko]", 30000);
@@ -429,6 +466,9 @@ try {
   await manager.tap("지시 끝내기");
   await manager.check("관리자: 지시 종료", "실시간 지시가 끝났어요");
   await member.check("구성원: 지시 종료 표시", "Chỉ thị trực tiếp đã kết thúc", 10000);
+  // 저절로 열린 수신 화면에서 뒤로 가면 연결 탭으로 (화면이 쌓이지 않게, 2026-10-27)
+  await member.page.goBack();
+  await member.check("구성원: 뒤로 가기 → 연결 탭", "Chạm vào một người để kết nối ngay", 10000);
 
   console.log("7) 문자 지시 → 구성원 확인 → 관리자 진행 상태 갱신");
   await manager.go("/site/instruction/new");
@@ -448,8 +488,8 @@ try {
   await member.go("/site/instructions");
   await member.check("구성원: 받은 지시(베트남어 통역)", "[vi] 오후 2시까지 3층 정리하세요", 15000);
   await member.tap("Đã hiểu");
-  await manager.go("/site/instructions");
-  await manager.check("관리자: 확인 반영", "1/1명 확인", 10000);
+  await manager.go("/site/instruction/history");
+  await manager.check("관리자: 확인 반영(보낸 지시 기록)", "1/1명 확인", 10000);
   await manager.shot("live-5-instructions");
   }
 } catch (error) {

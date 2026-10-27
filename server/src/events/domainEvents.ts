@@ -35,6 +35,8 @@ export interface DomainEvents {
   sessionInvite(event: { userId: string; session: LiveSession }): void;
   /** 세션 상태 변화 (참여자 전원) */
   sessionUpdated(event: { userIds: string[]; session: LiveSession }): void;
+  /** 현장 전체 연결 상태 (현장 활성 멤버 전원, site: 방). null = 열린 연결 없음 */
+  groupUpdated(event: { siteId: string; session: LiveSession | null }): void;
   /** 구성원 오디오 장치 상태 변화 (그 사람이 속한 현장들) */
   deviceChanged(event: { siteIds: string[]; userId: string; device: DeviceStatus | null }): void;
 }
@@ -47,5 +49,6 @@ export const noopEvents: DomainEvents = {
   instructionRecipient() {},
   sessionInvite() {},
   sessionUpdated() {},
+  groupUpdated() {},
   deviceChanged() {},
 };

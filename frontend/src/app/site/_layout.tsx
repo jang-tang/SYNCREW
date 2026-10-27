@@ -23,7 +23,6 @@ export default function SiteLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="chat/new" options={{ presentation: "modal" }} />
       <Stack.Screen name="instruction/new" options={{ presentation: "modal" }} />
-      <Stack.Screen name="broadcast/new" options={{ presentation: "modal" }} />
       {/* 통화·실시간 지시 화면은 실수로 밀어서 닫히지 않게 한다 (끊기·끝내기 버튼으로) */}
       <Stack.Screen name="call/[id]" options={{ gestureEnabled: false }} />
       <Stack.Screen name="broadcast/[id]" options={{ gestureEnabled: false }} />

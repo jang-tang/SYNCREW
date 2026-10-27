@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AppContext } from "../context";
 import { encodeWav } from "../engine/audio/codec";
 import type { Lang } from "../shared/languages";
+import { HIDDEN_FROM_SENDER_PREFIX } from "../messaging/conversations";
 import { fullMessage, recipientCounts, toMessageView } from "../messaging/views";
 
 // 스트리밍 턴 1개를 기록으로 저장 (docs/streaming-plan.md 4절 persistTurn, 완료 기준 4).
@@ -15,7 +16,13 @@ export type StreamedTurn = {
   sessionId: string;
   conversationId: string | null;
   senderId: string;
-  recipientId: string;
+  /** 이 언어로 받는 사람들 (1:1 은 1명, 현장 전체 연결은 같은 언어인 사람 모두) */
+  recipientIds: string[];
+  /**
+   * 현장 전체 연결에서 대표가 아닌 언어의 기록: 말한 사람의 기록에는 보이지 않는다 (한 문장이 언어 수만큼 겹쳐 보이지 않게, 2026-10-27).
+   * 받는 사람에게는 그대로 보인다 (conversations.visibleTo)
+   */
+  hiddenFromSender?: boolean;
   sourceLang: Lang;
   targetLang: Lang;
   original: string | null;
@@ -35,7 +42,7 @@ export type StreamedTurn = {
  */
 export async function persistTurn(context: AppContext, turn: StreamedTurn): Promise<{ messageId: string; notify: () => Promise<void> }> {
   const { prisma, storage, domain } = context;
-  const clientMessageId = `stream-${turn.turnId}`.slice(0, 64);
+  const clientMessageId = `${turn.hiddenFromSender ? HIDDEN_FROM_SENDER_PREFIX : "stream-"}${turn.turnId}`.slice(0, 64);
   const existing = await prisma.message.findUnique({ where: { senderId_clientMessageId: { senderId: turn.senderId, clientMessageId } } });
   if (existing) return { messageId: existing.id, notify: async () => undefined };
 
@@ -80,7 +87,7 @@ export async function persistTurn(context: AppContext, turn: StreamedTurn): Prom
             },
           ],
         },
-        recipients: { create: [{ userId: turn.recipientId, targetLang: turn.targetLang, status: "sent", sentAt: now }] },
+        recipients: { create: turn.recipientIds.map((userId) => ({ userId, targetLang: turn.targetLang, status: "sent", sentAt: now })) },
       },
       include: fullMessage,
     });
@@ -97,10 +104,9 @@ export async function persistTurn(context: AppContext, turn: StreamedTurn): Prom
   // 발화 단위 방식과 같은 알림: 받는 사람 message:new, 말한 사람 message:status
   const notify = async () => {
     const sender = await prisma.profile.findUnique({ where: { id: turn.senderId }, select: { displayName: true } });
-    context.events.messageNew({
-      userId: turn.recipientId,
-      message: toMessageView(message, turn.recipientId, sender?.displayName ?? "", context.audioUrls),
-    });
+    for (const userId of turn.recipientIds) {
+      context.events.messageNew({ userId, message: toMessageView(message, userId, sender?.displayName ?? "", context.audioUrls) });
+    }
     context.events.messageStatus({
       userId: turn.senderId,
       messageId,

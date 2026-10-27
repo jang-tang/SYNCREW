@@ -122,6 +122,8 @@ export function createHttpApi(auth: AuthService): ApiService {
 
     startCall: (siteId, userId, options) => call<LiveSession>(`/sites/${siteId}/calls`, { method: "POST", json: { userId, ...options } }),
     switchCall: (sessionId, userId) => call<LiveSession>(`/sessions/${sessionId}/switch`, { method: "POST", json: { userId } }),
+    currentGroup: (siteId) => call<LiveSession | null>(`/sites/${siteId}/group-call`),
+    joinGroup: (siteId) => call<LiveSession>(`/sites/${siteId}/group-call`, { method: "POST" }),
     startBroadcast: (siteId, target) => call<LiveSession>(`/sites/${siteId}/broadcasts`, { method: "POST", json: { target } }),
     getSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}`),
     listOpenSessions: (siteId) => call<LiveSession[]>(`/sites/${siteId}/sessions/open`),

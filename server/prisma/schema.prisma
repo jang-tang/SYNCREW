@@ -241,11 +241,11 @@ model MessageRecipient {
 model LiveSession {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   siteId         String    @map("site_id") @db.Uuid
-  /// call | broadcast
+  /// call | broadcast | group (현장 전체 연결, 2026-10-27 — 현장마다 열린 것은 하나: 부분 고유 인덱스 live_sessions_one_open_group)
   mode           String
   /// ringing | active | ended
   status         String
-  /// call 이면 두 사람의 1:1 대화 (발화가 이 대화의 메시지로 저장된다)
+  /// call 이면 두 사람의 1:1 대화, group 이면 현장 그룹 대화 (발화가 이 대화의 메시지로 저장된다)
   conversationId String?   @map("conversation_id") @db.Uuid
   startedBy      String    @map("started_by") @db.Uuid
   /// hangup | declined | missed | cancelled | connection_lost | removed
@@ -270,7 +270,7 @@ model LiveSession {
 model LiveSessionParticipant {
   sessionId String    @map("session_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
-  /// caller | callee | speaker | listener
+  /// caller | callee | speaker | listener | participant(현장 전체 연결)
   role      String
   joinedAt  DateTime? @map("joined_at") @db.Timestamptz(6)
   leftAt    DateTime? @map("left_at") @db.Timestamptz(6)

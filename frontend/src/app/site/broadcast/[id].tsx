@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { goHome } from "@/lib/nav";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useMemo, useState } from "react";
@@ -56,7 +57,8 @@ export default function BroadcastScreen() {
   return speaker ? <SpeakerConsole session={session.data} me={me.data} /> : <ListenerView session={session.data} me={me.data} />;
 }
 
-const close = () => (router.canGoBack() ? router.back() : router.replace("/site/instructions"));
+/** 관리자는 지시 탭으로, 구성원(저절로 열린 수신 화면)은 연결 탭으로 */
+const closeSpeaker = () => (router.canGoBack() ? router.back() : router.replace("/site/instructions"));
 
 // ─── 관리자 ─────────────────────────────────────────
 
@@ -86,7 +88,7 @@ function SpeakerConsole({ session, me }: { session: LiveSession; me: Profile }) 
   if (!active) {
     return (
       <Screen>
-        <StackHeader title={t("bc.title")} onBack={close} />
+        <StackHeader title={t("bc.title")} onBack={closeSpeaker} />
         <View style={styles.ended}>
           <Ionicons name="radio-outline" size={40} color={colors.muted} />
           <Text style={font.title}>{t("bc.ended")}</Text>
@@ -214,7 +216,7 @@ function ListenerView({ session, me }: { session: LiveSession; me: Profile }) {
   return (
     <Screen edges={["top", "bottom"]}>
       {active && <KeepAwake />}
-      <StackHeader title={t("bc.receiving", { name: session.startedByName })} right={active ? <LiveBadge /> : undefined} onBack={close} />
+      <StackHeader title={t("bc.receiving", { name: session.startedByName })} right={active ? <LiveBadge /> : undefined} onBack={goHome} />
       <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm }}>
         {active ? (
           <>

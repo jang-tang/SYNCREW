@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { goHome, openOverHome } from "@/lib/nav";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import type { LiveSession, MessageView, Profile } from "@shared/api";
@@ -112,10 +112,16 @@ export function RealtimeBridge() {
           setSiteId(session.siteId);
         }
         // 1:1 연결(C2): 받기 없이 바로 연결되므로 연결 화면(멤버 탭)을 연다 — 누구와 연결됐는지 테두리로 보인다. 음성은 ConnectionProvider
-        if (session.mode === "call") router.navigate("/site");
-        else router.push(`/site/broadcast/${session.id}`);
+        // 연결 탭 위에 하나만 연다 — 여러 번 받아도 화면이 쌓이지 않고, 뒤로 가기는 연결 탭으로 (2026-10-27)
+        if (session.mode === "call") goHome();
+        else openOverHome(`/site/broadcast/${session.id}`);
       }),
       realtime.on("session:updated", ({ session }) => cacheSession(session)),
+      // 현장 전체 연결이 열리거나 참여자가 바뀌거나 끝남 (참여하지 않아도 "현장 전체 연결 중" 을 보게)
+      realtime.on("group:updated", ({ siteId: changedSite, session }) => {
+        client.setQueryData(qk.groupCall(changedSite), session);
+        if (session) cacheSession(session);
+      }),
       realtime.on("device:changed", ({ siteId: changedSite }) => {
         void client.invalidateQueries({ queryKey: qk.members(changedSite) });
       }),

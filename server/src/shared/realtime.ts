@@ -42,6 +42,11 @@ export type ServerToClientEvents = {
   "session:invite": (payload: Envelope & { session: LiveSession }) => void;
   /** 세션 상태·참여자 연결 변화 (참여자 전원의 user: 방) */
   "session:updated": (payload: Envelope & { session: LiveSession }) => void;
+  /**
+   * 현장 전체 연결이 열리거나 참여자가 바뀌거나 끝남 (site: 방 — 참여하지 않은 사람도 "현장 전체 연결 중" 을 보게, 2026-10-27).
+   * session = null 이면 열린 연결이 없다
+   */
+  "group:updated": (payload: Envelope & { siteId: string; session: LiveSession | null }) => void;
   /** 구성원 오디오 장치 상태 변화 (site: 방) */
   "device:changed": (payload: Envelope & { siteId: string; userId: string; device: DeviceStatus | null }) => void;
   "auth:expired": (payload: Envelope) => void;

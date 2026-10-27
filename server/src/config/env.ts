@@ -37,7 +37,8 @@ const envSchema = z.object({
   /** 1:1 통화 스트리밍 통역 (docs/streaming-plan.md). off 면 앱은 발화 단위 방식만 쓴다 */
   STREAMING: z.enum(["on", "off"]).default("on"),
   /** 동시에 여는 스트리밍 엔진 연결 수 (화자 × 대상 언어). 넘으면 발화 단위 방식 */
-  STREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(64).default(4),
+  // 동시 엔진 연결(통역 레인) 상한. 현장 전체 연결은 말하는 사람마다 다른 언어 수만큼 연다 — 3명·3개 언어면 6개 (2026-10-27 4 → 8)
+  STREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(64).default(8),
   /** OpenAI server_vad 말 끝 무음 (ms). S0 실측 기준 500 → 2026-10-24 350 (지연 약 0.24초 단축, docs/field-accuracy.md 8절). 사람 목소리로 문장이 잘리는지 실기기 확인 전 */
   STREAM_VAD_SILENCE_MS: z.coerce.number().int().min(200).max(2000).default(350),
   /**

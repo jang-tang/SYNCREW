@@ -33,7 +33,7 @@ type User = { id: string; displayName: string; lang: Lang; online: boolean; devi
 type Session = {
   id: string;
   siteId: string;
-  mode: "call" | "broadcast";
+  mode: "call" | "broadcast" | "group";
   status: "ringing" | "active" | "ended";
   conversationId: string | null;
   startedBy: string;
@@ -698,6 +698,42 @@ class MockDb {
     return this.startCall(current.siteId, userId, true);
   }
 
+  // ─── 현장 전체 연결 (2026-10-27) ────────────────────
+  // 데모: 내가 들어가면 접속 중인 구성원 둘이 이미 들어와 있는 것으로 보인다. 나가면 나만 빠진다(데모에서는 끝난 것으로 보인다)
+
+  private openGroup(siteId: string) {
+    return [...this.sessions.values()].find((s) => s.siteId === siteId && s.mode === "group" && s.status !== "ended");
+  }
+
+  currentGroup(siteId: string) {
+    const session = this.openGroup(siteId);
+    return session ? this.sessionView(session) : null;
+  }
+
+  joinGroup(siteId: string) {
+    const call = this.openSession("call");
+    if (call) this.endSession(call.id);
+    let session = this.openGroup(siteId);
+    if (!session) {
+      const now = new Date().toISOString();
+      const others = this.memberships
+        .filter((m) => m.siteId === siteId && m.status === "active" && m.userId !== ME && this.users.get(m.userId)?.online)
+        .slice(0, 2)
+        .map((m) => ({ userId: m.userId, role: "participant" as const }));
+      session = {
+        id: newId(), siteId, mode: "group", status: "active", conversationId: `${siteId}_group`, startedBy: others[0]?.userId ?? ME,
+        createdAt: now, answeredAt: now, endedAt: null, endReason: null,
+        participants: [...others, { userId: ME, role: "participant" }],
+      };
+      this.sessions.set(session.id, session);
+    } else if (!session.participants.some((p) => p.userId === ME)) {
+      session.participants.push({ userId: ME, role: "participant" });
+    }
+    const view = this.sessionView(session);
+    mockBus.emit("group:updated", { siteId, session: view });
+    return view;
+  }
+
   /** 관리자 일괄 지시 시작 */
   startBroadcast(siteId: string, userIds: string[]) {
     if (this.membership(siteId, ME)?.role !== "manager") return { error: "FORBIDDEN" as const };
@@ -720,6 +756,7 @@ class MockDb {
       session.status = "ended";
       session.endedAt = new Date().toISOString();
       this.publishSession(session);
+      if (session.mode === "group") mockBus.emit("group:updated", { siteId: session.siteId, session: null });
     }
     return this.sessionView(session);
   }
@@ -728,7 +765,7 @@ class MockDb {
   utterance(sessionId: string, clientMessageId: string, text: string) {
     const session = this.sessions.get(sessionId)!;
     if (session.status !== "active") return { error: "CONFLICT" as const };
-    if (session.mode === "call") return { message: this.send(session.conversationId!, clientMessageId, text, sessionId) };
+    if (session.mode === "call" || session.mode === "group") return { message: this.send(session.conversationId!, clientMessageId, text, sessionId) };
     const listeners = session.participants.filter((p) => p.role === "listener").map((p) => p.userId);
     return { message: this.createInstruction(session.siteId, clientMessageId, text, listeners, false, sessionId) };
   }

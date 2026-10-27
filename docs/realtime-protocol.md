@@ -55,6 +55,7 @@ ack 실패 코드: `NOT_FOUND`(활성 멤버 아님 — 현장 존재 여부 비
 | `session:invite` | 대상 `user:` | `{session}` 1:1 통화 수신, 내가 대상인 일괄 지시 시작 |
 | `session:updated` | 참여자 전원 `user:` | `{session}` 상태(수락·종료)·참여자 접속·장치 변화 |
 | `device:changed` | 그 사용자가 속한 `site:` 방마다 | `{siteId, userId, device}` |
+| `group:updated` | `site:{id}` | `{siteId, session \| null}` 현장 전체 연결이 열림·참여자 변화·끝남 (2026-10-27, 참여하지 않은 사람도 받는다) |
 
 ## 5. 메시지 생명주기와 이벤트
 

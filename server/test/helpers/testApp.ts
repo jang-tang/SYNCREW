@@ -43,6 +43,7 @@ export function recordEvents() {
     instructionRecipient: (payload) => log.push({ type: "instructionRecipient", payload }),
     sessionInvite: (payload) => log.push({ type: "sessionInvite", payload }),
     sessionUpdated: (payload) => log.push({ type: "sessionUpdated", payload }),
+    groupUpdated: (payload) => log.push({ type: "groupUpdated", payload }),
     deviceChanged: (payload) => log.push({ type: "deviceChanged", payload }),
   };
   return { events, log };
