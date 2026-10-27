@@ -24,10 +24,12 @@ export type MyCaption = {
   partial: string;
   translation: string;
   status: MyCaptionStatus;
+  /** 말을 시작한 시각 — 화면에는 최근 10초 안의 말을 여러 줄로 보여 준다 (audio/recentCaptions.ts, 2026-10-28) */
+  at: number;
 };
 
-/** 화면에 남겨 두는 내 말 수 */
-export const MAX_MY_CAPTIONS = 2;
+/** 남겨 두는 내 말 수 (보이는 것은 최근 10초 — 받은 자막과 같은 규칙, 2026-10-28 2 → 8) */
+export const MAX_MY_CAPTIONS = 8;
 
 const keep = (list: MyCaption[]) => list.slice(-MAX_MY_CAPTIONS);
 
@@ -38,8 +40,8 @@ function lastIndex(list: MyCaption[], match: (c: MyCaption) => boolean): number 
 }
 
 /** 단말 VAD 가 말을 감지함 */
-export function startMine(list: MyCaption[], key: string): MyCaption[] {
-  return keep([...list, { key, turnId: null, original: null, partial: "", translation: "", status: "speaking" }]);
+export function startMine(list: MyCaption[], key: string, at = Date.now()): MyCaption[] {
+  return keep([...list, { key, turnId: null, original: null, partial: "", translation: "", status: "speaking", at }]);
 }
 
 /** 말 끝을 서버에 알림 → 가장 최근 말하는 중인 말을 받아쓰는 중으로 */
@@ -69,7 +71,7 @@ function attach(list: MyCaption[], turnId: string): [MyCaption[], number] {
     });
     return [next, next.findIndex((c) => c.turnId === turnId)];
   }
-  const next = keep([...list, { key: `turn:${turnId}`, turnId, original: null, partial: "", translation: "", status: "processing" }]);
+  const next = keep([...list, { key: `turn:${turnId}`, turnId, original: null, partial: "", translation: "", status: "processing", at: Date.now() }]);
   return [next, next.length - 1];
 }
 

@@ -30,6 +30,18 @@ export const ModeChip = memo(function ModeChip({ mode }: { mode: StreamMode }) {
   );
 });
 
+/** 최근 10초 안의 자막만 (두 줄 이상 보이는 동안 1초마다 다시 계산해 오래된 줄을 지운다) — 받은 자막·내 말 자막 공통 */
+function useRecent<T extends { at: number }>(captions: T[]): T[] {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    if (captions.length < 2) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [captions]);
+  return recentCaptions(captions, now);
+}
+
 /**
  * 상대 말의 실시간 자막: 번역(크게) + 원문(작게). 최근 10초 안의 턴을 모두 순서대로 보여 주고, 지나면 가장 최근 턴만 남긴다
  * (2026-10-28 사용자: 짧게 여러 번 말하면 자막이 하나만 보여 앞 말을 글로 놓쳤다). 가장 최근 턴이 가장 아래·가장 진하다.
@@ -45,15 +57,7 @@ export const LiveCaptions = memo(function LiveCaptions({
   nameOf?: (userId: string) => string | undefined;
 }) {
   const { t } = useT();
-  const [now, setNow] = useState(() => Date.now());
-  const shown = recentCaptions(captions, now);
-  // 두 줄 이상 보이는 동안만 1초마다 다시 계산한다 (오래된 줄을 지우려고)
-  useEffect(() => {
-    setNow(Date.now());
-    if (captions.length < 2) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [captions]);
+  const shown = useRecent(captions);
   if (shown.length === 0) return null;
   return (
     <View style={styles.caption} accessibilityLiveRegion="polite">
@@ -73,25 +77,35 @@ export const LiveCaptions = memo(function LiveCaptions({
   );
 });
 
-/** 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. 가장 최근 말만. failed 는 서버가 알린 때만 (2026-10-19) */
+/**
+ * 내 말 자막: 말하는 순간부터 상태(듣는 중 → 받아쓰는 중 조각 → 원문·번역)를 보여 준다. failed 는 서버가 알린 때만 (2026-10-19).
+ * 받은 자막과 같이 최근 10초 안의 말은 여러 줄로, 지나면 가장 최근 말만 (2026-10-28 사용자: 말하는 쪽도 같게)
+ */
 export const MyCaptions = memo(function MyCaptions({ captions }: { captions: MyCaption[] }) {
   const { t } = useT();
-  const last = captions.at(-1);
-  if (!last) return null;
-  const failed = last.status === "failed";
-  // 완성본 원문 → 받아쓰는 중 조각 → 둘 다 없으면 상태 문구
-  const original = last.original ?? (last.partial || null);
-  // 받아쓰는 중 조각은 아직 바뀔 수 있는 글자 → 흐리게. 확정 원문(통역에 쓴 글자)이 오면 진하게 바뀐다 (2026-10-28, docs/streaming-plan.md 4-4절)
-  const provisional = !failed && last.original === null && !!last.partial;
-  const pending = last.status === "speaking" ? t("stream.mine.speaking") : t("stream.mine.processing");
+  const shown = useRecent(captions);
+  if (shown.length === 0) return null;
   return (
     <View style={[styles.caption, styles.mine]} accessibilityLiveRegion="polite">
       <Text style={[font.caption, { color: colors.muted }]}>{t("stream.mine.me")}</Text>
-      <Text style={[font.bodyStrong, provisional && styles.provisional, failed && { color: colors.danger }]}>
-        {failed && !original ? t("stream.mine.failed") : (original ?? pending)}
-      </Text>
-      {!failed && last.translation ? <Text style={[font.caption, { color: colors.inkSoft }]}>{last.translation}</Text> : null}
-      {failed && original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
+      {shown.map((caption, index) => {
+        const last = index === shown.length - 1;
+        const failed = caption.status === "failed";
+        // 완성본 원문 → 받아쓰는 중 조각 → 둘 다 없으면 상태 문구
+        const original = caption.original ?? (caption.partial || null);
+        // 받아쓰는 중 조각은 아직 바뀔 수 있는 글자 → 흐리게. 확정 원문(통역에 쓴 글자)이 오면 진하게 바뀐다 (2026-10-28, docs/streaming-plan.md 4-4절)
+        const provisional = !failed && caption.original === null && !!caption.partial;
+        const pending = caption.status === "speaking" ? t("stream.mine.speaking") : t("stream.mine.processing");
+        return (
+          <View key={caption.key} style={[{ gap: 2 }, !last && styles.older]}>
+            <Text style={[last ? font.bodyStrong : font.body, provisional && styles.provisional, failed && { color: colors.danger }]}>
+              {failed && !original ? t("stream.mine.failed") : (original ?? pending)}
+            </Text>
+            {!failed && caption.translation ? <Text style={[font.caption, { color: colors.inkSoft }]}>{caption.translation}</Text> : null}
+            {failed && original ? <Text style={[font.caption, { color: colors.danger }]}>{t("stream.failed")}</Text> : null}
+          </View>
+        );
+      })}
     </View>
   );
 });
