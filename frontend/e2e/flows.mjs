@@ -494,10 +494,8 @@ await check("관리자 원문 함께 표시", "안전모를 착용하고 작업�
 await check("두 번째 지시", "Materiallarni B darvoza orqali olib kiring.", 6000);
 await page.screenshot({ path: path.join(outDir, "flow-9-listener.png") });
 await check("관리자가 끝내면 종료 표시", "Jonli topshiriq tugadi", 8000);
-// 저절로 열린 수신 화면에서 뒤로 가면 연결 탭으로 (2026-10-27: 여러 번 받아도 화면이 쌓이지 않게). 새로 고치면 데모 데이터가 초기화되므로 앱 안에서 이동
-await page.goBack();
-await wait(1000);
-await check("뒤로 가기 → 연결 탭", "Odamni bossangiz, darhol ulanadi");
+// 관리자가 끝내면 듣던 사람은 저절로 연결 탭으로 (2026-10-27 사용자). 새로 고치면 데모 데이터가 초기화되므로 앱 안에서 이동
+await check("지시가 끝나면 저절로 연결 탭", "Odamni bossangiz, darhol ulanadi", 6000);
 await tap("Topshiriqlar");
 await check("받은 지시 기록에 실시간 표시", "Jonli");
 

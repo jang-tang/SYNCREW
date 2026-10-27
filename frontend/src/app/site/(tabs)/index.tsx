@@ -292,15 +292,16 @@ function GroupConnectCard({ count, joining, onJoin }: { count: number; joining: 
           <Ionicons name="people" size={22} color={colors.onBrand} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={font.bodyStrong} numberOfLines={1}>
+          <Text style={font.bodyStrong} numberOfLines={2}>
             {t("conn.group")}
           </Text>
           <Text style={styles.meta} numberOfLines={2}>
             {count > 0 ? t("conn.groupLive", { n: count }) : t("conn.groupDesc")}
           </Text>
         </View>
-        <Button title={t("conn.groupJoin")} icon="enter-outline" size="md" fullWidth={false} loading={joining} onPress={onJoin} />
       </View>
+      {/* 버튼은 아래 한 줄로 (10-27 Note 9 베트남어: 옆에 두면 제목·설명이 "…" 로 잘림) */}
+      <Button title={t("conn.groupJoin")} icon="enter-outline" size="md" loading={joining} onPress={onJoin} />
     </Card>
   );
 }

@@ -1,8 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { goHome } from "@/lib/nav";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View, type ListRenderItem } from "react-native";
 import type { LiveSession, MessageView, Profile } from "@shared/api";
 import { useAudioRouteProbe } from "@/audio/useAudioRouteProbe";
@@ -18,6 +17,7 @@ import { useMe, useSendUtterance, useSession, useSessionAction, useSessionMessag
 import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
 import { formatTime } from "@/lib/format";
+import { goHome } from "@/lib/nav";
 import { services } from "@/services";
 import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
@@ -212,6 +212,21 @@ function ListenerView({ session, me }: { session: LiveSession; me: Profile }) {
     ({ item }) => <MessageBubble message={item} me={me} showSender onRetry={NO_RETRY} />,
     [me],
   );
+
+  // 관리자가 지시를 끝내면 듣던 사람은 끝났다는 안내와 함께 연결 탭으로 돌아간다 (2026-10-27 사용자).
+  // 이 화면에서 진행 중이던 지시가 끝난 때만 — 처음부터 끝난 지시를 열었을 때는 그대로 둔다
+  const wasActive = useRef(active);
+  useEffect(() => {
+    if (active) {
+      wasActive.current = true;
+      return;
+    }
+    if (!wasActive.current) return;
+    wasActive.current = false;
+    toast(t("bc.ended"), "default");
+    const timer = setTimeout(goHome, 1200);
+    return () => clearTimeout(timer);
+  }, [active, t]);
 
   return (
     <Screen edges={["top", "bottom"]}>

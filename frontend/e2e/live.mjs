@@ -466,9 +466,8 @@ try {
   await manager.tap("지시 끝내기");
   await manager.check("관리자: 지시 종료", "실시간 지시가 끝났어요");
   await member.check("구성원: 지시 종료 표시", "Chỉ thị trực tiếp đã kết thúc", 10000);
-  // 저절로 열린 수신 화면에서 뒤로 가면 연결 탭으로 (화면이 쌓이지 않게, 2026-10-27)
-  await member.page.goBack();
-  await member.check("구성원: 뒤로 가기 → 연결 탭", "Chạm vào một người để kết nối ngay", 10000);
+  // 관리자가 끝내면 듣던 사람은 저절로 연결 탭으로 (2026-10-27 사용자)
+  await member.check("구성원: 지시가 끝나면 저절로 연결 탭", "Chạm vào một người để kết nối ngay", 10000);
 
   console.log("7) 문자 지시 → 구성원 확인 → 관리자 진행 상태 갱신");
   await manager.go("/site/instruction/new");
