@@ -29,8 +29,8 @@ const SAMPLE_RATE = 16_000;
 const PREROLL_FRAMES = 4;
 /** 내 말이 받아쓰는 중인데 서버 응답이 없으면 이만큼 뒤 "다시 말해 주세요" */
 const MINE_TIMEOUT_MS = 8_000;
-/** 캡션으로 남겨 두는 최근 턴 수 */
-const MAX_CAPTIONS = 3;
+/** 캡션으로 남겨 두는 최근 턴 수 (보이는 것은 최근 10초 — audio/recentCaptions.ts) */
+const MAX_CAPTIONS = 8;
 /** 재생 끝 신호 떨림 제거: 이 시간 안에 다시 시작하면 끝→시작을 보내지 않는다 (턴 사이 짧은 끊김) */
 const PLAYING_DEBOUNCE_MS = 200;
 /** 자막 글자 조각을 이만큼 모아서 한 번에 그린다 (사람 눈에는 차이 없고 다시 그리기는 수십 분의 1) */
@@ -42,6 +42,8 @@ export type Caption = {
   turnId: string;
   /** 말한 사람 (현장 전체 연결에서 자막에 이름을 붙인다) */
   fromUserId: string;
+  /** 턴이 시작된 시각 (최근 10초 자막만 보이기) */
+  at: number;
   original: string | null;
   translation: string;
   status: "live" | "done" | "failed";
@@ -272,7 +274,7 @@ export function useStreamingCall(options: {
         else order.waiting.push({ turnId: p.turnId, chunks: [], ended: false });
         batch.flush();
         setCaptions((list) =>
-          [...list, { turnId: p.turnId, fromUserId: p.fromUserId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS),
+          [...list, { turnId: p.turnId, fromUserId: p.fromUserId, at: Date.now(), original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS),
         );
       }),
       realtime.on("stream:out:audio", (p) => {

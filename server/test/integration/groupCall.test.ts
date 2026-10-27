@@ -295,7 +295,8 @@ describe("현장 전체 연결 — 스트리밍", () => {
 
     // 재생이 모두 끝나고 꼬리(300ms)가 지나면 zh 의 말은 관리자에게 통역된다
     await Promise.all([viEnd, zhEnd]);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    // 꼬리(300ms) + 여유: 컴퓨터가 바쁘면(다른 서버가 함께 돌 때) 가짜 엔진의 늦은 조각이 조금 더 온다 (10-28 전체 시험에서 2조각 차이로 흔들림)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const dropped = t.context.streams!.stats(zhStream)!.echoDropped;
     const managerHears = waitFor(env.managerSocket, "stream:out:start", (p) => p.fromUserId === zh!.id, 5000);
     speak(env.workerSockets[1]!, zhStream, 1.0, seq);
