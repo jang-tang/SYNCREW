@@ -5,18 +5,18 @@ import { test } from "node:test";
 import { discardMine, endMine, expireMine, mineEnd, mineText, startMine } from "../src/audio/myCaptions.ts";
 
 test("말 시작 → 듣는 중, 말 끝 → 받아쓰는 중", () => {
-  let list = startMine([], "a");
-  assert.deepEqual(list, [{ key: "a", turnId: null, original: null, partial: "", translation: "", status: "speaking" }]);
+  let list = startMine([], "a", 1_000);
+  assert.deepEqual(list, [{ key: "a", turnId: null, original: null, partial: "", translation: "", status: "speaking", at: 1_000 }]);
   list = endMine(list);
   assert.equal(list[0].status, "processing");
 });
 
 test("서버 자막이 오면 기다리던 내 말에 붙고(원문·번역 조각), 턴 끝이면 done", () => {
-  let list = endMine(startMine([], "a"));
+  let list = endMine(startMine([], "a", 1_000));
   list = mineText(list, "t1", "original", "안전모 쓰세요");
   list = mineText(list, "t1", "translation", "Hãy đội ");
   list = mineText(list, "t1", "translation", "mũ bảo hộ");
-  assert.deepEqual(list[0], { key: "a", turnId: "t1", original: "안전모 쓰세요", partial: "", translation: "Hãy đội mũ bảo hộ", status: "processing" });
+  assert.deepEqual(list[0], { key: "a", turnId: "t1", original: "안전모 쓰세요", partial: "", translation: "Hãy đội mũ bảo hộ", status: "processing", at: 1_000 });
   list = mineEnd(list, "t1", "done");
   assert.equal(list[0].status, "done");
 });
@@ -58,7 +58,13 @@ test("여러 말: 서버 턴은 짝 없는 말 중 가장 최근 것에 붙고, 
   list = mineText(list, "t2", "original", "둘째");
   assert.deepEqual(list.map((c) => [c.key, c.turnId]), [["b", "t1"], ["c", "t2"]]);
   list = startMine(list, "d");
-  assert.deepEqual(list.map((c) => c.key), ["c", "d"]);
+  assert.deepEqual(list.map((c) => c.key), ["b", "c", "d"]);
+});
+
+test("남겨 두는 내 말은 최대 8개 (화면에는 최근 10초만 — recentCaptions)", () => {
+  let list = [];
+  for (let i = 0; i < 10; i++) list = startMine(list, `k${i}`, i);
+  assert.deepEqual(list.map((c) => c.key), ["k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9"]);
 });
 
 test("서버 턴이 붙을 때 이미 턴이 붙은 오래된 말은 남긴다 (짝 없는 것만 지움)", () => {

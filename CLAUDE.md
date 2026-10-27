@@ -74,7 +74,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**274개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**68개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**274개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**69개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
 4. **작업 환경(이 PC / 현슈 Mac)·연결된 기기·(이 PC 라면) 디스크 여유 15GB 이상을 먼저 확인**한다 (`df -h /System/Volumes/Data`, `docs/HANDOFF.md` 1·5·7절). 모자라거나 준비 전이면 그것부터 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $20 누적 중 $17.26 사용, 10-25). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -146,7 +146,7 @@ cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측
 # 앱
 cd frontend && npm run typecheck && npm run doctor
 cd frontend && npm run bundle:android            # Android 번들 빌드 확인
-cd frontend && npm run test:unit                 # 단위 테스트 68개 (최근 10초 자막 4·통화 상대 바꾸기 판정·순서 12·VAD·대상 선택·작업조·이중 오디오 base64·내 말 자막·재생 신호·배치 상태·마이크 음량·통화 세션 표시 + 출시 빌드 API 주소 검사 4)
+cd frontend && npm run test:unit                 # 단위 테스트 69개 (최근 10초 자막 4·내 말 보관 1·통화 상대 바꾸기 판정·순서 12·VAD·대상 선택·작업조·이중 오디오 base64·내 말 자막·재생 신호·배치 상태·마이크 음량·통화 세션 표시 + 출시 빌드 API 주소 검사 4)
 cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 115개 자동 검증 (C2 연결·전환·음량 버튼으로 전환·현장 전체 연결·지시 탭 바로 시작·보낸 기록·뒤로 가기·대상 선택·작업조·관리자 지정 포함). .env 가 live 면 EXPO_PUBLIC_API_MODE=mock 을 앞에 붙여 만든다
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
