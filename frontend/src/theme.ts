@@ -61,10 +61,20 @@ export const shadow: Record<"card" | "floating", ViewStyle> = {
   })!,
 };
 
-/** 사용자 id로 아바타 색을 고른다 (브랜드 톤 안에서) */
-const AVATAR_COLORS = ["#F8801A", "#30323A", "#2F6FEB", "#159A4B", "#8B5CF6", "#D9467A", "#0E9AA7"];
-export function avatarColor(id: string): string {
+/**
+ * 사용자 id로 아바타 색을 고른다: 브랜드 주황 한 가지의 밝기만 다르게 (2026-10-26 사용자 요청 — 여러 색은 "AI 티" 가 난다).
+ * 밝은 단계는 흰 글자가 안 보이므로 글자색을 함께 돌려준다.
+ */
+const AVATAR_TONES: { background: string; text: string }[] = [
+  { background: "#C25A08", text: "#FFFFFF" },
+  { background: "#E06D0C", text: "#FFFFFF" },
+  { background: "#F8801A", text: "#FFFFFF" },
+  { background: "#FA9A47", text: "#FFFFFF" },
+  { background: "#FCB679", text: "#7A3A05" },
+  { background: "#FED3AC", text: "#7A3A05" },
+];
+export function avatarTone(id: string): { background: string; text: string } {
   let hash = 0;
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]!;
+  return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length]!;
 }

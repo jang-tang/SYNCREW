@@ -126,7 +126,8 @@ export class LiveSessionService {
 
   // ─── 1:1 통화 ─────────────────────────────────────
 
-  async startCall(siteId: string, callerId: string, calleeId: string): Promise<LiveSession> {
+  /** connect: 울림 없이 바로 연결 (C2 "연결" 방식). 빼면 울림 → 받기 */
+  async startCall(siteId: string, callerId: string, calleeId: string, options: { connect?: boolean } = {}): Promise<LiveSession> {
     const { prisma, presence } = this.ctx;
     if (calleeId === callerId) throw new AppError("VALIDATION_ERROR", "자기 자신에게는 통화할 수 없습니다.");
     const callee = await prisma.siteMembership.findUnique({ where: { siteId_userId: { siteId, userId: calleeId } } });
@@ -137,6 +138,20 @@ export class LiveSessionService {
 
     const { conversation } = await ensureDirectConversation(prisma, siteId, callerId, calleeId);
     const now = new Date();
+    if (options.connect) {
+      const row = await prisma.liveSession.create({
+        data: {
+          siteId,
+          mode: "call",
+          status: "active",
+          answeredAt: now,
+          conversationId: conversation.id,
+          startedBy: callerId,
+          participants: { create: [{ userId: callerId, role: "caller", joinedAt: now }, { userId: calleeId, role: "callee", joinedAt: now }] },
+        },
+      });
+      return this.publish(row.id, [calleeId]);
+    }
     const row = await prisma.liveSession.create({
       data: {
         siteId,
@@ -152,6 +167,25 @@ export class LiveSessionService {
       setTimeout(() => void this.finish(row.id, "missed", null).catch((err) => this.ctx.logger.warn({ err }, "부재중 처리 실패")), this.timings.ringTimeoutMs),
     );
     return this.publish(row.id, [calleeId]);
+  }
+
+  /**
+   * 연결 전환 (C2): 지금 1:1 연결(통화 중·울림)을 끝내고 다른 사람과 바로 연결한다.
+   * 새 상대를 먼저 확인해서(같은 현장 활성 멤버·접속 중·다른 연결 없음) 안 되면 지금 연결은 그대로 둔다.
+   * 앱이 끊기·걸기를 따로 보내면 그 사이 틈에 상태가 꼬였다 (10-26 C1 실기기) → 서버가 한 번에 한다.
+   */
+  async switchCall(sessionId: string, userId: string, targetId: string): Promise<LiveSession> {
+    const { prisma, presence } = this.ctx;
+    const row = await this.requireParticipant(sessionId, userId);
+    if (row.mode !== "call" || row.status === "ended") throw new AppError("CONFLICT", "진행 중인 1:1 연결이 아닙니다.");
+    if (targetId === userId) throw new AppError("VALIDATION_ERROR", "자기 자신과는 연결할 수 없습니다.");
+    if (row.participants.some((p) => p.userId === targetId && !p.leftAt)) return this.view(row);
+    const target = await prisma.siteMembership.findUnique({ where: { siteId_userId: { siteId: row.siteId, userId: targetId } } });
+    if (!target || target.status !== "active") throw new AppError("NOT_FOUND", "멤버를 찾을 수 없습니다.");
+    if (!presence.isOnline(targetId)) throw new AppError("CONFLICT", "상대가 앱에 접속해 있지 않습니다.");
+    await this.assertFree([targetId], "call", "상대가 다른 통화 중입니다.");
+    await this.finish(sessionId, "hangup", userId);
+    return this.startCall(row.siteId, userId, targetId, { connect: true });
   }
 
   async accept(sessionId: string, userId: string): Promise<LiveSession> {

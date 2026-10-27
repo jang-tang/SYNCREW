@@ -11,7 +11,8 @@ import type { LiveSession } from "../../shared/api";
 
 // 실시간 통역 세션 API (docs/live-interpretation.md, docs/api-specification.md 11절)
 
-const callInput = z.object({ userId: z.string().regex(UUID) });
+const callInput = z.object({ userId: z.string().regex(UUID), connect: z.boolean().optional() });
+const switchInput = z.object({ userId: z.string().regex(UUID) });
 const targetSchema = z.union([z.literal("all"), z.object({ userIds: z.array(z.string().regex(UUID)).min(1).max(200) })]);
 const broadcastInput = z.object({ target: targetSchema });
 const clientMessageId = z.string().trim().min(1).max(64);
@@ -38,8 +39,8 @@ export function sessionsRouter(context: AppContext): Router {
 
   /** 1:1 통역 통화 걸기 → 상대에게 session:invite */
   router.post("/sites/:siteId/calls", member, async (req, res) => {
-    const { userId } = callInput.parse(req.body);
-    res.status(201).json(await sessions().startCall(req.membership!.siteId, req.auth!.userId, userId));
+    const { userId, connect } = callInput.parse(req.body);
+    res.status(201).json(await sessions().startCall(req.membership!.siteId, req.auth!.userId, userId, { connect }));
   });
 
   /** 관리자 일괄 지시 시작 → 대상자들에게 session:invite (관리자만, 구성원은 403) */
@@ -76,6 +77,12 @@ export function sessionsRouter(context: AppContext): Router {
 
   router.post("/sessions/:sessionId/decline", async (req, res) => {
     res.json(await sessions().decline(idParam(req.params["sessionId"]), req.auth!.userId));
+  });
+
+  /** 연결 전환 (C2): 지금 1:1 연결을 끝내고 다른 사람과 바로 연결 → 새 세션 */
+  router.post("/sessions/:sessionId/switch", async (req, res) => {
+    const { userId } = switchInput.parse(req.body);
+    res.status(201).json(await sessions().switchCall(idParam(req.params["sessionId"]), req.auth!.userId, userId));
   });
 
   router.post("/sessions/:sessionId/end", async (req, res) => {

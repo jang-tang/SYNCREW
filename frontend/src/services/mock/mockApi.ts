@@ -128,8 +128,13 @@ export function createMockApi(): ApiService {
       await wait(undefined);
     },
 
-    async startCall(siteId, userId) {
-      const outcome = mockDb.startCall(siteId, userId);
+    async startCall(siteId, userId, options) {
+      const outcome = mockDb.startCall(siteId, userId, options?.connect);
+      if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
+      return wait(outcome.session!, 300);
+    },
+    async switchCall(sessionId, userId) {
+      const outcome = mockDb.switchCall(sessionId, userId);
       if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
       return wait(outcome.session!, 300);
     },

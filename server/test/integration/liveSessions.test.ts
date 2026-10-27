@@ -174,6 +174,73 @@ describe("시나리오 A: 1:1 통역 통화", () => {
   });
 });
 
+describe("시나리오 C2: 연결 방식 (받기 없이 바로 연결 · 전환)", () => {
+  it("connect: true 로 걸면 울림 없이 바로 통화 중이 되고, 상대는 통화 중 세션으로 초대를 받아 발화를 주고받는다", async () => {
+    const { manager, siteId, workers, workerSockets } = await setupSite(["vi"]);
+    const invited = nextEvent(workerSockets[0]!, "session:invite");
+    const started = await manager.as("post", `/sites/${siteId}/calls`).send({ userId: workers[0]!.id, connect: true });
+    expect(started.status).toBe(201);
+    expect(started.body.status).toBe("active");
+    expect(started.body.answeredAt).not.toBeNull();
+    const { session } = await invited;
+    expect(session.status).toBe("active");
+    const delivered = nextEvent(workerSockets[0]!, "message:new");
+    expect((await utter(manager, session.id)).status).toBe(202);
+    expect((await delivered).message.sessionId).toBe(session.id);
+  });
+
+  it("전환: 지금 연결은 끝나고(hangup) 새 상대와 바로 연결된다. 빠진 사람도 종료를 받는다", async () => {
+    const { manager, siteId, workers, workerSockets, managerSocket } = await setupSite(["vi", "zh"]);
+    const first = (await manager.as("post", `/sites/${siteId}/calls`).send({ userId: workers[0]!.id, connect: true })).body as LiveSession;
+    const droppedEnded = sessionEnded(workerSockets[0]!, first.id);
+    const secondInvited = nextEvent(workerSockets[1]!, "session:invite");
+    const switched = await manager.as("post", `/sessions/${first.id}/switch`).send({ userId: workers[1]!.id });
+    expect(switched.status).toBe(201);
+    expect(switched.body.status).toBe("active");
+    expect(switched.body.id).not.toBe(first.id);
+    expect(switched.body.participants.map((p: { userId: string }) => p.userId).sort()).toEqual([manager.id, workers[1]!.id].sort());
+    expect((await droppedEnded).session.endReason).toBe("hangup");
+    expect((await secondInvited).session.id).toBe(switched.body.id);
+    // 빠진 사람은 다시 다른 사람과 연결될 수 있다 (자유 상태)
+    void managerSocket;
+    const again = await workers[0]!.as("post", `/sites/${siteId}/calls`).send({ userId: manager.id, connect: true });
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe("BUSY");
+  });
+
+  it("전환 대상이 다른 연결 중이거나 접속하지 않았으면 지금 연결은 그대로 둔다 (대조군: 비어 있는 사람에게는 전환된다)", async () => {
+    const { manager, siteId, workers } = await setupSite(["vi", "zh", "ru"]);
+    const mine = (await manager.as("post", `/sites/${siteId}/calls`).send({ userId: workers[0]!.id, connect: true })).body as LiveSession;
+    await workers[1]!.as("post", `/sites/${siteId}/calls`).send({ userId: workers[2]!.id, connect: true });
+
+    const busy = await manager.as("post", `/sessions/${mine.id}/switch`).send({ userId: workers[1]!.id });
+    expect(busy.status).toBe(409);
+    expect(busy.body.error.code).toBe("BUSY");
+    expect((await manager.as("get", `/sessions/${mine.id}`)).body.status).toBe("active");
+
+    const offline = await (await t.user("미접속", "uz")).withProfile();
+    const code = (await manager.as("get", `/sites/${siteId}/join-codes`)).body[0].code;
+    await offline.as("post", "/join").send({ code });
+    await manager.as("patch", `/sites/${siteId}/members/${offline.id}`).send({ action: "approve" });
+    const notConnected = await manager.as("post", `/sessions/${mine.id}/switch`).send({ userId: offline.id });
+    expect(notConnected.status).toBe(409);
+    expect(notConnected.body.error.code).toBe("CONFLICT");
+    expect((await manager.as("get", `/sessions/${mine.id}`)).body.status).toBe("active");
+
+    // 대조군: 받는 사람(구성원)도 전환할 수 있고, 비어 있는 상대에게는 전환된다
+    await workers[1]!.as("post", `/sessions/${(await workers[1]!.as("get", `/sites/${siteId}/sessions/open`)).body[0].id}/end`);
+    const ok = await workers[0]!.as("post", `/sessions/${mine.id}/switch`).send({ userId: workers[1]!.id });
+    expect(ok.status).toBe(201);
+    expect((await manager.as("get", `/sessions/${mine.id}`)).body.status).toBe("ended");
+  });
+
+  it("연결에 참여하지 않은 사람은 전환할 수 없다 (404)", async () => {
+    const { manager, siteId, workers } = await setupSite(["vi", "zh"]);
+    const mine = (await manager.as("post", `/sites/${siteId}/calls`).send({ userId: workers[0]!.id, connect: true })).body as LiveSession;
+    expect((await workers[1]!.as("post", `/sessions/${mine.id}/switch`).send({ userId: manager.id })).status).toBe(404);
+  });
+});
+
 describe("시나리오 E: 연결 끊김과 복구", () => {
   it("통화 상대의 연결이 끊기면 오프라인으로 표시되고, 유예 시간 안에 돌아오지 않으면 연결 끊김으로 종료된다", async () => {
     const env = await setupSite(["vi"]);

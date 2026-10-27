@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { services } from "@/services";
 import { useSessionStore } from "@/stores/session";
+import { ConnectionProvider } from "./ConnectionProvider";
 import { RealtimeBridge } from "./RealtimeBridge";
 
 /** 인증 세션을 복원하고 변화에 따라 상태를 맞춘다. */
@@ -45,7 +46,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       <AuthBootstrap />
       {signedIn && <RealtimeBridge />}
-      {children}
+      <ConnectionProvider>{children}</ConnectionProvider>
     </QueryClientProvider>
   );
 }

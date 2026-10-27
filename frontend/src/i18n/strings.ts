@@ -222,9 +222,8 @@ export const STRINGS = {
   },
 
   // ─── 탭 ───
-  "tab.conversations": { ko: "대화", zh: "对话", vi: "Trò chuyện", uz: "Suhbatlar", ru: "Чаты" },
+  "tab.connect": { ko: "연결", zh: "连接", vi: "Kết nối", uz: "Ulanish", ru: "Связь" },
   "tab.instructions": { ko: "지시", zh: "指令", vi: "Chỉ thị", uz: "Topshiriqlar", ru: "Задания" },
-  "tab.members": { ko: "멤버", zh: "成员", vi: "Thành viên", uz: "Aʼzolar", ru: "Участники" },
   "tab.settings": { ko: "설정", zh: "设置", vi: "Cài đặt", uz: "Sozlamalar", ru: "Настройки" },
 
   // ─── 대화 ───
@@ -236,6 +235,7 @@ export const STRINGS = {
     uz: "Hammaga oʻz tilida yetkaziladi",
     ru: "Всем — на их языке",
   },
+  "conv.messages": { ko: "음성 기록", zh: "语音记录", vi: "Lịch sử giọng nói", uz: "Ovozli yozuvlar", ru: "Голосовые записи" },
   "conv.direct": { ko: "1:1 대화", zh: "一对一", vi: "Trò chuyện riêng", uz: "Shaxsiy suhbat", ru: "Личные чаты" },
   "conv.new": { ko: "새 대화", zh: "新对话", vi: "Cuộc trò chuyện mới", uz: "Yangi suhbat", ru: "Новый чат" },
   "conv.pick": { ko: "대화할 사람 선택", zh: "选择对话对象", vi: "Chọn người để trò chuyện", uz: "Suhbatdoshni tanlang", ru: "Выберите собеседника" },
@@ -504,7 +504,7 @@ export const STRINGS = {
     uz: "Hozir bajarib boʻlmaydi. Qarshi tomon onlayn ekanini tekshiring.",
     ru: "Сейчас невозможно. Проверьте, в сети ли собеседник.",
   },
-  "call.cycle.calling": { ko: "{name} 님에게 전화합니다", zh: "正在呼叫{name}", vi: "Đang gọi {name}", uz: "{name} ga qoʻngʻiroq qilinmoqda", ru: "Звоним: {name}" },
+  "call.cycle.calling": { ko: "{name} 님과 연결합니다", zh: "正在连接{name}", vi: "Đang kết nối với {name}", uz: "{name} bilan ulanmoqda", ru: "Соединяем: {name}" },
   "call.cycle.none": {
     ko: "통화할 수 있는 멤버가 없어요",
     zh: "没有可以通话的成员",
@@ -565,6 +565,23 @@ export const STRINGS = {
     ru: "Завершено: участник исключён",
   },
   "call.backToHistory": { ko: "대화 기록 보기", zh: "查看对话记录", vi: "Xem lịch sử", uz: "Suhbat tarixini koʻrish", ru: "История разговора" },
+  "conn.hint": {
+    ko: "사람을 누르면 바로 연결돼요. 다른 사람을 누르면 그 사람으로 바뀌어요.",
+    zh: "点击某人即可立即连接。点击其他人即可切换。",
+    vi: "Chạm vào một người để kết nối ngay. Chạm người khác để chuyển.",
+    uz: "Odamni bossangiz, darhol ulanadi. Boshqasini bossangiz, unga oʻtadi.",
+    ru: "Нажмите на человека, чтобы сразу соединиться. Нажмите на другого, чтобы переключиться.",
+  },
+  "conn.with": { ko: "{name} 님과 연결 중", zh: "正在与{name}连接", vi: "Đang kết nối với {name}", uz: "{name} bilan ulangan", ru: "На связи: {name}" },
+  "conn.next": { ko: "다음 멤버", zh: "下一位", vi: "Tiếp theo", uz: "Keyingi", ru: "Следующий" },
+  "conn.leave": { ko: "나가기", zh: "退出", vi: "Thoát", uz: "Chiqish", ru: "Выйти" },
+  "conn.connected": { ko: "{name} 님과 연결됐어요", zh: "已与{name}连接", vi: "Đã kết nối với {name}", uz: "{name} bilan ulandi", ru: "Соединено: {name}" },
+  "conn.ended": { ko: "{name} 님과의 연결이 끝났어요", zh: "与{name}的连接已结束", vi: "Đã kết thúc kết nối với {name}", uz: "{name} bilan aloqa tugadi", ru: "Связь с {name} завершена" },
+  "conn.busy": { ko: "{name} 님은 다른 사람과 연결 중이에요", zh: "{name}正在与其他人连接", vi: "{name} đang kết nối với người khác", uz: "{name} boshqa odam bilan ulangan", ru: "{name} на связи с другим человеком" },
+  "conn.offline": { ko: "{name} 님은 접속해 있지 않아요", zh: "{name}不在线", vi: "{name} không trực tuyến", uz: "{name} tarmoqda emas", ru: "{name} не в сети" },
+  "conn.badge": { ko: "연결 중", zh: "连接中", vi: "Đang kết nối", uz: "Ulangan", ru: "На связи" },
+  "conn.more": { ko: "더보기", zh: "更多", vi: "Thêm", uz: "Yana", ru: "Ещё" },
+  "conn.banner": { ko: "{name} 님과 연결 중 — 눌러서 보기", zh: "正在与{name}连接 — 点击查看", vi: "Đang kết nối với {name} — chạm để xem", uz: "{name} bilan ulangan — koʻrish uchun bosing", ru: "На связи: {name} — нажмите, чтобы открыть" },
   "call.banner": { ko: "통화 중 — 눌러서 돌아가기", zh: "通话中 — 点击返回", vi: "Đang gọi — chạm để quay lại", uz: "Qoʻngʻiroqda — qaytish uchun bosing", ru: "Идёт звонок — нажмите, чтобы вернуться" },
   "live.starting": { ko: "마이크 준비 중", zh: "正在准备麦克风", vi: "Đang chuẩn bị micro", uz: "Mikrofon tayyorlanmoqda", ru: "Подготовка микрофона" },
   "live.listening": { ko: "듣고 있어요 — 말씀하세요", zh: "正在聆听 — 请说话", vi: "Đang nghe — hãy nói", uz: "Tinglayapman — gapiring", ru: "Слушаю — говорите" },

@@ -663,16 +663,21 @@ class MockDb {
     return [...this.sessions.values()].find((s) => s.mode === mode && s.status !== "ended" && s.participants.some((p) => p.userId === ME));
   }
 
-  /** 1:1 통화 걸기. 데모: 접속 중인 상대는 1.5초 뒤 받는다. */
-  startCall(siteId: string, userId: string) {
+  /** 1:1 통화 걸기. 데모: 접속 중인 상대는 1.5초 뒤 받는다. connect 면 울림 없이 바로 연결 (C2) */
+  startCall(siteId: string, userId: string, connect = false) {
     if (!this.users.get(userId)?.online) return { error: "CONFLICT" as const };
     if (this.openSession("call")) return { error: "BUSY" as const };
     const conversation = this.openDirect(siteId, userId);
+    const now = new Date().toISOString();
     const session: Session = {
-      id: newId(), siteId, mode: "call", status: "ringing", conversationId: conversation.id, startedBy: ME,
-      createdAt: new Date().toISOString(), answeredAt: null, endedAt: null, endReason: null,
+      id: newId(), siteId, mode: "call", status: connect ? "active" : "ringing", conversationId: conversation.id, startedBy: ME,
+      createdAt: now, answeredAt: connect ? now : null, endedAt: null, endReason: null,
       participants: [{ userId: ME, role: "caller" }, { userId, role: "callee" }],
     };
+    if (connect) {
+      this.sessions.set(session.id, session);
+      return { session: this.sessionView(session) };
+    }
     this.sessions.set(session.id, session);
     later(1500, () => {
       if (session.status !== "ringing") return;
@@ -681,6 +686,16 @@ class MockDb {
       this.publishSession(session);
     });
     return { session: this.sessionView(session) };
+  }
+
+  /** 연결 전환 (C2): 새 상대가 접속 중이어야 하고, 아니면 지금 연결은 그대로 */
+  switchCall(sessionId: string, userId: string) {
+    const current = this.sessions.get(sessionId);
+    if (!current || current.mode !== "call" || current.status === "ended") return { error: "CONFLICT" as const };
+    if (current.participants.some((p) => p.userId === userId)) return { session: this.sessionView(current) };
+    if (!this.users.get(userId)?.online) return { error: "CONFLICT" as const };
+    this.endSession(sessionId);
+    return this.startCall(current.siteId, userId, true);
   }
 
   /** 관리자 일괄 지시 시작 */

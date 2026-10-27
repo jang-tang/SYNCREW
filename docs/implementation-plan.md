@@ -400,6 +400,46 @@
 6. **시험** (가짜 엔진, 비용 0): 단위(2번), 데모 e2e(다음 3번 → 처음으로, 이전 → 끝으로, 현장 목록·다른 현장에서 전화 받기), live e2e(실제 서버로 상대 바뀜). 실기기: Note 9 + iPhone 에서 휴대폰 버튼 + **시제품 헤드셋(Eiger OpenTalk X8)·WH-1000XM6 버튼**(헤드셋 버튼이 휴대폰 음량 신호를 보내는지는 기기마다 다름), 이름 안내가 헤드셋으로 들리는지, 최대·최소 음량에서 감지
 - 준비: 이 PC 디스크 15GB 이상 (10-26 9.9GB)
 
+### C2 "연결" 방식으로 화면·흐름 개편 — 1단계 완료·세 기기 통과 (2026-10-26 밤 승인, 10-27 확인, 브랜치 `feature/c2-connect` — **커밋 전**, C1 PR #19 위)
+
+**사용자 요청 (10-26)**: 전화가 아니라 "연결" — 사람을 누르면 받기 없이 바로 연결, 연결 중에는 다른 사람으로 전환만, 별도 전화 버튼 삭제, 연결된 사람 강조 테두리, **음량 up 3초 길게 = 1:1 말하기 모드 진입(첫 사람과 바로 연결)/탈출**, 프로필 색은 주황 한 가지 밝기만.
+**결정 (Claude 추천을 사용자 승인)**: 받는 사람은 거부 없음·나가기 가능(마이크가 동의 없이 켜지는 것 괜찮음 — 사용자), 이미 다른 연결 중인 사람을 누르면 안내만, 화면에도 "나가기" 버튼, 다른 탭으로 가도 연결 유지. 서버의 예전 울림·받기 API 는 이전 앱 호환으로 남김.
+
+**1단계 (화면·서버, 네이티브 변경 없음) — 구현·자동 시험·세 기기 확인 끝 (10-27)**
+- 서버: `POST /sites/:id/calls {userId, connect: true}` → 울림 없이 바로 통화 중 / **`POST /sessions/:id/switch {userId}`** → 새 상대를 먼저 확인(다른 연결 중 BUSY·접속 안 함 CONFLICT 면 지금 연결 그대로) 뒤 끝내고 바로 연결. 전환으로 끝난 연결의 종료 사유는 `hangup`(DB 종료 사유 CHECK 제약을 바꾸지 않으려고 — `switched` 를 넣었다가 500). `server/src/sessions/liveSessions.ts switchCall`, 계약 `shared/api.ts CallStartInput·CallSwitchInput`. 서버 시험 C2 4개 추가 → **266 통과·1 건너뜀**
+- 앱:
+  - `src/providers/ConnectionProvider.tsx` — 앱 전체에 연결 하나. 녹음·스트리밍(`ConnectionAudio`)은 **연결이 있을 때만** 만든다 (앱 맨 위에서 늘 만들면 Android 에서 "AudioRecorder … current activity is no longer available" 오류 화면, 10-26 Note 9). 연결됨·끝남 알림, 음량 두 번 전환(`useCallCycle` → switch API)
+  - 멤버 탭 = 연결 화면: 위쪽 `components/live/ConnectionPanel.tsx`(안내 / 상대·방식·마이크·자막·마이크 끄기·나가기), 사람을 누르면 연결·전환, 연결된 사람은 주황 배경·테두리·"연결 중", 메뉴(1:1 대화·언어·관리)는 **⋯ 또는 길게 누르기**. 다른 탭에서는 상단 배너 "○○ 님과 연결 중"
+  - 걸려 온 연결: `RealtimeBridge` 가 그 현장으로 바꾸고 멤버 탭을 연다. 예전 통화 화면 `site/call/[id]` 은 멤버 탭으로 보냄. 채팅 초록 통화 버튼·멤버 시트 "통역 통화" 삭제
+  - 자막 부품을 `components/live/CallParts.tsx` 로 옮김. 프로필 색 `theme.ts avatarTone`(주황 6단계, 밝은 단계는 갈색 글자), `Avatar highlighted`
+  - 문구 `conn.*` 5개 언어
+- 시험: 타입 검사·앱 단위 64, **데모 e2e 110/110**(7 연결·전환·나가기·접속 안 한 사람 안내·⋯ 메뉴, 7-1 음량 두 번 전환), **live e2e 48/48**(받기 없이 연결, 구성원 나가기, 현장 목록에서 연결 열림, 같은 언어 직접 전달). `e2e/mic.mjs` 도 고침(돌리지 않음)
+- 휴대폰: Note 9·A52s 에서 새 연결 화면 표시까지 확인(주황 아바타·안내·⋯). **세 기기로 연결·전환·나가기 실제 시험은 못 함** (iPhone 이 잠겨 앱 실행 실패, 시간 종료)
+- ⚠ 주의: live e2e 가 시험 계정(관리자·구성원)을 쓰므로 그 계정으로 로그인한 휴대폰에도 연결 알림이 가서 e2e 현장으로 넘어간다 → 휴대폰 시험 중에는 live e2e 를 돌리지 말 것. `.env` 를 바꾸면 Metro 가 휴대폰 앱을 그 설정으로 다시 띄운다 → 웹 데모 빌드는 `.env` 대신 환경 변수로(`EXPO_PUBLIC_API_MODE=mock EXPO_PUBLIC_API_BASE_URL=http://localhost:4000 npx expo export --platform web --output-dir dist-check --clear`)
+
+**Android 로딩 화면 로고 잘림 (사용자 10-26)** — 원인: 가로로 긴 글자 로고(987×233)를 Android 스플래시가 가운데 원으로 자른다. 정사각형 이미지 `frontend/assets/brand/syncfield-logo-android-splash.png`(1024, 로고 폭 600)를 만들고 `app.json` expo-splash-screen 에 `android: { image, imageWidth: 288 }` 넣음 — **아직 적용 전**: `cd frontend && CI=1 npx expo prebuild --platform android --no-install` → `package.json` 이 바뀌면 `git checkout` → Android 다시 빌드·설치 후 확인
+
+**10-27 세 기기 확인 (이 PC 서버 `ENGINE=fake`, 비용 0, iPhone 17 Pro 관리자 · Note 9 Nguyen · A52s Li, 무선 adb)**
+- 통과: 누르면 받기 없이 연결(상대 화면 자동 전환), [다음 멤버]·음량 두 번 전환 + 이름 안내, 다른 연결 중인 사람 누르기 → 안내만, 다른 탭 배너 → 눌러서 복귀, 받는 쪽 나가기
+- iPhone 개발 빌드는 빌드 때 Mac 주소가 들어간다(`ip.txt`) — 10-27 Mac 주소가 바뀌어 "No script URL provided" → 증분 빌드·설치로 해결 (`docs/HANDOFF.md` 7절 명령)
+- 사용자 요청·발견으로 고친 것 (앱만, 서버 변경 없음):
+  - 연결 패널 버튼 **[나가기] [다음 멤버]** — 마이크 끄기 삭제(연결되면 늘 켜짐). 다음 멤버 = 음량 up 두 번과 같은 전환(`useCallCycle` 이 `cycle` 을 돌려줌)
+  - **이름 안내가 잘 안 들림** → 전환 직후 말하면 앞 연결 오디오가 꺼지며 끊기고, 통화 밖이라 미디어 음량(그 iPhone 0.05)으로 나왔다. 새 연결의 오디오가 켜진 뒤(`streaming.mode` stream·relay·utterance) 말하고, 말하는 동안 마이크를 끈다(`ConnectionProvider` announcement, 최대 5초)
+  - **전환 때 버퍼링(iPhone)** → 스피커 에코 제거가 엔진을 4번 연속 재구성(약 12초). `EXPO_PUBLIC_DUPLEX_EXPERIMENTS=inPlace` 로 0번, 전환 뒤 오디오 다시 켜짐 약 0.5초. **`inPlace` 기본값(현슈, HANDOFF 남은 일 2번)이 C2 에도 필요**. 전환마다 오디오를 껐다 켜는 0.5초 공백은 남음(연결이 바뀌어도 오디오 유지 — 시연 뒤)
+  - 멤버 목록 이름이 "…"·통째로 사라짐 → 이름 최소 폭 96(`ListRow`), 기기 칩이 대신 줄어듦
+  - 나간 사람에게도 "연결이 끝났어요" → 새 연결에서만 나가기 표시를 되돌림
+  - 베트남어 "Người tiếp theo" 잘림 → "Tiếp theo"
+  - Galaxy 아래 탭 바가 시스템 버튼에 겹침 → 높이 50 + 기기 아래 여백(`useSafeAreaInsets`)
+- **탭 개편 (사용자 결정 10-27)**: 대화 탭 삭제, 멤버 탭 → **연결 탭(첫 화면)**. 탭 [연결] [지시] [설정]. 연결 화면 아래 "음성 기록" 구역에 현장 전체 대화 카드·1:1 대화 기록(`components/chat/ConversationCards.tsx` 로 옮김), 안 읽은 수 + 가입 요청은 연결 탭 배지. 경로 `/site/members` → `/site`. 새 대화(✏️) 버튼 없음(처음 1:1 은 멤버 ⋯)
+- 시험: 앱 타입 검사·단위 64, **데모 e2e 110/110** (같은 이름이 멤버 줄·메시지 줄에 함께 있어 e2e `tap(name, { last: false })` 로 멤버 줄을 누름, 데모 응답은 새로 하나 더 보일 때까지 기다림). 이어서 (휴대폰 앱을 닫고, `ENGINE=fake`) **live e2e 48/48**(통화만 `E2E_ONLY_CALL` 22/22 두 번 더), **`E2E_MIXED` 17/17**(C2 뒤 처음, 예전 18개와 개수 다름), **`e2e:mic` 2/2**. e2e 고침: live 의 같은 언어 시험에서 구성원 마이크 끄기 단계 삭제(버튼 없음, 끄지 않아도 안정 통과), mic 는 멤버 줄을 누르고 응답이 새로 하나 더 보일 때 전송으로 판정. 서버 시험은 이번에 서버 코드가 바뀌지 않아 다시 돌리지 않음(10-26 266 통과). 연결 탭 아래 구역 이름 "메시지" → **"음성 기록"**(사용자 10-27)
+
+**다음 할 일 (순서)**
+1. ~~live e2e·`e2e:mic`~~ ✅ 10-27
+2. Android 스플래시 적용(위) → 두 Android 다시 빌드
+3. 현슈 `inPlace` 기본값 반영 확인 → iPhone 전환 재확인
+4. C1 PR #19 병합 뒤 C2 커밋·PR (사용자 요청 시) → 시드니 재배포·리허설 (시연은 C2 로 — 사용자 10-27 "시연은 그 다음")
+5. (시연 뒤) 2단계 음량 up 3초 = 1:1 말하기 모드, 전환 때 오디오 유지
+
 ## 2. 다른 개발자 연결 지점
 
 | 담당 | 연결 지점 | 계약 |

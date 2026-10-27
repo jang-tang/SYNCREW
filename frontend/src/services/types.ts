@@ -82,7 +82,10 @@ export interface ApiService {
   completeInstruction(messageId: string, note?: string): Promise<void>;
 
   // 실시간 통역 세션 (docs/live-interpretation.md)
-  startCall(siteId: string, userId: string): Promise<LiveSession>;
+  /** connect: 울림 없이 바로 연결 (C2 "연결" 방식) */
+  startCall(siteId: string, userId: string, options?: { connect?: boolean }): Promise<LiveSession>;
+  /** 연결 전환 (C2): 지금 1:1 연결을 끝내고 다른 사람과 바로 연결 → 새 세션. 상대가 다른 연결 중이면 BUSY, 접속 안 함이면 CONFLICT (지금 연결은 그대로) */
+  switchCall(sessionId: string, userId: string): Promise<LiveSession>;
   startBroadcast(siteId: string, target: InstructionTarget): Promise<LiveSession>;
   getSession(sessionId: string): Promise<LiveSession>;
   /** 내가 참여 중인 울림·진행 중 세션 */

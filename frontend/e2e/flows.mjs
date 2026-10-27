@@ -86,16 +86,17 @@ const check = async (name, text, timeout = 6000) => {
   }
 };
 // 화면에서 글자로 버튼 누르기 (가장 안쪽 일치 요소의 누를 수 있는 조상)
-const tap = async (text) => {
+// last: false 면 첫 번째 일치 (연결 화면은 같은 이름이 멤버 줄과 아래 1:1 메시지 줄에 함께 있다 — 멤버 줄을 누를 때)
+const tap = async (text, { last = true } = {}) => {
   await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout: 6000 }, text).catch(() => {});
-  const ok = await page.evaluate((t) => {
+  const ok = await page.evaluate((t, useLast) => {
     const nodes = [...document.querySelectorAll("div,span,a,button")].filter((n) => n.innerText?.trim() === t && n.checkVisibility());
-    const el = nodes.at(-1);
+    const el = useLast ? nodes.at(-1) : nodes.find((n) => ![...n.children].some((c) => c.innerText?.trim() === t));
     const target = el?.closest('[role="button"],[role="tab"],[role="link"],[role="radio"],[role="checkbox"],a,button') ?? el;
     if (!target) return false;
     target.click();
     return true;
-  }, text);
+  }, text, last);
   if (!ok) console.log("    (누를 수 없음:", text, ")");
   await wait(500);
 };
@@ -287,7 +288,7 @@ await expectCount("다른 작업조는 남음(대조군)", await visibleCount("1
 await page.screenshot({ path: path.join(outDir, "flow-3-2-groups.png") });
 
 console.log("4) 관리자: 가입 승인 → 멤버 반영");
-await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
+await page.goto(base + "/site", { waitUntil: "networkidle0" });
 await tap("승인");
 await check("승인 후 멤버 7명", "멤버 · 7");
 // 관리자 지정·해제. 헤드리스 Chrome 은 클릭 처리 중에 뜬 확인 창을 수락 전에 닫아 버리는 경우가 있어(2026-10-14 확인)
@@ -295,11 +296,20 @@ await check("승인 후 멤버 7명", "멤버 · 7");
 await page.evaluate(() => { window.confirm = () => true; });
 const managerBadges = () => visibleCount("관리자");
 const beforeBadges = await managerBadges();
-await tap("Иван Петров");
+// C2: 사람을 누르면 연결되므로 메뉴는 그 줄의 ⋯ 로 연다
+const openMenu = (name) =>
+  page.evaluate((n) => {
+    // 그 사람 이름이 든 가장 작은 줄 안의 ⋯ (아바타 이니셜이 앞에 있어 글자로 바로 찾지 않는다)
+    const rows = [...document.querySelectorAll('[role="button"]')].filter(
+      (el) => el.innerText?.includes(n) && el.querySelector('[aria-label="더보기"]') && el.checkVisibility(),
+    );
+    rows.sort((x, y) => x.innerText.length - y.innerText.length)[0]?.querySelector('[aria-label="더보기"]')?.click();
+  }, name).then(() => wait(600));
+await openMenu("Иван Петров");
 await tap("관리자로 지정");
 await wait(800);
 await expectCount("관리자 지정 → 관리자 표시 하나 늘어남", await managerBadges(), beforeBadges + 1);
-await tap("Иван Петров");
+await openMenu("Иван Петров");
 await check("지정된 사람에게는 해제 버튼", "관리자 해제");
 await tap("관리자 해제");
 await wait(800);
@@ -334,38 +344,69 @@ await page.evaluate(() => [...document.querySelectorAll('[aria-label="send"]')].
 await check("내 메시지 표시", "Bu qismni qayta tekshiring.");
 await check("상대 응답이 내 언어로", "Tushundim. Hozir boshlayman.", 8000);
 
-console.log("7) 1:1 실시간 통역 통화 (관리자 ↔ 베트남어 작업자)");
+console.log("7) 1:1 연결 (C2: 사람을 누르면 바로 연결 · 다른 사람을 누르면 전환, 관리자 ↔ 베트남어 작업자)");
 await page.evaluate(() => {
   localStorage.setItem("syncrew.mockProfile", JSON.stringify({ id: "me", email: "m@syncrew.app", displayName: "장태웅", preferredLang: "ko", autoPlay: false, speechRate: 1 }));
   localStorage.setItem("syncrew.siteId", "s_a");
   localStorage.setItem("syncrew.uiLang", "ko");
 });
-await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
+await page.goto(base + "/site", { waitUntil: "networkidle0" });
 await check("멤버 이어폰 상태: 블루투스", "SafeHelmet BT-2");
 await check("멤버 이어폰 상태: 휴대폰 스피커", "휴대폰 마이크·스피커");
-await tap("Nguyễn Văn An");
-await tap("통역 통화");
-await check("통화 거는 중", "Nguyễn Văn An 님을 부르는 중…");
-await check("상대가 받으면 통화 중", "통화 중", 6000);
+await check("연결 안내", "사람을 누르면 바로 연결돼요");
+{
+  const callButton = await page.evaluate(() => document.body.innerText.includes("통역 통화"));
+  if (!callButton) { pass++; console.log("  ✓ 별도 통화 버튼 없음"); }
+  else { fail++; console.log("  ✗ 별도 통화 버튼 없음"); }
+}
+await tap("Nguyễn Văn An", { last: false });
+await check("누르면 받기 없이 바로 연결", "Nguyễn Văn An 님과 연결 중", 6000);
 await check("마이크 권한 없음 안내", "마이크 권한이 필요해요");
-await check("버튼 없이 말하면 된다는 안내", "버튼을 누를 필요가 없어요");
-await page.screenshot({ path: path.join(outDir, "flow-7-call.png") });
-await tap("데모: 말한 것으로 보내기");
-await check("상대 통역 응답(한국어)", "알겠습니다. 바로 시작하겠습니다.", 8000);
-await tap("끊기");
-await check("통화 종료", "통화가 끝났어요");
-await tap("대화 기록 보기");
+await page.screenshot({ path: path.join(outDir, "flow-7-connect.png") });
+{
+  // 같은 문장이 아래 1:1 메시지 미리보기에도 이미 있으므로, 연결 패널에 새로 하나 더 보일 때까지 기다린다
+  const reply = "알겠습니다. 바로 시작하겠습니다.";
+  const before = await visibleCount(reply);
+  await tap("데모: 말한 것으로 보내기");
+  const arrived = await page
+    .waitForFunction(
+      (t, n) => [...document.querySelectorAll("div,span")].filter((e) => e.innerText?.trim() === t && e.checkVisibility() && e.children.length === 0).length > n,
+      { timeout: 8000 },
+      reply,
+      before,
+    )
+    .then(() => true, () => false);
+  if (arrived) { pass++; console.log("  ✓ 상대 통역 응답(한국어)"); }
+  else { fail++; console.log("  ✗ 상대 통역 응답(한국어)", { before }); }
+}
+await tap("李伟", { last: false });
+await check("다른 사람을 누르면 전환", "李伟 님과 연결 중", 6000);
+{
+  const old = await page.evaluate(() => document.body.innerText.includes("Nguyễn Văn An 님과 연결 중"));
+  if (!old) { pass++; console.log("  ✓ 이전 연결은 끝남"); }
+  else { fail++; console.log("  ✗ 이전 연결은 끝남"); }
+}
+await tap("나가기");
+await check("나가기 → 연결 안내로", "사람을 누르면 바로 연결돼요", 6000);
+// 접속하지 않은 사람은 연결되지 않는다 (안내만)
+await tap("Aziz Karimov", { last: false });
+await check("접속 안 한 사람 안내", "Aziz Karimov 님은 접속해 있지 않아요");
+// 길게 누르기 대신 ⋯ 로 메뉴 (메시지·관리)
+await openMenu("Nguyễn Văn An");
+await check("⋯ 메뉴: 1:1 대화", "1:1 대화");
+// 페이지를 새로 열면 데모 데이터가 처음으로 돌아가므로, 메뉴의 1:1 대화로 들어가 기록을 본다
+await tap("1:1 대화");
 await wait(1000);
 {
-  // 대화 기록 화면에서 통화 중 발화에 '통화' 표시가 붙는지 (화면에 보이는 표시 개수)
+  // 대화 기록 화면에서 연결 중 발화에 '통화' 표시가 붙는지 (화면에 보이는 표시 개수)
   const tags = await page.evaluate(() => [...document.querySelectorAll("div")].filter((n) => n.innerText?.trim() === "통화" && n.checkVisibility() && n.children.length === 0).length);
   const onChat = page.url().includes("/site/chat/");
-  if (onChat && tags >= 2) { pass++; console.log("  ✓ 대화 기록에 통화 발화 표시"); }
-  else { fail++; console.log("  ✗ 대화 기록에 통화 발화 표시", { url: page.url(), tags }); }
+  if (onChat && tags >= 2) { pass++; console.log("  ✓ 대화 기록에 연결 중 발화 표시"); }
+  else { fail++; console.log("  ✗ 대화 기록에 연결 중 발화 표시", { url: page.url(), tags }); }
 }
 await page.screenshot({ path: path.join(outDir, "flow-7-history.png") });
 
-console.log("7-1) 음량 버튼 두 번으로 통화 상대 바꾸기 (웹: 화살표 위·아래, C1 2026-10-26)");
+console.log("7-1) 음량 버튼 두 번으로 연결 전환 (웹: 화살표 위·아래, C1 2026-10-26)");
 {
   // A동 현장 순서(나 제외, 관리자 먼저): 김민준 → Nguyễn → 李伟 → Aziz(접속 안 함) → Иван
   // 헤드리스 Chrome 은 비밀번호 입력 뒤 실제 키 이벤트를 잃는다(CLAUDE.md) → keydown 을 직접 보낸다
@@ -375,30 +416,28 @@ console.log("7-1) 음량 버튼 두 번으로 통화 상대 바꾸기 (웹: 화�
     await wait(120);
     await key(name);
   };
-  await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
-  await tap("Nguyễn Văn An");
-  await tap("통역 통화");
-  await check("거는 중", "Nguyễn Văn An 님을 부르는 중…");
+  await page.goto(base + "/site", { waitUntil: "networkidle0" });
+  await tap("Nguyễn Văn An", { last: false });
+  await check("연결", "Nguyễn Văn An 님과 연결 중", 6000);
   await double("ArrowUp");
-  if (!(await check("거는 중에 위 두 번 → 다음(李伟)", "李伟 님을 부르는 중…", 6000))) {
+  if (!(await check("위 두 번 → 다음(李伟)", "李伟 님과 연결 중", 6000))) {
     console.log("    cycle:", await page.evaluate(() => JSON.stringify(window.__syncrewCycle)));
   }
-  await check("상대가 받으면 통화 중", "통화 중", 6000);
   await double("ArrowUp");
-  await check("통화 중 위 두 번 → 접속 안 한 Aziz 건너뛰고 Иван", "Иван Петров 님을 부르는 중…", 6000);
+  await check("위 두 번 → 접속 안 한 Aziz 건너뛰고 Иван", "Иван Петров 님과 연결 중", 6000);
   await double("ArrowUp");
-  await check("끝에서 다음 → 처음(김민준)", "김민준 님을 부르는 중…", 6000);
+  await check("끝에서 다음 → 처음(김민준)", "김민준 님과 연결 중", 6000);
   await double("ArrowDown");
-  await check("처음에서 이전 → 끝(Иван)", "Иван Петров 님을 부르는 중…", 6000);
+  await check("처음에서 이전 → 끝(Иван)", "Иван Петров 님과 연결 중", 6000);
   // 대조군: 한 번만 누르면 상대가 바뀌지 않는다 (위에서 같은 키 두 번은 바뀌었다)
   await key("ArrowUp");
   await wait(1500);
-  const stayed = await page.evaluate(() => document.body.innerText.includes("Иван Петров") && !document.body.innerText.includes("김민준 님을 부르는 중…"));
+  const stayed = await page.evaluate(() => document.body.innerText.includes("Иван Петров 님과 연결 중"));
   if (stayed) { pass++; console.log("  ✓ 한 번 누름은 상대를 바꾸지 않음"); }
   else { fail++; console.log("  ✗ 한 번 누름은 상대를 바꾸지 않음"); }
   await page.screenshot({ path: path.join(outDir, "flow-7-1-cycle.png") });
-  await tap("끊기");
-  await check("바꾼 통화 끊기", "통화가 끝났어요");
+  await tap("나가기");
+  await check("나가기", "사람을 누르면 바로 연결돼요", 6000);
 }
 
 console.log("8) 관리자 실시간 일괄 지시 (여러 언어)");

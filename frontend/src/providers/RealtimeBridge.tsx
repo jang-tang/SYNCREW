@@ -105,13 +105,15 @@ export function RealtimeBridge() {
       realtime.on("session:invite", ({ session }) => {
         cacheSession(session);
         if (session.siteId !== siteRef.current) {
-          // 걸려 온 전화는 어느 화면에 있든 받을 수 있게 그 현장으로 바꿔서 연다 (현장 목록·다른 현장, 2026-10-26 C1).
+          // 걸려 온 연결은 어느 화면에 있든 받을 수 있게 그 현장으로 바꿔서 연다 (현장 목록·다른 현장, 2026-10-26 C1).
           // 실시간 지시는 지금 현장 것만 연다 (다른 현장 일을 하는 중에 화면이 바뀌지 않게)
           if (session.mode !== "call") return;
           siteRef.current = session.siteId;
           setSiteId(session.siteId);
         }
-        router.push(session.mode === "call" ? `/site/call/${session.id}` : `/site/broadcast/${session.id}`);
+        // 1:1 연결(C2): 받기 없이 바로 연결되므로 연결 화면(멤버 탭)을 연다 — 누구와 연결됐는지 테두리로 보인다. 음성은 ConnectionProvider
+        if (session.mode === "call") router.navigate("/site");
+        else router.push(`/site/broadcast/${session.id}`);
       }),
       realtime.on("session:updated", ({ session }) => cacheSession(session)),
       realtime.on("device:changed", ({ siteId: changedSite }) => {

@@ -257,13 +257,34 @@ export function cacheSession(client: QueryClient, session: LiveSession) {
   void client.invalidateQueries({ queryKey: qk.openSessions(session.siteId) });
 }
 
-export function useStartCall(siteId: string) {
+/** 지금 내 1:1 연결 (C2 연결 방식): 열린 세션 중 통화 중인 1:1 */
+export function useActiveConnection(siteId: string) {
+  const open = useOpenSessions(siteId);
+  return open.data?.find((s) => s.mode === "call" && s.status === "active");
+}
+
+/** 1:1 연결 시작 (C2): 받기 없이 바로 연결 */
+export function useConnect(siteId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) => api.startCall(siteId, userId),
+    mutationFn: (userId: string) => api.startCall(siteId, userId, { connect: true }),
     onSuccess: (session) => {
       cacheSession(client, session);
       void client.invalidateQueries({ queryKey: qk.conversations(siteId) });
+    },
+  });
+}
+
+/** 연결 전환 (C2): 지금 연결을 끝내고 다른 사람과 바로 연결 */
+export function useSwitchConnection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, userId }: { sessionId: string; userId: string }) => api.switchCall(sessionId, userId),
+    onSuccess: (session, { sessionId }) => {
+      const previous = client.getQueryData<LiveSession>(qk.session(sessionId));
+      if (previous && previous.status !== "ended") cacheSession(client, { ...previous, status: "ended", endReason: "hangup" });
+      cacheSession(client, session);
+      void client.invalidateQueries({ queryKey: qk.conversations(session.siteId) });
     },
   });
 }

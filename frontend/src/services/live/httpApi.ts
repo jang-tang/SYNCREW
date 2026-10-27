@@ -120,7 +120,8 @@ export function createHttpApi(auth: AuthService): ApiService {
     completeInstruction: (messageId, note) =>
       call<void>(`/instructions/${messageId}/complete`, { method: "POST", json: note ? { note } : {} }),
 
-    startCall: (siteId, userId) => call<LiveSession>(`/sites/${siteId}/calls`, { method: "POST", json: { userId } }),
+    startCall: (siteId, userId, options) => call<LiveSession>(`/sites/${siteId}/calls`, { method: "POST", json: { userId, ...options } }),
+    switchCall: (sessionId, userId) => call<LiveSession>(`/sessions/${sessionId}/switch`, { method: "POST", json: { userId } }),
     startBroadcast: (siteId, target) => call<LiveSession>(`/sites/${siteId}/broadcasts`, { method: "POST", json: { target } }),
     getSession: (sessionId) => call<LiveSession>(`/sessions/${sessionId}`),
     listOpenSessions: (siteId) => call<LiveSession[]>(`/sites/${siteId}/sessions/open`),
