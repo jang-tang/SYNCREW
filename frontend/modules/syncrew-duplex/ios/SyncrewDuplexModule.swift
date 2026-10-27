@@ -159,11 +159,16 @@ final class DuplexEngine {
   private var recoveries: [Date] = []
   private static let maxRecoveries = 4
   private static let recoveryWindow: TimeInterval = 10
+  /** 시작·재시작 뒤 엔진이 돌고 있는지 다시 보는 시간 (watchRunning) */
+  private static let startCheckDelay: TimeInterval = 0.5
+  /** 버린 엔진을 실제로 놓기까지 기다리는 시간 (teardownEngine) */
+  private static let retireDelay: TimeInterval = 1
   /** 지금 엔진에 voice processing 을 실제로 켰는지 (블루투스 헤드셋에서는 끈다 — 아래 shouldUseVoiceProcessing) */
   private var vpActive = false
   /**
    * 실기기 시험용 후보 (docs/streaming-plan.md 5-7절, 기본은 비어 있음 = 지금 동작). 다음 start 부터 적용:
-   * - inPlace: 설정 변경으로 멈추면 엔진을 버리지 않고 그 자리에서 다시 시작 (재구성마다 voice processing 을 껐다 켜는 것이 다시 설정 변경을 부르는지)
+   * - noInPlace: 설정 변경으로 멈추면 예전처럼 엔진을 새로 만든다. 기본은 그 자리에서 다시 시작
+   *   (2026-10-25 iPhone 17 Pro 후보 inPlace 스피커 3/3 통과 → 10-27 기본값, 재구성마다 voice processing 을 껐다 켜는 것이 다시 설정 변경을 불렀다)
    * - connect48 / connectHw: mainMixer → output 을 48kHz / 출력 장치 형식으로 명시 연결
    * - modeDefault: 세션 mode 를 voiceChat 대신 default (voiceChat 의 시스템 처리와 겹치는지)
    * - noIOBuffer: setPreferredIOBufferDuration 을 부르지 않음
@@ -243,12 +248,15 @@ final class DuplexEngine {
         self.frameSamples = max(1, Int(sampleRate) * frameMs / 1000)
         self.captureLock.unlock()
         try self.configureSession()
+        // 엔진을 켜는 도중의 설정 변경도 받도록 먼저 듣는다 — 켠 뒤에 들으면 그 알림을 놓쳐 통화 내내 멈춰 있었다
+        // (2026-10-25 iPhone 17 Pro: isRunning=false 로 시작, configChange 없음 → 무음 통화 1/3). 알림 처리는 이 블록 뒤에 돈다
+        self.addObservers()
         try self.buildEngine()
         self.running = true
-        self.addObservers()
         self.emitRoute()
         done(nil)
       } catch {
+        self.removeObservers()
         self.teardownEngine()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         done(error)
@@ -391,18 +399,41 @@ final class DuplexEngine {
     dlog("engine started isRunning=\(engine.isRunning) route=\(DuplexEngine.currentRoute()) outHw=\(engine.outputNode.outputFormat(forBus: 0)) outIn=\(engine.outputNode.inputFormat(forBus: 0)) mixerOut=\(engine.mainMixerNode.outputFormat(forBus: 0))")
     self.engine = engine
     self.player = player
+    watchRunning(engine)
+  }
+
+  /**
+   * 시작 직후 엔진이 멈춰 있는데 설정 변경 알림이 오지 않으면 직접 복구한다 (알림을 기다리기만 하면 통화 내내 무음).
+   * 알림이 와서 이미 복구됐으면(엔진이 바뀌었거나 돌고 있으면) 아무것도 하지 않는다.
+   */
+  private func watchRunning(_ started: AVAudioEngine) {
+    queue.asyncAfter(deadline: .now() + DuplexEngine.startCheckDelay) { [weak self] in
+      guard let self, self.running, let engine = self.engine, engine === started, !engine.isRunning else { return }
+      dlog("watchdog: engine not running \(DuplexEngine.startCheckDelay)s after start — recovering")
+      self.recoverEngine()
+    }
   }
 
   private func teardownEngine() {
     generation += 1
     scheduled = 0
     currentStream = nil
-    if let engine {
-      engine.inputNode.removeTap(onBus: 0)
-      player?.stop()
-      engine.stop()
-      if vpActive {
-        try? engine.inputNode.setVoiceProcessingEnabled(false)
+    // 옛 엔진에서 나온 임시 객체(inputNode 등)를 엔진보다 먼저 정리하고, 엔진 자체는 조금 뒤에 놓는다.
+    // 엔진이 먼저 해제된 뒤 큐 블록 끝에서 임시 객체를 해제하다 앱이 꺼진 것으로 본다
+    // (2026-10-25 iPhone 17 Pro 에어팟 → 스피커 전환 1/3: EXC_BAD_ACCESS objc_release ← objc_autoreleasePoolPop, 스레드 app.syncrew.duplex)
+    if let old = engine {
+      let oldPlayer = player
+      let wasVP = vpActive
+      autoreleasepool {
+        old.inputNode.removeTap(onBus: 0)
+        oldPlayer?.stop()
+        old.stop()
+        if wasVP {
+          try? old.inputNode.setVoiceProcessingEnabled(false)
+        }
+      }
+      queue.asyncAfter(deadline: .now() + DuplexEngine.retireDelay) {
+        withExtendedLifetime((old, oldPlayer)) {}
       }
     }
     engine = nil
@@ -451,13 +482,13 @@ final class DuplexEngine {
       vpSuppressed = true
       emit("onError", ["code": "voice_processing_loop", "message": "에코 제거를 끄고 오디오를 다시 시작합니다."])
     }
-    if experiments.contains("inPlace"), vpActive == shouldUseVoiceProcessing(), restartInPlace() { return }
+    if !experiments.contains("noInPlace"), vpActive == shouldUseVoiceProcessing(), restartInPlace() { return }
     dlog("recover: rebuilding engine (#\(recoveries.count), requested=\(echoCancellation) suppressed=\(vpSuppressed))")
     restartEngine()
   }
 
   /**
-   * 시험 후보 inPlace: 엔진을 버리지 않고(voice processing 도 그대로 둔 채) 다시 시작한다. 됐으면 true.
+   * 엔진을 버리지 않고(voice processing 도 그대로 둔 채) 다시 시작한다. 됐으면 true. (10-27 기본값, 끄려면 시험 후보 noInPlace)
    * 입력 형식이 바뀌었거나 시작에 실패하면 false → 예전처럼 엔진을 새로 만든다.
    */
   private func restartInPlace() -> Bool {
@@ -481,6 +512,7 @@ final class DuplexEngine {
     }
     player.play()
     dlog("inPlace: restarted (#\(recoveries.count)) isRunning=\(engine.isRunning) vp=\(engine.inputNode.isVoiceProcessingEnabled) outHw=\(engine.outputNode.outputFormat(forBus: 0))")
+    watchRunning(engine)
     if let playingId {
       emit("onPlayback", ["streamId": playingId, "playing": false])
     }
