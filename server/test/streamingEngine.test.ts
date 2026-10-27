@@ -8,8 +8,10 @@ import { LegacyWorkplaceAdapter } from "../src/engine/dataset/legacyWorkplaceAda
 import { DomainProcessor, type StreamGlossary } from "../src/engine/domain/domainProcessor";
 import { LANG_CODES } from "../src/shared/languages";
 import { buildStreamInstructions, STREAM_INSTRUCTIONS_MAX_CHARS, type StreamEngineEvents, type TurnEnd } from "../src/streaming/engine";
-import { hasSpeech, RealtimeStreamEngine, realtimeUsage, transcribeEstimate, transcriptionKeywords, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
+import { hasSpeech, RealtimeStreamEngine, realtimeUsage, sameText, transcribeEstimate, transcriptionKeywords, type RealtimeStreamOptions } from "../src/streaming/realtimeStream";
 import { LinearResampler, rms } from "../src/streaming/resample";
+import type { SttProvider, TranscribeInput } from "../src/engine/stt/sttProvider";
+import { STT_PROMPT } from "../src/messaging/pipeline";
 
 // Phase 7 S1: 스트리밍 엔진 단위 검증 (비용 0)
 //   - 표본률 변환, 지시문(텍스트 문맥), OpenAI Realtime 스트리밍 어댑터의 프로토콜 처리(로컬 가짜 서버)
@@ -268,7 +270,11 @@ const until = async (check: () => boolean, ms = 2000) => {
   }
 };
 
-function engine(url: string, limitUsd = 5, extra: Partial<Pick<RealtimeStreamOptions, "liveTranscription" | "streamTranscribeModel" | "trace" | "log">> = {}) {
+function engine(
+  url: string,
+  limitUsd = 5,
+  extra: Partial<Pick<RealtimeStreamOptions, "liveTranscription" | "streamTranscribeModel" | "trace" | "log" | "translateFrom" | "speculative" | "segmentAfterMs" | "segmentPauseMs" | "finalStt" | "finalSttWaitMs" | "finalSttMode">> = {},
+) {
   const store = new InMemoryUsageStore();
   const budget = new BudgetGuard(store, DEFAULT_PRICING, { limitUsd, period: "total" });
   return {
@@ -942,6 +948,457 @@ describe("RealtimeStreamEngine + gpt-live-transcribe (STREAM_STT_MODEL)", () => 
     await until(() => rec.ends.length === 1);
     await until(() => store.records.length === 2);
     expect(store.records.find((r) => r.kind === "stt")).toMatchObject({ model: "gpt-4o-mini-transcribe" });
+    connection.close();
+  });
+});
+
+// 글자 기반 통역 (2026-10-28, docs/streaming-plan.md 4-4절): 통역 모델에는 전사 세션의 원문 글자만 넣는다 → 화면 원문과 통역이 같은 글자
+describe("RealtimeStreamEngine 글자 기반 통역 (STREAM_TRANSLATE_FROM=text)", () => {
+  const text = { streamTranscribeModel: "gpt-live-transcribe", translateFrom: "text" } as const;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  type Create = { type: string; event_id: string; response: { conversation?: string; input: unknown[]; instructions: string } };
+
+  async function open(extra: Partial<Pick<RealtimeStreamOptions, "speculative" | "segmentAfterMs" | "segmentPauseMs" | "trace" | "log">> = {}) {
+    const server = await fakeRealtime();
+    const { engine: e, store } = engine(server.url, 5, { ...text, ...extra });
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    const creates = () => server.received.filter((r) => r.type === "response.create") as unknown as Create[];
+    const sttCommits = () => stt.received.filter((r) => r.type === "input_audio_buffer.commit");
+    const deletes = () => server.received.filter((r) => r.type === "conversation.item.delete").map((r) => (r as { item_id?: string }).item_id);
+    const cancels = () => server.received.filter((r) => r.type === "response.cancel").map((r) => (r as { response_id?: string }).response_id);
+    const kinds = () => rec.log.map((l) => l.type);
+    return { server, store, rec, connection, stt, creates, sttCommits, deletes, cancels, kinds };
+  }
+
+  /** 3초 말 (전사 세션에 음성이 있어야 commit 을 보낸다) + 임시 자막 조각 */
+  async function speak(t: Awaited<ReturnType<typeof open>>, item: string, deltas: string[]) {
+    const before = t.kinds().filter((k) => k === "originalDelta").length;
+    t.connection.append(sine(24_000, 1));
+    for (const delta of deltas) t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: item, delta });
+    await until(() => t.kinds().filter((k) => k === "originalDelta").length === before + deltas.length);
+  }
+
+  it("sameText: 공백·문장부호·대소문자만 다르면 같고, 글자가 다르면 다르다", () => {
+    expect(sameText("안전모를 쓰세요", "안전모를 쓰세요.")).toBe(true);
+    expect(sameText("Hãy đội mũ", "hãy đội mũ!")).toBe(true);
+    expect(sameText("안전모를 쓰", "안전모를 쓰세요.")).toBe(false);
+    expect(sameText("3층", "삼층")).toBe(false);
+  });
+
+  it("예측 끔: 말 끝에 음성 항목은 바로 지우고 전사 세션만 commit, 확정 원문이 오면 그 글자만 넣어(conversation none) 요청 → 원문과 통역이 같은 턴으로", async () => {
+    const t = await open({ speculative: false });
+    await speak(t, "live_1", ["안전모를", " 쓰세요"]);
+    // 말 끝 (번역 세션 VAD) → 음성 항목 삭제 + 전사 세션 commit. 번역 세션에는 commit 을 보내지 않는다
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => t.sttCommits().length === 1);
+    expect(t.deletes()).toEqual(["item_1"]);
+    expect(t.server.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(0);
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await sleep(50);
+    expect(t.creates()).toHaveLength(0); // 예측 끔: 확정 원문을 기다린다
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "안전모를 쓰세요.", usage: { type: "duration", seconds: 1 } });
+    await until(() => t.creates().length === 1);
+    const create = t.creates()[0]!;
+    expect(create.response.conversation).toBe("none");
+    expect(create.response.input).toEqual([{ type: "message", role: "user", content: [{ type: "input_text", text: "안전모를 쓰세요." }] }]);
+    expect(create.response.instructions).toContain("Vietnamese");
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio.delta", response_id: "resp_1", delta: Buffer.alloc(480).toString("base64") });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Hãy đội mũ bảo hộ." });
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [{ id: "out_1" }] } });
+    await until(() => t.rec.ends.length === 1);
+    const turnId = t.rec.ends[0]!.turnId;
+    expect(t.rec.ends[0]!.result).toEqual({ status: "done", original: "안전모를 쓰세요.", translation: "Hãy đội mũ bảo hộ.", model: "gpt-realtime-2.1" });
+    // 원문 조각 → 시작 → 원문 확정 → 음성·자막 (모두 같은 턴)
+    expect(t.rec.log.map((l) => [l.type, l.turnId])).toEqual([
+      ["originalDelta", turnId],
+      ["originalDelta", turnId],
+      ["start", turnId],
+      ["original", turnId],
+      ["audio", turnId],
+      ["delta", turnId],
+    ]);
+    // 응답 출력은 대화에 남지 않으므로 지우지 않는다 (지운 것은 말 끝 음성 항목뿐)
+    expect(t.deletes()).toEqual(["item_1"]);
+    await until(() => t.store.records.length === 2);
+    expect(t.store.records.map((r) => r.kind).sort()).toEqual(["stt", "translate"]);
+    t.connection.close();
+  });
+
+  it("예측 적중: 전사 세션 commit 응답 때 임시 자막으로 바로 요청하고 통역은 붙잡아 둔다 → 확정 원문이 같으면(문장부호 차이 무시) 내보낸다", async () => {
+    const t = await open();
+    await speak(t, "live_1", ["안전모를", " 쓰세요"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => t.sttCommits().length === 1);
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    expect(t.creates()[0]!.response.input).toEqual([{ type: "message", role: "user", content: [{ type: "input_text", text: "안전모를 쓰세요" }] }]);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio.delta", response_id: "resp_1", delta: Buffer.alloc(480).toString("base64") });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Hãy đội mũ bảo hộ." });
+    await until(() => t.kinds().includes("start"));
+    await sleep(50);
+    expect(t.kinds()).not.toContain("audio"); // 확정 전: 붙잡아 둔다
+    expect(t.kinds()).not.toContain("original");
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "안전모를 쓰세요.", usage: { type: "duration", seconds: 1 } });
+    await until(() => t.kinds().includes("audio") && t.kinds().includes("original"));
+    expect(t.rec.log.find((l) => l.type === "original")!.data).toBe("안전모를 쓰세요.");
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "안전모를 쓰세요.", translation: "Hãy đội mũ bảo hộ." });
+    expect(t.creates()).toHaveLength(1);
+    expect(t.cancels()).toHaveLength(0);
+    t.connection.close();
+  });
+
+  it("예측 빗나감 (응답 중): 확정 원문이 다르면 예측 응답을 취소하고 그 조각은 버린 뒤, 확정 원문으로 다시 요청한다 — 사용량은 두 응답 합", async () => {
+    const t = await open();
+    await speak(t, "live_1", ["안전모를", " 쓰"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => t.sttCommits().length === 1);
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Đội mũ" });
+    // 늦게 온 조각 + 확정 원문이 예측과 다르다
+    t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_1", delta: "고 비계에 오르세요" });
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "안전모를 쓰고 비계에 오르세요.", usage: { type: "duration", seconds: 2 } });
+    await until(() => t.cancels().includes("resp_1"));
+    // 취소 중에 온 예측 응답 조각은 버린다
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: " bảo hộ" });
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "cancelled", usage, output: [] } });
+    await until(() => t.creates().length === 2);
+    expect(t.creates()[1]!.response.input).toEqual([{ type: "message", role: "user", content: [{ type: "input_text", text: "안전모를 쓰고 비계에 오르세요." }] }]);
+    t.server.send({ type: "response.created", response: { id: "resp_2" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_2", delta: "Đội mũ bảo hộ rồi lên giàn giáo." });
+    t.server.send({ type: "response.done", response: { id: "resp_2", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.rec.ends[0]!.result).toEqual({ status: "done", original: "안전모를 쓰고 비계에 오르세요.", translation: "Đội mũ bảo hộ rồi lên giàn giáo.", model: "gpt-realtime-2.1" });
+    // 시작은 한 번, 번역 조각은 확정 원문 응답 것만
+    expect(t.kinds().filter((k) => k === "start")).toHaveLength(1);
+    expect(t.rec.log.filter((l) => l.type === "delta").map((l) => l.data)).toEqual(["Đội mũ bảo hộ rồi lên giàn giáo."]);
+    expect(t.rec.log.filter((l) => l.type === "original").map((l) => l.data)).toEqual(["안전모를 쓰고 비계에 오르세요."]);
+    await until(() => t.store.records.some((r) => r.kind === "translate"));
+    expect(t.store.records.find((r) => r.kind === "translate")).toMatchObject({ inputTextTokens: 406, outputAudioTokens: 176 });
+    t.connection.close();
+  });
+
+  it("예측 빗나감 (응답이 이미 끝남): 붙잡아 둔 통역을 버리고 확정 원문으로 바로 다시 요청한다", async () => {
+    const t = await open();
+    await speak(t, "live_1", ["물"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Nước" });
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [] } });
+    await sleep(50);
+    expect(t.rec.ends).toHaveLength(0); // 확정 전에는 닫지 않는다
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "물 가져와.", usage: { type: "duration", seconds: 1 } });
+    await until(() => t.creates().length === 2);
+    expect(t.cancels()).toHaveLength(0);
+    t.server.send({ type: "response.created", response: { id: "resp_2" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_2", delta: "Mang nước lại đây." });
+    t.server.send({ type: "response.done", response: { id: "resp_2", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "물 가져와.", translation: "Mang nước lại đây." });
+    expect(t.rec.log.filter((l) => l.type === "delta").map((l) => l.data)).toEqual(["Mang nước lại đây."]);
+    t.connection.close();
+  });
+
+  it("확정 원문에 말이 없으면: 요청 전이면 요청 없이 조용히 버리고, 예측 응답이 시작됐으면 취소 + EMPTY", async () => {
+    const t = await open();
+    // ① 임시 자막이 군소리뿐 → 예측 요청 없음, 확정도 군소리 → 아무것도 안 보낸다
+    await speak(t, "live_1", ["음"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "음.", usage: { type: "duration", seconds: 1 } });
+    await sleep(80);
+    expect(t.creates()).toHaveLength(0);
+    expect(t.rec.ends).toHaveLength(0);
+    expect(t.kinds()).not.toContain("start");
+    // ② 임시 자막 "물" 로 예측 요청·시작 → 확정이 비어 있음 → 응답 취소 + EMPTY
+    await speak(t, "live_2", ["물"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_2" });
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_2" });
+    await until(() => t.creates().length === 1);
+    t.server.send({ type: "response.created", response: { id: "resp_2" } });
+    await until(() => t.kinds().includes("start"));
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_2", transcript: "", usage: { type: "duration", seconds: 1 } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.rec.ends[0]!.result).toEqual({ status: "failed", code: "EMPTY" });
+    expect(t.cancels()).toEqual(["resp_2"]);
+    t.server.send({ type: "response.done", response: { id: "resp_2", status: "cancelled", usage, output: [] } });
+    await sleep(50);
+    expect(t.rec.ends).toHaveLength(1);
+    expect(t.kinds()).not.toContain("audio");
+    t.connection.close();
+  });
+
+  it("전사 실패(failed)면 임시 자막을 원문으로 확정한다 — 예측 요청 글자와 같으므로 그대로 내보낸다", async () => {
+    const t = await open();
+    await speak(t, "live_1", ["물 가져와"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Mang nước" });
+    t.stt.send({ type: "conversation.item.input_audio_transcription.failed", item_id: "live_1", error: { message: "x" } });
+    await until(() => t.kinds().includes("delta"));
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "물 가져와", translation: "Mang nước" });
+    t.connection.close();
+  });
+
+  it("확정 원문이 TEXT_FINAL_WAIT_MS(3초) 안에 안 오면 요청한 글자를 원문으로 확정해 내보내고, 늦게 온 완성본은 쓰지 않는다", async () => {
+    const t = await open();
+    await speak(t, "live_1", ["3층으로 가"]);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Lên tầng 3" });
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1, 4_500);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "3층으로 가", translation: "Lên tầng 3" });
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "삼층으로 가.", usage: { type: "duration", seconds: 1 } });
+    await sleep(50);
+    expect(t.rec.log.filter((l) => l.type === "original").map((l) => l.data)).toEqual(["3층으로 가"]);
+    expect(t.creates()).toHaveLength(1);
+    t.connection.close();
+  }, 8_000);
+
+  it("긴 말 나누기: 한 턴이 segmentAfterMs 를 넘으면 그 뒤 첫 쉼(segmentPauseMs)에서 전사 세션만 commit 해 턴을 나눈다 — 짧은 턴의 쉼·같은 쉼에서는 나누지 않는다", async () => {
+    const t = await open({ segmentAfterMs: 1_000, segmentPauseMs: 200 });
+    const chunks = (buf: Buffer) => {
+      for (let i = 0; i < buf.length; i += 4_800) t.connection.append(buf.subarray(i, i + 4_800)); // 100ms 조각
+    };
+    // 0.5초 말 + 0.3초 쉼: 아직 1초가 안 됐으므로 나누지 않는다
+    chunks(sine(24_000, 0.5));
+    t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_1", delta: "비계 위에서는" });
+    await until(() => t.kinds().includes("originalDelta"));
+    chunks(Buffer.alloc(4_800 * 3));
+    await sleep(30);
+    expect(t.sttCommits()).toHaveLength(0);
+    // 계속 말해 1초를 넘긴 뒤 0.2초 쉼 → 전사 세션만 commit (번역 세션에는 commit·말 끝 없음)
+    chunks(sine(24_000, 0.6));
+    t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_1", delta: " 안전고리를 거세요." });
+    await until(() => t.kinds().filter((k) => k === "originalDelta").length === 2);
+    chunks(Buffer.alloc(4_800 * 2));
+    await until(() => t.sttCommits().length === 1);
+    expect(t.server.received.filter((r) => r.type === "input_audio_buffer.commit")).toHaveLength(0);
+    // 같은 쉼이 이어져도 다시 나누지 않는다
+    chunks(Buffer.alloc(4_800 * 3));
+    await sleep(30);
+    expect(t.sttCommits()).toHaveLength(1);
+    // 나뉜 첫 턴은 바로 예측 요청된다 (말이 다 끝나기 전에 통역 시작)
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    await until(() => t.creates().length === 1);
+    expect(t.creates()[0]!.response.input).toEqual([{ type: "message", role: "user", content: [{ type: "input_text", text: "비계 위에서는 안전고리를 거세요." }] }]);
+    // 이어서 다음 말 → 번역 세션 말 끝 → 두 번째 commit, 다른 턴
+    chunks(sine(24_000, 0.5));
+    t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: "live_2", delta: "작업 시작하세요" });
+    await until(() => t.kinds().filter((k) => k === "originalDelta").length === 3);
+    t.server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => t.sttCommits().length === 2);
+    const deltaTurns = t.rec.log.filter((l) => l.type === "originalDelta").map((l) => l.turnId);
+    expect(deltaTurns[0]).toBe(deltaTurns[1]);
+    expect(deltaTurns[2]).not.toBe(deltaTurns[0]);
+    t.connection.close();
+  });
+
+  it("STREAM_LIVE_TRANSCRIPTION=off 또는 gpt-live-transcribe 가 아니면 text 를 켜도 예전(음성) 방식: 응답은 말 끝 항목을 가리킨다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url, 5, { translateFrom: "text" }); // 전사 모델 gpt-4o-mini-transcribe (live 아님)
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    await until(() => server.received.some((r) => r.type === "response.create"));
+    const create = server.received.find((r) => r.type === "response.create") as unknown as Create;
+    expect(create.response.input).toEqual([{ type: "item_reference", id: "item_1" }]);
+    expect(server.received.filter((r) => r.type === "conversation.item.delete")).toHaveLength(0);
+    connection.close();
+  });
+});
+
+// 확정 자막 (2026-10-28, docs/streaming-plan.md 4-5절): 말 끝마다 그 턴 음성을 finalStt(gpt-4o-transcribe)로 다시 받아써 원문으로 쓴다
+describe("RealtimeStreamEngine 확정 자막 (STREAM_FINAL_STT=on)", () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /** 결과를 직접 정해 주는 가짜 받아쓰기 */
+  function fakeFinalStt() {
+    const calls: TranscribeInput[] = [];
+    const pending: { resolve: (text: string) => void; reject: (error: Error) => void }[] = [];
+    const provider: SttProvider = {
+      name: "fake-final",
+      transcribe: (input) => {
+        calls.push(input);
+        return new Promise((resolve, reject) =>
+          pending.push({ resolve: (text) => resolve({ text, model: "gpt-4o-transcribe", usage: {} }), reject }),
+        );
+      },
+    };
+    return { provider, calls, pending };
+  }
+
+  async function open(waitMs?: number, mode: "replace" | "fallback" = "replace") {
+    const server = await fakeRealtime();
+    const final = fakeFinalStt();
+    const logs: string[] = [];
+    const traces: string[] = [];
+    const { engine: e } = engine(server.url, 5, {
+      streamTranscribeModel: "gpt-live-transcribe",
+      finalStt: final.provider,
+      finalSttMode: mode,
+      ...(waitMs ? { finalSttWaitMs: waitMs } : {}),
+      log: (message) => logs.push(message),
+      trace: (_session, type) => traces.push(type),
+    });
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    const originals = () => rec.log.filter((l) => l.type === "original").map((l) => l.data);
+    return { server, final, logs, traces, rec, connection, stt, originals };
+  }
+
+  /** 2초 음성을 넣고, 번역 세션 VAD 가 0.5–1.5초를 말로 잡아 확정 → 전사 세션 조각·완성본은 live 글자 */
+  async function turn(t: Awaited<ReturnType<typeof open>>, n: number) {
+    t.connection.append(sine(24_000, 2));
+    t.stt.send({ type: "conversation.item.input_audio_transcription.delta", item_id: `live_${n}`, delta: "기계 위에서" });
+    await until(() => t.rec.log.some((l) => l.type === "originalDelta" && l.data === "기계 위에서" && t.rec.log.filter((x) => x.type === "originalDelta").length >= n));
+    t.server.send({ type: "input_audio_buffer.speech_started", audio_start_ms: 2000 * (n - 1) + 500, item_id: `item_${n}` });
+    t.server.send({ type: "input_audio_buffer.speech_stopped", audio_end_ms: 2000 * (n - 1) + 1500, item_id: `item_${n}` });
+    t.server.send({ type: "input_audio_buffer.committed", item_id: `item_${n}` });
+    await until(() => t.final.calls.length === n);
+  }
+  const liveDone = (t: Awaited<ReturnType<typeof open>>, n: number, transcript = "기계 위에서 작업하세요.") => {
+    t.stt.send({ type: "input_audio_buffer.committed", item_id: `live_${n}` });
+    t.stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: `live_${n}`, transcript, usage: { type: "duration", seconds: 1 } });
+  };
+  const respond = (t: Awaited<ReturnType<typeof open>>, n: number) => {
+    t.server.send({ type: "response.created", response: { id: `resp_${n}` } });
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: `resp_${n}`, delta: "Làm việc trên giàn giáo." });
+    t.server.send({ type: "response.done", response: { id: `resp_${n}`, status: "completed", usage, output: [] } });
+  };
+
+  it("말 끝에 그 턴 음성(말 시작 −300ms ~ 말 끝 +150ms)을 원문 언어·문장 단위 프롬프트로 받아쓰고, 전사 세션 완성본이 먼저 와도 확정 자막을 기다렸다 한 번만 올린다 — 기록 원문도 확정 자막", async () => {
+    const t = await open();
+    await turn(t, 1);
+    const call = t.final.calls[0]!;
+    // 0.5–1.5초 말 → 0.2–1.65초 = 1.45초 = 34,800 표본 (24kHz)
+    expect(call.audio.sampleRate).toBe(24_000);
+    expect(call.audio.data.length).toBe(34_800);
+    expect(call.lang).toBe("ko");
+    expect(call.prompt).toBe(STT_PROMPT);
+    liveDone(t, 1);
+    respond(t, 1);
+    await until(() => t.rec.log.some((l) => l.type === "start"));
+    await sleep(50);
+    expect(t.originals()).toEqual([]); // 확정 자막을 기다린다
+    expect(t.rec.ends).toHaveLength(0); // 턴 끝도 기다린다
+    t.final.pending[0]!.resolve("비계 위에서 작업하세요.");
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["비계 위에서 작업하세요."]);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "비계 위에서 작업하세요.", translation: "Làm việc trên giàn giáo." });
+    expect(t.traces).toContain("finalStt");
+    t.connection.close();
+  });
+
+  it("확정 자막이 전사 세션 완성본보다 먼저 와도 한 번만, 확정 자막으로 올린다", async () => {
+    const t = await open();
+    await turn(t, 1);
+    t.server.send({ type: "response.created", response: { id: "resp_1" } });
+    t.final.pending[0]!.resolve("비계 위에서 작업하세요.");
+    await sleep(50);
+    expect(t.originals()).toEqual([]); // 전사 세션 완성본(말 있음 판정)이 아직
+    liveDone(t, 1);
+    await until(() => t.originals().length === 1);
+    t.server.send({ type: "response.output_audio_transcript.delta", response_id: "resp_1", delta: "Làm việc." });
+    t.server.send({ type: "response.done", response: { id: "resp_1", status: "completed", usage, output: [] } });
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["비계 위에서 작업하세요."]);
+    expect(t.rec.ends[0]!.result).toMatchObject({ original: "비계 위에서 작업하세요." });
+    t.connection.close();
+  });
+
+  it("받아쓰기 실패·말 없음이면 전사 세션 완성본을 그대로 쓴다", async () => {
+    const t = await open();
+    await turn(t, 1);
+    liveDone(t, 1);
+    respond(t, 1);
+    t.final.pending[0]!.reject(new Error("OpenAI STT 500"));
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["기계 위에서 작업하세요."]);
+    expect(t.logs).toContain("확정 자막을 받지 못해 전사 세션 원문을 씀");
+    // 두 번째 턴: 확정 받아쓰기가 군소리뿐 → 전사 세션 완성본
+    await turn(t, 2);
+    liveDone(t, 2);
+    respond(t, 2);
+    t.final.pending[1]!.resolve("음.");
+    await until(() => t.rec.ends.length === 2);
+    expect(t.rec.ends[1]!.result).toMatchObject({ original: "기계 위에서 작업하세요." });
+    t.connection.close();
+  });
+
+  it("finalSttWaitMs 안에 안 오면 전사 세션 완성본으로 올리고 턴을 닫으며, 늦게 온 확정 자막은 쓰지 않는다", async () => {
+    const t = await open(150);
+    await turn(t, 1);
+    liveDone(t, 1);
+    respond(t, 1);
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["기계 위에서 작업하세요."]);
+    t.final.pending[0]!.resolve("비계 위에서 작업하세요.");
+    await until(() => t.traces.includes("finalStt.late"));
+    expect(t.originals()).toEqual(["기계 위에서 작업하세요."]);
+    t.connection.close();
+  });
+
+  it("fallback(기본): 전사 세션 완성본에 말이 있으면 확정 자막을 기다리지 않고 바로 그것을 올리고 턴도 닫는다 (늦게 온 확정 자막은 다시 올리지 않음)", async () => {
+    const t = await open(undefined, "fallback");
+    await turn(t, 1);
+    liveDone(t, 1, "비계 위에서 작업하세요.");
+    respond(t, 1);
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["비계 위에서 작업하세요."]);
+    expect(t.rec.ends[0]!.result).toMatchObject({ original: "비계 위에서 작업하세요." });
+    t.final.pending[0]!.resolve("기계 위에서 작업하세요.");
+    await sleep(50);
+    expect(t.originals()).toEqual(["비계 위에서 작업하세요."]);
+    t.connection.close();
+  });
+
+  it("fallback: 전사 세션 완성본이 비면 확정 자막을 기다렸다 그것으로 채운다 (화면·기록 원문)", async () => {
+    const t = await open(undefined, "fallback");
+    await turn(t, 1);
+    liveDone(t, 1, "");
+    respond(t, 1);
+    await until(() => t.rec.log.some((l) => l.type === "start"));
+    await sleep(50);
+    expect(t.originals()).toEqual([]);
+    expect(t.rec.ends).toHaveLength(0);
+    t.final.pending[0]!.resolve("공구리 치기 전에 철근 간격 다시 봐.");
+    await until(() => t.rec.ends.length === 1);
+    expect(t.originals()).toEqual(["공구리 치기 전에 철근 간격 다시 봐."]);
+    expect(t.rec.ends[0]!.result).toMatchObject({ status: "done", original: "공구리 치기 전에 철근 간격 다시 봐." });
+    t.connection.close();
+  });
+
+  it("finalStt 가 없으면 예전 그대로: 전사 세션 완성본을 바로 올린다", async () => {
+    const server = await fakeRealtime();
+    const { engine: e } = engine(server.url, 5, { streamTranscribeModel: "gpt-live-transcribe" });
+    const rec = recorder();
+    const connection = await e.open({ sourceLang: "ko", targetLang: "vi", events: rec.events });
+    const stt = server.stt()!;
+    connection.append(sine(24_000, 1));
+    server.send({ type: "input_audio_buffer.committed", item_id: "item_1" });
+    stt.send({ type: "input_audio_buffer.committed", item_id: "live_1" });
+    stt.send({ type: "conversation.item.input_audio_transcription.completed", item_id: "live_1", transcript: "물 가져와.", usage: { type: "duration", seconds: 1 } });
+    server.send({ type: "response.created", response: { id: "resp_1" } });
+    await until(() => rec.log.some((l) => l.type === "original"));
+    expect(rec.log.find((l) => l.type === "original")!.data).toBe("물 가져와.");
     connection.close();
   });
 });
