@@ -107,17 +107,25 @@ export function InfoNotice({ text, tone = "warning" }: { text: string; tone?: "w
   );
 }
 
-/** 탭 화면 상단: 연결 끊김 + 진행 중인 통화·실시간 지시로 돌아가기 */
-export function SiteBanners() {
+/**
+ * 탭 화면 상단: 연결 끊김 + 진행 중인 1:1 연결·실시간 지시로 돌아가기.
+ * hideConnection: 연결 화면(멤버 탭)은 연결 패널이 있으므로 1:1 연결 배너를 숨긴다.
+ */
+export function SiteBanners({ hideConnection = false }: { hideConnection?: boolean }) {
   const { t } = useT();
   const siteId = useSiteId();
   const me = useMe();
   const open = useOpenSessions(siteId);
-  const live = open.data?.find((s) => s.status === "active" || (s.status === "ringing" && s.startedBy !== me.data?.id));
+  const live = open.data?.find(
+    (s) => (s.status === "active" || (s.status === "ringing" && s.startedBy !== me.data?.id)) && !(hideConnection && s.mode === "call"),
+  );
+  const peer = live?.participants.find((p) => p.userId !== me.data?.id);
   return (
     <>
       <ConnectionBanner />
-      {live && <LiveBanner session={live} label={t(live.mode === "call" ? "call.banner" : "bc.banner")} />}
+      {live && (
+        <LiveBanner session={live} label={live.mode === "call" ? t("conn.banner", { name: peer?.displayName ?? "" }) : t("bc.banner")} />
+      )}
     </>
   );
 }
@@ -126,7 +134,7 @@ function LiveBanner({ session, label }: { session: LiveSession; label: string })
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => router.push(session.mode === "call" ? `/site/call/${session.id}` : `/site/broadcast/${session.id}`)}
+      onPress={() => (session.mode === "call" ? router.navigate("/site") : router.push(`/site/broadcast/${session.id}`))}
       style={styles.banner}
     >
       <View style={styles.liveDot} />
@@ -155,12 +163,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     maxWidth: 180,
+    flexShrink: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceAlt,
   },
-  chipText: { ...font.caption, fontWeight: "700" },
+  chipText: { ...font.caption, fontWeight: "700", flexShrink: 1 },
   notice: {
     flexDirection: "row",
     alignItems: "flex-start",

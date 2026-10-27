@@ -11,6 +11,7 @@ export function ListRow({
   subtitle,
   value,
   onPress,
+  onLongPress,
   right,
   danger,
   chevron = !!onPress,
@@ -22,6 +23,8 @@ export function ListRow({
   subtitle?: string;
   value?: string;
   onPress?: () => void;
+  /** 길게 누르기 (멤버 화면: 누르면 연결, 길게 누르면 메뉴) */
+  onLongPress?: () => void;
   right?: ReactNode;
   danger?: boolean;
   chevron?: boolean;
@@ -34,7 +37,8 @@ export function ListRow({
           <Ionicons name={icon} size={20} color={danger ? colors.danger : colors.ink} />
         </View>
       )}
-      <View style={{ flex: 1 }}>
+      {/* 오른쪽 칩이 많아도 이름이 사라지지 않게 최소 폭 (10-27 멤버 목록에서 관리자 이름이 통째로 사라짐) */}
+      <View style={{ flex: 1, minWidth: 96 }}>
         <Text style={[font.bodyStrong, danger && { color: colors.danger }]} numberOfLines={1}>
           {title}
         </Text>
@@ -55,7 +59,7 @@ export function ListRow({
   );
   if (!onPress) return <View style={styles.row}>{content}</View>;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceAlt }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceAlt }]}>
       {content}
     </Pressable>
   );

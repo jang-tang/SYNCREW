@@ -243,18 +243,48 @@ export const useSessionMessages = (sessionId: string) =>
 export const useOpenSessions = (siteId: string) =>
   useQuery({ queryKey: qk.openSessions(siteId), queryFn: () => api.listOpenSessions(siteId), enabled: !!siteId });
 
-function cacheSession(client: QueryClient, session: LiveSession) {
-  client.setQueryData(qk.session(session.id), session);
+const STATUS_ORDER: Record<LiveSession["status"], number> = { ringing: 0, active: 1, ended: 2 };
+
+/**
+ * 세션을 화면 데이터에 넣는다. 상태는 울림 → 통화 중 → 종료로만 나아가게 한다: 늦게 도착한 옛 상태가 먼저 온 새 상태를 덮어쓰지 않게.
+ * 2026-10-26 iPhone: 상대(자동 받기 스크립트)가 0.01초 만에 받아 "통화 중" 알림이 "걸기" 응답(울림)보다 먼저 와서,
+ * 응답이 그것을 덮어써 화면이 "부르는 중…" 에 멈췄다 (통화 상대 바꾸기 C1 시험).
+ */
+export function cacheSession(client: QueryClient, session: LiveSession) {
+  client.setQueryData<LiveSession>(qk.session(session.id), (current) =>
+    current && STATUS_ORDER[current.status] > STATUS_ORDER[session.status] ? current : session,
+  );
   void client.invalidateQueries({ queryKey: qk.openSessions(session.siteId) });
 }
 
-export function useStartCall(siteId: string) {
+/** 지금 내 1:1 연결 (C2 연결 방식): 열린 세션 중 통화 중인 1:1 */
+export function useActiveConnection(siteId: string) {
+  const open = useOpenSessions(siteId);
+  return open.data?.find((s) => s.mode === "call" && s.status === "active");
+}
+
+/** 1:1 연결 시작 (C2): 받기 없이 바로 연결 */
+export function useConnect(siteId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) => api.startCall(siteId, userId),
+    mutationFn: (userId: string) => api.startCall(siteId, userId, { connect: true }),
     onSuccess: (session) => {
       cacheSession(client, session);
       void client.invalidateQueries({ queryKey: qk.conversations(siteId) });
+    },
+  });
+}
+
+/** 연결 전환 (C2): 지금 연결을 끝내고 다른 사람과 바로 연결 */
+export function useSwitchConnection() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, userId }: { sessionId: string; userId: string }) => api.switchCall(sessionId, userId),
+    onSuccess: (session, { sessionId }) => {
+      const previous = client.getQueryData<LiveSession>(qk.session(sessionId));
+      if (previous && previous.status !== "ended") cacheSession(client, { ...previous, status: "ended", endReason: "hangup" });
+      cacheSession(client, session);
+      void client.invalidateQueries({ queryKey: qk.conversations(session.siteId) });
     },
   });
 }

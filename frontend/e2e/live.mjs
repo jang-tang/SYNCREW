@@ -175,6 +175,19 @@ async function openUser(label, wav) {
   return u;
 }
 
+/** 멤버 줄의 ⋯ 로 메뉴 열기 (C2: 사람을 누르면 바로 연결되므로) */
+async function openMenu(u, name) {
+  await u.page.evaluate((n) => {
+    // ⋯ 이름은 화면 언어를 따른다 (ko 더보기, vi Thêm)
+    const MORE = '[aria-label="더보기"],[aria-label="Thêm"]';
+    const rows = [...document.querySelectorAll('[role="button"]')].filter(
+      (el) => el.innerText?.includes(n) && el.querySelector(MORE) && el.checkVisibility(),
+    );
+    rows.sort((x, y) => x.innerText.length - y.innerText.length)[0]?.querySelector(MORE)?.click();
+  }, name);
+  await wait(600);
+}
+
 async function signIn(u, account, { name, langLabel, signInLabel, startLabel }) {
   await u.go("/welcome");
   await u.page.evaluate(() => localStorage.clear());
@@ -233,7 +246,7 @@ try {
   await member.type(0, code ?? "");
   await member.tap("Gửi yêu cầu");
   await member.check("참여 요청 → 승인 대기", "Đang chờ duyệt", 10000);
-  await manager.go("/site/members");
+  await manager.go("/site");
   await manager.check("관리자: 가입 요청 실시간 표시", "가입 요청 · 1", 10000);
   await manager.tap("승인");
   await manager.check("승인 후 멤버 목록에 구성원", MEMBER_NAME);
@@ -244,28 +257,25 @@ try {
 
   if (!ONLY_CALL) {
   console.log("4) 1:1 대화: 구성원 텍스트 → 관리자에게 한국어 통역(가짜 엔진)");
-  await member.go("/site/members");
-  await member.tap(MANAGER_NAME);
+  await member.go("/site");
+  await openMenu(member, MANAGER_NAME); // C2: 누르면 연결되므로 ⋯ 메뉴로
   await member.tap("Nhắn riêng");
   await wait(1500);
   await member.type(-1, "Xin chào quản lý");
   await member.page.evaluate(() => [...document.querySelectorAll('[aria-label="send"]')].find((n) => n.checkVisibility())?.click());
   await member.check("구성원: 내 메시지 표시", "Xin chào quản lý");
   await manager.go("/site");
-  await manager.tap(MEMBER_NAME);
+  await manager.tap(MEMBER_NAME); // 마지막 일치 = 아래 메시지 구역의 1:1 대화
   await manager.check("관리자: 한국어 통역문 수신", "[ko] Xin chào quản lý", 10000);
   await manager.shot("live-2-chat");
   }
 
-  console.log(STREAMING ? "5) 1:1 통역 통화 (스트리밍): 관리자 ↔ 구성원, 양쪽 실제 마이크 → 말하는 동안 전송" : "5) 1:1 통역 통화 (서버 스트리밍 꺼짐 → 문장 단위 방식으로 폴백)");
+  console.log(STREAMING ? "5) 1:1 연결 (C2, 스트리밍): 관리자가 누르면 받기 없이 연결 → 양쪽 실제 마이크로 말하는 동안 전송" : "5) 1:1 연결 (서버 스트리밍 꺼짐 → 문장 단위 방식으로 폴백)");
   await member.go("/site");
-  await manager.go("/site/members");
-  await manager.tap(MEMBER_NAME);
-  await manager.tap("통역 통화");
-  await manager.check("관리자: 거는 중", `${MEMBER_NAME} 님을 부르는 중…`);
-  await member.check("구성원: 수신 화면(실시간)", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
-  await member.tap("Nghe");
-  await manager.check("관리자: 통화 중", "통화 중", 10000);
+  await manager.go("/site");
+  await manager.tap(MEMBER_NAME, { last: false }); // 멤버 줄 (아래 1:1 메시지 줄이 아니라)
+  await manager.check("관리자: 누르면 바로 연결", `${MEMBER_NAME} 님과 연결 중`, 10000);
+  await member.check("구성원: 받기 없이 연결 화면이 열림(실시간)", `Đang kết nối với ${MANAGER_NAME}`, 10000);
   let utteranceSide = null; // MIXED: 문장 단위로 통화하는 쪽
   if (MIXED) {
     // 연결 중에는 문장 단위 문구가 잠깐 보이므로, 스트리밍 문구가 나오는지 먼저 기다린다
@@ -299,7 +309,7 @@ try {
     for (const u of [member, manager]) console.log(`    [${u.label}] 자막:`, await u.page.evaluate(() => [...document.querySelectorAll("div")].filter((n) => n.children.length === 0 && n.checkVisibility()).map((n) => n.innerText.trim()).filter(Boolean).slice(0, 14).join(" | ")));
     await manager.shot("live-real-call-manager");
     await member.shot("live-real-call-member");
-    await manager.tap("끊기"); // 비용을 줄이기 위해 바로 끊는다
+    await manager.tap("나가기"); // 비용을 줄이기 위해 바로 끊는다
   } else {
   await member.check("구성원: 관리자 말이 베트남어로 도착", "[vi] [음성 ko]", 30000);
   await manager.check("관리자: 구성원 말이 한국어로 도착", "[ko] [음성 vi]", 30000);
@@ -329,15 +339,25 @@ try {
   }
   await manager.shot("live-3-call-manager");
   await member.shot("live-3-call-member");
-  if (!REAL) await manager.tap("끊기");
-  await manager.check("관리자: 통화 종료", "통화가 끝났어요");
-  await member.check("구성원: 통화 종료 알림", "Cuộc gọi đã kết thúc", 10000);
+  if (!REAL && !MIXED) {
+    // C1: 현장에 다른 사람이 없으면 음량 버튼 두 번(웹: 화살표 위)으로도 통화가 그대로 (안내만)
+    // 헤드리스 Chrome 은 비밀번호 입력 뒤 실제 키 이벤트를 잃는다 → keydown 을 직접 보낸다
+    const up = () => manager.page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" })));
+    await up();
+    await wait(120);
+    await up();
+    await manager.check("관리자: 바꿀 사람 없음 안내", "통화할 수 있는 멤버가 없어요", 5000);
+    await manager.check("관리자: 연결은 그대로", `${MEMBER_NAME} 님과 연결 중`);
+  }
+  if (!REAL) await manager.tap("나가기");
+  await manager.check("관리자: 나가기 → 연결 안내", "사람을 누르면 바로 연결돼요", 10000);
+  await member.check("구성원: 연결이 끝남", "Chạm vào một người để kết nối ngay", 10000);
 
   if (STREAMING && !ONLY_CALL) {
     console.log("5-1) 같은 언어 통화: OpenAI 없이 음성 그대로 전달 (관리자가 구성원의 현장 언어를 한국어로 바꿔서)");
     const setMemberLang = async (label) => {
-      await manager.go("/site/members");
-      await manager.tap(MEMBER_NAME);
+      await manager.go("/site");
+      await openMenu(manager, MEMBER_NAME);
       await manager.tap(`언어 변경 · ${label === "한국어" ? "Tiếng Việt" : "한국어"}`);
       await manager.tap(label);
       await wait(1000);
@@ -345,16 +365,12 @@ try {
     await setMemberLang("한국어");
     await member.go("/site"); // 페이지를 새로 열면 재생 기록(window.__syncrewPlayback)도 새로 시작한다
     const before = await member.page.evaluate(() => ({ ...window.__syncrewPlayback, streamed: [...window.__syncrewPlayback.streamed] }));
-    await manager.go("/site/members");
-    await manager.tap(MEMBER_NAME);
-    await manager.tap("통역 통화");
-    await member.check("구성원: 수신 화면", `Cuộc gọi phiên dịch từ ${MANAGER_NAME}`, 10000);
-    await member.tap("Nghe");
+    await manager.go("/site");
+    await manager.tap(MEMBER_NAME, { last: false }); // 멤버 줄 (아래 1:1 메시지 줄이 아니라)
+    await member.check("구성원: 연결 화면", `Đang kết nối với ${MANAGER_NAME}`, 10000);
     await manager.check("관리자: 같은 언어 → 직접 전달 방식", "같은 언어 · 음성 그대로 전달", 15000);
     await member.check("구성원: 같은 언어 → 직접 전달 방식", "Cùng ngôn ngữ · truyền giọng nói trực tiếp", 15000);
-    // 메아리 차단(반이중): 가짜 마이크가 양쪽에서 쉬지 않고 소리를 내므로, 구성원이 마이크를 끄지 않으면
-    // 관리자 앱이 계속 "재생 중"으로 보고돼 관리자 조각이 전부 버려진다 (2026-10-20, 실제 폰은 말을 멈추면 풀림)
-    await member.tap("Tắt micro");
+    // (예전에는 메아리 차단 때문에 여기서 구성원 마이크를 껐다 — C2 는 마이크 끄기 버튼이 없다(10-27). 끄지 않아도 통과 확인)
     await wait(1500);
     // 관리자 마이크 음성(가짜 마이크)이 구성원에게 조각으로 도착하는지, 기록(번역 메시지)은 생기지 않는지
     const got = await member.page
@@ -370,10 +386,24 @@ try {
     }
     await manager.shot("live-3b-relay-manager");
     await member.shot("live-3b-relay-member");
-    await manager.tap("끊기");
-    await manager.check("관리자: 직접 전달 통화 종료", "통화가 끝났어요");
-    await member.check("구성원: 직접 전달 통화 종료", "Cuộc gọi đã kết thúc", 10000);
+    await manager.tap("나가기");
+    await manager.check("관리자: 직접 전달 연결 끝", "사람을 누르면 바로 연결돼요", 10000);
+    await member.check("구성원: 직접 전달 연결 끝", "Chạm vào một người để kết nối ngay", 10000);
     await setMemberLang("Tiếng Việt"); // 원래대로 (뒤 단계는 베트남어 통역을 확인한다)
+  }
+
+  if (!ONLY_CALL) {
+  console.log("5-2) 현장 밖(현장 목록, 고른 현장 없음)에 있어도 연결되면 연결 화면이 열린다 (C1·C2, 2026-10-26)");
+  await member.page.evaluate(() => localStorage.removeItem("syncrew.siteId"));
+  await member.go("/sites");
+  await member.check("구성원: 현장 목록(고른 현장 없음)", "Công trường của tôi", 10000);
+  await manager.go("/site");
+  await manager.tap(MEMBER_NAME, { last: false }); // 멤버 줄 (아래 1:1 메시지 줄이 아니라)
+  await member.check("구성원: 현장 목록에서 연결 화면 열림", `Đang kết nối với ${MANAGER_NAME}`, 10000);
+  // 받는 사람도 나갈 수 있다
+  await member.tap("Thoát");
+  await member.check("구성원: 나가기", "Chạm vào một người để kết nối ngay", 10000);
+  await manager.check("관리자: 상대가 나가면 연결 끝", "사람을 누르면 바로 연결돼요", 10000);
   }
 
   if (!ONLY_CALL) {

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { FlatList, Platform, StyleSheet, Text, View, type ListRenderItem } from "react-native";
 import type { MessageView } from "@shared/api";
@@ -16,7 +16,6 @@ import {
   useRetryMessage,
   useSendMessage,
   useSiteId,
-  useStartCall,
 } from "@/hooks/queries";
 import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
@@ -45,7 +44,6 @@ export default function Chat() {
   const profile = me.data;
   const send = useSendMessage(id, { id: profile?.id ?? "", name: profile?.displayName ?? "", lang: profile?.preferredLang ?? "ko" });
   const retry = useRetryMessage(id);
-  const startCall = useStartCall(siteId);
 
   // 대화를 열면 읽음 처리된 목록으로 갱신
   useEffect(() => {
@@ -64,9 +62,6 @@ export default function Chat() {
     [profile, group, retryMessage],
   );
   const peer = conversation?.peer;
-  const call = peer
-    ? () => startCall.mutate(peer.userId, { onSuccess: (session) => router.push(`/site/call/${session.id}`), onError })
-    : undefined;
 
   const header = conversation?.peer ? (
     <View style={styles.title}>
@@ -112,7 +107,6 @@ export default function Chat() {
         />
       )}
       <Composer
-        onCall={call}
         onSendText={(text) => send.mutate({ input: { kind: "text", text }, clientMessageId: newClientMessageId() }, { onError })}
         onSendAudio={(recording) =>
           send.mutate(

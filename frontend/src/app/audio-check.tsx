@@ -1,13 +1,16 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Text, View } from "react-native";
+import { createVolumeKeyDetector, DOUBLE_PRESS_MS } from "@/audio/callCycle";
 import { createDuplexAudio, type AudioRoute } from "@/audio/duplex";
+import { restoreVolume, stepVolume, volumeKeysAvailable, watchVolumeKeys } from "@/audio/volumeKeys";
 import { Button } from "@/components/ui/Button";
 import { Screen, StackHeader } from "@/components/ui/Screen";
 import { colors, font, spacing } from "@/theme";
 
 // 개발용 오디오 점검 화면 (개발 빌드에서만). 실기기에서 이중 오디오(S3)를 통화 없이 확인한다:
 //   경로(헤드셋·스피커)·마이크 음량·조각 간격, 시험음 재생, 3초 녹음 후 다시 듣기, 재생 중 마이크로 새는 소리(에코)
+//   음량 버튼(C1): 누름·한 번/두 번 판정 — 두 번 누르기는 음량이 남지 않아야 하고, 한 번 누름은 0.45초 뒤 한 칸 바뀐다
 // 열기: 주소 syncrew:///audio-check (자동 시작: ?auto=1). 2초마다 요약을 콘솔에 남긴다 ("[audio-check]").
 // 사용자용 화면이 아니므로 문구는 한국어로만 둔다.
 
@@ -195,7 +198,64 @@ export default function AudioCheck() {
         <Button title={running ? "멈추기" : "시작"} variant={running ? "secondary" : "primary"} onPress={running ? stop : start} disabled={!duplex} />
         <Button title="시험음 재생 (2초)" variant="dark" onPress={playTone} disabled={!running} />
         <Button title="3초 녹음 후 다시 듣기" variant="dark" onPress={recordAndPlay} disabled={!running} />
+        <VolumeKeyCheck />
       </View>
     </Screen>
+  );
+}
+
+/** 음량 버튼 점검 (C1): 지켜보기를 켜면 누름(원신호)과 판정(한 번 → 음량 한 칸 / 두 번 → 다음·이전 멤버)을 보여 준다 */
+function VolumeKeyCheck() {
+  const [watching, setWatching] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!watching) return;
+    const started = Date.now();
+    const add = (line: string) => {
+      const entry = `${((Date.now() - started) / 1000).toFixed(2)}s ${line}`;
+      console.log(`[audio-check] volume ${entry}`);
+      setLog((current) => [entry, ...current].slice(0, 10));
+    };
+    const detector = createVolumeKeyDetector(
+      {
+        onSingle: (direction) => {
+          add(`한 번 ${direction} → 음량 한 칸`);
+          stepVolume(direction);
+        },
+        onDouble: (direction) => {
+          add(`두 번 ${direction} → ${direction === "up" ? "다음" : "이전"} 멤버`);
+          restoreVolume();
+        },
+      },
+      { windowMs: DOUBLE_PRESS_MS },
+    );
+    const unwatch = watchVolumeKeys((direction) => {
+      add(`누름 ${direction}`);
+      detector.press(direction);
+    });
+    return () => {
+      unwatch();
+      detector.reset();
+    };
+  }, [watching]);
+
+  return (
+    <View style={{ gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border }}>
+      <Text style={font.bodyStrong}>음량 버튼 (통화 상대 바꾸기)</Text>
+      {!volumeKeysAvailable() && <Text style={[font.body, { color: colors.danger }]}>이 빌드에는 음량 버튼 기능이 없습니다.</Text>}
+      <Button
+        title={watching ? "음량 버튼 그만 보기" : "음량 버튼 지켜보기"}
+        variant={watching ? "secondary" : "dark"}
+        onPress={() => setWatching((value) => !value)}
+        disabled={!volumeKeysAvailable()}
+      />
+      {log.length > 0 && <Button title="기록 지우기" variant="ghost" onPress={() => setLog([])} />}
+      {log.map((line, index) => (
+        <Text key={`${index}-${line}`} style={[font.caption, { color: colors.inkSoft }]}>
+          {line}
+        </Text>
+      ))}
+    </View>
   );
 }

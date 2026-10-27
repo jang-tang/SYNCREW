@@ -85,30 +85,34 @@ async function run(label, wav, expectSend) {
     localStorage.setItem("syncrew.siteId", "s_a");
     localStorage.setItem("syncrew.uiLang", "ko");
   });
-  await page.goto(base + "/site/members", { waitUntil: "networkidle0" });
+  await page.goto(base + "/site", { waitUntil: "networkidle0" });
   const tap = async (t) => {
     await page.waitForFunction((x) => document.body.innerText.includes(x), { timeout: 6000 }, t).catch(() => {});
     await page.evaluate((x) => {
-      const el = [...document.querySelectorAll("div,span")].filter((n) => n.innerText?.trim() === x && n.checkVisibility()).at(-1);
+      // 첫 번째 일치 = 멤버 줄 (같은 이름이 아래 "음성 기록" 의 1:1 줄에도 있다, 10-27)
+      const el = [...document.querySelectorAll("div,span")].find((n) => n.innerText?.trim() === x && n.checkVisibility() && n.children.length === 0);
       (el?.closest('[role="button"]') ?? el)?.click();
     }, t);
     await wait(500);
   };
-  await tap("Nguyễn Văn An");
-  await tap("통역 통화");
-  await page.waitForFunction(() => document.body.innerText.includes("통화 중"), { timeout: 10000 }).catch(async () => {
+  await tap("Nguyễn Văn An"); // C2: 누르면 바로 연결
+  await page.waitForFunction(() => document.body.innerText.includes("님과 연결 중"), { timeout: 10000 }).catch(async () => {
     await page.screenshot({ path: path.join(outDir, `${label}-no-call.png`) });
     console.log("    통화 연결 안 됨. 화면:", (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 400));
   });
 
   // 상태 문구 변화를 기록한다 (듣는 중 → 말하는 중 → …)
   const states = new Set();
+  // 응답 문장은 아래 "음성 기록" 의 1:1 미리보기에 이미 있을 수 있다 → 새로 하나 더 보일 때 보낸 것으로 본다 (10-27)
+  const replies = () =>
+    page.evaluate((r) => [...document.querySelectorAll("div,span")].filter((n) => n.innerText?.trim() === r && n.checkVisibility() && n.children.length === 0).length, REPLY);
+  const baseline = await replies();
   const started = Date.now();
   let sent = false;
   while (Date.now() - started < 25000) {
     const text = await page.evaluate(() => document.body.innerText);
     for (const s of ["듣고 있어요", "말하는 중…", "마이크 권한이 필요해요", "마이크를 사용할 수 없어요"]) if (text.includes(s)) states.add(s);
-    if (text.includes(REPLY)) { sent = true; break; }
+    if ((await replies()) > baseline) { sent = true; break; }
     await wait(250);
   }
   const elapsed = ((Date.now() - started) / 1000).toFixed(1);

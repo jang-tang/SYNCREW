@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { Lang } from "@shared/languages";
 import { initials } from "@/lib/format";
-import { avatarColor, colors } from "@/theme";
+import { avatarTone, colors } from "@/theme";
 
 export function Avatar({
   id,
@@ -9,17 +9,27 @@ export function Avatar({
   size = 44,
   online,
   lang,
+  highlighted,
 }: {
   id: string;
   name: string;
   size?: number;
   online?: boolean;
   lang?: Lang;
+  /** 지금 연결된 사람: 주황 테두리 (C2 연결 방식) */
+  highlighted?: boolean;
 }) {
+  const tone = avatarTone(id);
   return (
     <View style={{ width: size, height: size }}>
-      <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(id) }]}>
-        <Text style={[styles.text, { fontSize: size * 0.38 }]}>{initials(name)}</Text>
+      <View
+        style={[
+          styles.circle,
+          { width: size, height: size, borderRadius: size / 2, backgroundColor: tone.background },
+          highlighted && { borderWidth: 3, borderColor: colors.brand },
+        ]}
+      >
+        <Text style={[styles.text, { fontSize: size * 0.38, color: tone.text }]}>{initials(name)}</Text>
       </View>
       {lang && (
         <View style={styles.lang}>

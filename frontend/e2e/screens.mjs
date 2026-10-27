@@ -100,7 +100,7 @@ await shot("06-chat-sent", null, 4500);
 await shot("07-group", "/site/chat/s_a_group", 2000);
 await shot("08-instructions-manager", "/site/instructions", 2000);
 await shot("09-instruction-new", "/site/instruction/new", 1500);
-await shot("10-members", "/site/members", 2000);
+await shot("10-members", "/site", 2000);
 await shot("11-join-code", "/site/join-code", 2000);
 await shot("12-settings", "/site/settings", 2000);
 await shot("13-sites", "/sites", 2000);

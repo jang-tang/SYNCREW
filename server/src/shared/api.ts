@@ -226,7 +226,16 @@ export type InboxItem = MessageView & {
 /** call: 1:1 통역 통화 / broadcast: 관리자 → 여러 구성원 실시간 일괄 지시 */
 export type SessionMode = "call" | "broadcast";
 export type SessionStatus = "ringing" | "active" | "ended";
+/** 연결 전환(C2)으로 끝난 연결도 hangup 이다 (DB 의 종료 사유 제약을 바꾸지 않으려고, 2026-10-26) */
 export type SessionEndReason = "hangup" | "declined" | "missed" | "cancelled" | "connection_lost" | "removed";
+
+/**
+ * 1:1 통화 시작. connect: true 면 울림 없이 바로 연결된다 (C2 "연결" 방식 — 받는 사람이 받기를 누르지 않는다, 2026-10-26).
+ * 빼면 예전처럼 울림 → 받기 (이전 앱 호환).
+ */
+export type CallStartInput = { userId: string; connect?: boolean };
+/** 연결 전환: 지금 연결을 끝내고 다른 사람과 바로 연결한다 (상대가 다른 연결 중·접속 안 함이면 지금 연결은 그대로) */
+export type CallSwitchInput = { userId: string };
 export type SessionRole = "caller" | "callee" | "speaker" | "listener";
 
 export type SessionParticipant = {

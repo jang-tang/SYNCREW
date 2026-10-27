@@ -17,6 +17,13 @@ class SyncrewDuplexModule : Module() {
   private var duplex: DuplexEngine? = null
   private var callRoute: CallRoute? = null
   private val callPlayer = CallPlayer()
+  /** 통화 중 음량 버튼으로 상대 바꾸기 (C1) — VolumeKeys.kt */
+  private var volumeKeys: VolumeKeys? = null
+  /**
+   * 앱이 음량 버튼 지켜보기를 원하는지. 앱이 뒤로 가면 잠시 멈추고 앞으로 오면 다시 켠다 —
+   * 10-26 Note 9: 다른 앱(넷플릭스)이 앞에 있는데도 헤드셋 음량을 계속 되돌려 그 앱 음량을 못 바꿨다
+   */
+  private var volumeKeysWanted = false
 
   private fun emitRoute(route: String, name: String?) {
     sendEvent("onRoute", mapOf("route" to route, "name" to name))
@@ -25,7 +32,7 @@ class SyncrewDuplexModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("SyncrewDuplex")
 
-    Events("onFrame", "onRoute", "onPlayback", "onError")
+    Events("onFrame", "onRoute", "onPlayback", "onError", "onVolumeKey")
 
     AsyncFunction("start") { sampleRate: Int, frameMs: Int, echoCancellation: Boolean, promise: Promise ->
       val context = appContext.reactContext
@@ -42,7 +49,10 @@ class SyncrewDuplexModule : Module() {
         callRoute?.exit()
         callRoute = null
         val engine = duplex ?: DuplexEngine(context, { name, body -> sendEvent(name, body) }, ::emitRoute).also { duplex = it }
+        // 통화 오디오로 바뀌면 음량이 저절로 바뀔 수 있다 → 음량 버튼 판정을 잠시 멈춘다
+        volumeKeys?.settle()
         engine.start(sampleRate, frameMs, echoCancellation)
+        volumeKeys?.settle()
         promise.resolve(null)
       } catch (e: Exception) {
         duplex?.stop()
@@ -51,7 +61,9 @@ class SyncrewDuplexModule : Module() {
     }
 
     AsyncFunction("stop") {
+      volumeKeys?.settle()
       duplex?.stop()
+      volumeKeys?.settle()
     }
 
     Function("enqueue") { streamId: String, pcmBase64: String, sampleRate: Int ->
@@ -69,13 +81,16 @@ class SyncrewDuplexModule : Module() {
     AsyncFunction("enterCallRoute") {
       val context = appContext.reactContext ?: throw IllegalStateException("앱 컨텍스트가 없습니다.")
       val route = callRoute ?: CallRoute(context, ::emitRoute).also { callRoute = it }
+      volumeKeys?.settle()
       route.enter()
+      volumeKeys?.settle()
       val (kind, name) = route.current()
       mapOf("route" to kind, "name" to name)
     }
 
     AsyncFunction("exitCallRoute") {
       callPlayer.stop()
+      volumeKeys?.settle()
       callRoute?.exit()
       callRoute = null
     }
@@ -97,7 +112,41 @@ class SyncrewDuplexModule : Module() {
       callPlayer.stop()
     }
 
+    // 음량 버튼 지켜보기 (C1): 누를 때마다 onVolumeKey. 휴대폰 버튼은 가로채고 헤드셋 버튼은 곧바로 되돌린다. 한 번 누름은 JS 가 stepVolume 으로
+    Function("startVolumeKeys") {
+      volumeKeysWanted = true
+      appContext.reactContext?.let { context ->
+        val keys = volumeKeys ?: VolumeKeys(context, { appContext.currentActivity }) { direction ->
+          sendEvent("onVolumeKey", mapOf("direction" to direction))
+        }.also { volumeKeys = it }
+        keys.start()
+      }
+      Unit
+    }
+
+    Function("stopVolumeKeys") {
+      volumeKeysWanted = false
+      volumeKeys?.stop()
+    }
+
+    OnActivityEntersBackground {
+      volumeKeys?.stop()
+    }
+
+    OnActivityEntersForeground {
+      if (volumeKeysWanted) volumeKeys?.start()
+    }
+
+    Function("stepVolume") { direction: String ->
+      volumeKeys?.step(direction)
+    }
+
+    // Android: 누름마다 이미 막거나(휴대폰 버튼) 되돌렸으므로(헤드셋) 두 번 누름 뒤 되돌릴 것이 없다 (iOS 와 같은 계약)
+    Function("restoreVolume") {}
+
     OnDestroy {
+      volumeKeys?.stop()
+      volumeKeys = null
       callPlayer.stop()
       duplex?.stop()
       duplex = null
