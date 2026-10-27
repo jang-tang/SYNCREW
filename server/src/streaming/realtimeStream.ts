@@ -3,6 +3,8 @@ import WebSocket from "ws";
 import type { Lang } from "../shared/languages";
 import { BudgetExceededError, type BudgetGuard, type Reservation } from "../engine/budget/budgetGuard";
 import { durationUsage, type UsageTokens } from "../engine/budget/pricing";
+import { rms } from "./resample";
+import type { SttProvider } from "../engine/stt/sttProvider";
 import { STT_PROMPT } from "../messaging/pipeline";
 import type { ContextTerm, StreamGlossary } from "../engine/domain/domainProcessor";
 import {
@@ -55,6 +57,24 @@ import {
 //   실패 모드: 한 세션만 말을 둘로 나누면(VAD 가 다르게 판단) 그 뒤 턴들의 원문이 하나씩 밀린다. 완화: 번역 세션 항목이 없는 전사 턴은
 //   완성 뒤 ORIGINAL_WAIT_MS 안에 짝이 안 생기면 버리고, 전사가 없는 번역 턴은 응답 뒤 ORIGINAL_WAIT_MS 만 기다렸다 원문 없이 끝낸다.
 //   (STREAM_DEBUG=1 로 두 세션의 이벤트를 모두 남겨 진단한다)
+//
+// **글자 기반 통역 (2026-10-28, translateFrom = "text", docs/streaming-plan.md 4-4절)** — 자막과 통역이 같은 글자에서 나오게 한다.
+//   위 방식은 전사 세션과 번역 세션이 같은 음성을 따로 들어, 빠르게 말하면 화면 자막과 통역이 달랐다. text 방식에서는:
+//   - 번역 세션은 말 끝 감지(server_vad)만 한다. 말 끝 음성 항목은 응답에 쓰지 않고 바로 지운다 (통역 모델은 음성을 듣지 않는다)
+//   - 전사 세션 항목 1개 = 턴 1개 (짝짓기 없음). 서버가 전사 세션에 commit 을 보낸 자리가 턴 경계다:
+//     ① 번역 세션 말 끝(committed) ② 긴 말 나누기 — 한 턴이 segmentAfterMs 를 넘으면 segmentPauseMs 쉼에서도 전사 세션만 commit
+//     (쉼은 서버가 받은 음성 크기로 판단 → 음성과 같은 시점이라 단어 중간에서 자르지 않는다. 번역 세션 VAD 는 그대로)
+//   - 통역 요청 = 그 턴의 원문 글자만 넣은 response.create (input message/input_text, conversation "none", 지시문·용어집 그대로)
+//   - 예측 시작(speculative): 전사 세션 commit 응답 때 그때까지의 임시 자막으로 미리 요청하고, 통역은 붙잡아 둔다.
+//     확정 원문이 같으면(공백·문장부호 무시) 내보내고, 다르면 그 응답을 취소하고 확정 원문으로 다시 요청한다
+//   - 확정 원문이 비거나 군소리뿐이면 조용히 버린다. 확정이 끝내 안 오면(전사 실패·끊김·TEXT_FINAL_WAIT_MS) 요청한 글자를 원문으로 확정한다
+//   - 전사 세션이 없거나 gpt-live-transcribe 가 아니면 위의 음성 방식으로 동작한다
+//
+// **확정 자막 (2026-10-28, finalStt, docs/streaming-plan.md 4-5절)** — 화면 원문을 더 정확한 받아쓰기로 확정한다 (음성 방식에서).
+//   말하는 도중 자막은 그대로 전사 세션(gpt-live-transcribe, 속도 우선)이 낸다. 번역 세션 VAD 가 말 끝을 내면 그 턴 음성 구간
+//   (speech_started.audio_start_ms − 300ms ~ speech_stopped.audio_end_ms + 150ms)을 서버가 받은 음성에서 잘라 finalStt(gpt-4o-transcribe,
+//   문장 단위 방식과 같은 받아쓰기·프롬프트)로 받아쓴다. 이 결과를 원문(original)으로 화면·기록에 쓴다. 통역은 지금처럼 음성을 직접 듣는다.
+//   번역 세션 항목에 바로 붙으므로 순서 짝짓기가 없다. 실패·시간 초과(finalSttWaitMs)·말 없음이면 전사 세션 완성본을 그대로 쓴다
 // 이벤트 이름·필드: docs/s0-report.md 1절, server/scripts/stream-measure.ts.
 
 const URL_BASE = "wss://api.openai.com/v1/realtime";
@@ -68,6 +88,22 @@ const MIN_REMAINING_USD = 0.03;
 const CREATE_TIMEOUT_MS = 8_000;
 /** 원문에 말이 있는지 아직 모를 때 번역 음성·자막을 붙잡아 두는 최대 시간. 넘으면 그대로 내보낸다 (전사가 늦거나 안 올 때) */
 const SPEECH_HOLD_MS = 2_000;
+/** text 방식: 예측 요청의 통역을 붙잡아 두고 확정 원문을 기다리는 최대 시간. 넘으면 요청한 글자를 원문으로 확정해 내보낸다 */
+const TEXT_FINAL_WAIT_MS = 3_000;
+/** text 방식 긴 말 나누기: 이보다 작은 음성 크기(16비트 RMS)는 쉼. 말소리 평균 크기의 QUIET_RATIO 배보다 작아도 쉼 */
+const QUIET_FLOOR_RMS = 300;
+const QUIET_RATIO = 0.2;
+/** 전사 세션 commit 을 보낼 최소 음성 (이보다 짧으면 보내지 않는다 — 빈 버퍼 commit 은 OpenAI 가 거절) */
+const MIN_CUT_BYTES = (RATE / 1000) * 2 * 60;
+/** 확정 자막: 말 끝 뒤 이 시간 안에 받아쓰기가 안 오면 전사 세션 완성본을 원문으로 쓴다 */
+const FINAL_STT_WAIT_MS = 3_000;
+/** 확정 자막: 받은 음성을 이만큼만 보관한다 (턴 음성을 잘라 내기 위해) */
+const HEARD_KEEP_MS = 60_000;
+/** 확정 자막: 잘라 낸 턴 음성의 앞뒤 여유 (서버 VAD 앞 여유 300ms 와 같게, 끝은 말꼬리) */
+const FINAL_PAD_BEFORE_MS = 300;
+const FINAL_PAD_AFTER_MS = 150;
+/** 확정 자막: 한 턴 음성 최대 길이 (VAD 시각을 못 받았을 때 대비) */
+const FINAL_MAX_MS = 30_000;
 
 /** 말이 아닌 소리로 치는 낱말 (글자마다 이 안에 들면 군소리). 5개 언어의 흔한 군소리 */
 const FILLER_CHARS = new Set([..."음어아으흠엄에嗯啊呃哦唔额"]);
@@ -104,6 +140,29 @@ export type RealtimeStreamOptions = {
   liveTranscription?: boolean;
   /** 턴 용어 넣는 방식 (2026-10-24 실험, docs/field-terms.md 8절). 기본 off. 쓰려면 open 에 turnTerms 함수도 넘긴다 */
   turnTerms?: TurnTermsMode;
+  /**
+   * 통역 입력 (2026-10-28, docs/streaming-plan.md 4-4절). audio = 번역 세션이 음성을 직접 듣고 통역(기본, 예전 그대로),
+   * text = 전사 세션의 원문 글자만 넣어 통역 (자막과 통역이 같은 글자). text 는 전사 세션이 gpt-live-transcribe 일 때만 동작한다
+   */
+  translateFrom?: "audio" | "text";
+  /** text 방식: 임시 자막으로 미리 요청하고 확정 원문과 같을 때만 내보낸다 (기본 true) */
+  speculative?: boolean;
+  /** text 방식: 한 턴이 이 길이(ms)를 넘으면 짧은 쉼(segmentPauseMs)에서도 나눈다. 0 이면 나누지 않는다 (기본 0) */
+  segmentAfterMs?: number;
+  /** text 방식 긴 말 나누기의 쉼 길이 (ms, 기본 200) */
+  segmentPauseMs?: number;
+  /**
+   * 확정 자막 받아쓰기 (2026-10-28, docs/streaming-plan.md 4-5절). 있으면 음성 방식 턴마다 그 턴 음성을 이것으로 받아써 원문으로 쓴다
+   * (보통 OpenAiStt + gpt-4o-transcribe). 없으면 전사 세션 완성본이 원문 (예전 그대로)
+   */
+  finalStt?: SttProvider;
+  /** 확정 자막을 기다리는 최대 시간 (ms, 기본 3000) */
+  finalSttWaitMs?: number;
+  /**
+   * 확정 자막 쓰는 방식 (2026-10-28 실측 뒤). replace = 언제나 확정 자막으로 바꿈,
+   * fallback(기본) = 전사 세션 완성본에 말이 있으면 그것(빠르고 용어 키워드로 "비계" 등이 맞음), 비었을 때만 확정 자막으로 채움
+   */
+  finalSttMode?: "replace" | "fallback";
   /** 테스트용 엔드포인트 교체 */
   url?: string;
   log?: (message: string, detail?: Record<string, unknown>) => void;
@@ -163,6 +222,9 @@ type ServerEvent = {
   transcript?: string;
   item_id?: string;
   response_id?: string;
+  /** speech_started / speech_stopped: 세션에 넣은 전체 음성 기준 시각(ms) */
+  audio_start_ms?: number;
+  audio_end_ms?: number;
   item?: { id?: string };
   error?: { message?: string; code?: string; event_id?: string };
   usage?: SttUsage;
@@ -239,7 +301,46 @@ type Turn = {
   speech: "unknown" | "yes" | "no";
   held: ({ audio: Buffer } | { text: string })[];
   holdTimer: NodeJS.Timeout | null;
+  /** text 방식 턴 (전사 세션 항목 1개 = 턴 1개, 원문 글자로 통역) */
+  text: boolean;
+  /** text 방식: 서버가 이 턴의 전사 항목을 닫았다 (전사 세션 committed) */
+  committed: boolean;
+  /** text 방식: 통역 요청에 넣은 글자 (예측이면 임시 자막, 아니면 확정 원문) */
+  requestText: string | null;
+  /** text 방식: 요청 글자가 확정 원문과 같다고 확인됨 → 통역을 내보낸다 */
+  verified: boolean;
+  /** text 방식: 확정 원문이 달라 진행 중 응답을 취소했고, 끝나면 확정 원문으로 다시 요청한다 */
+  redo: boolean;
+  /** text 방식: 응답 요청 대기열에 있다 */
+  queued: boolean;
+  /** text 방식: 확정 원문을 기다리다 요청 글자를 원문으로 확정함 (늦게 온 완성본은 사용량만 기록) */
+  adopted: boolean;
+  /** text 방식: 이 턴 응답들(취소된 예측 응답 포함)의 사용량 합 — 마지막 응답이 끝날 때 한 번에 기록 */
+  usageAcc: UsageTokens | null;
+  /** 확정 자막: none = 쓰지 않음, pending = 받아쓰는 중(원문을 아직 올리지 않음), done = 끝 */
+  finalState: "none" | "pending" | "done";
+  /** 확정 자막 받아쓰기 결과 (말이 있을 때만). 있으면 전사 세션 완성본 대신 원문으로 쓴다 */
+  finalText: string | null;
+  finalTimer: NodeJS.Timeout | null;
 };
+
+/** 두 원문이 같은지 (공백·문장부호·대소문자 무시) — 예측 요청 글자와 확정 원문 비교 */
+export function sameText(a: string, b: string): boolean {
+  const norm = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return norm(a) === norm(b);
+}
+
+function addUsage(a: UsageTokens | null, b: UsageTokens): UsageTokens {
+  if (!a) return b;
+  const sum = (x?: number, y?: number) => (x ?? 0) + (y ?? 0);
+  return {
+    inputTextTokens: sum(a.inputTextTokens, b.inputTextTokens),
+    inputAudioTokens: sum(a.inputAudioTokens, b.inputAudioTokens),
+    cachedInputTokens: sum(a.cachedInputTokens, b.cachedInputTokens),
+    outputTextTokens: sum(a.outputTextTokens, b.outputTextTokens),
+    outputAudioTokens: sum(a.outputAudioTokens, b.outputAudioTokens),
+  };
+}
 
 class RealtimeConnection implements StreamConnection {
   readonly ready: Promise<void>;
@@ -269,6 +370,25 @@ class RealtimeConnection implements StreamConnection {
   private readonly turnTermsMode: TurnTermsMode;
   private closedByUs = false;
   private failed = false;
+  /** text 방식으로 설정됨 (실제로 쓰는지는 textActive — 전사 세션이 gpt-live-transcribe 로 살아 있을 때) */
+  private readonly textWanted: boolean;
+  /** text 방식: 지난 전사 세션 commit 뒤 전사 세션에 보낸 음성 바이트 */
+  private sttBytesSinceCut = 0;
+  /** text 방식: 보낸 전사 세션 commit 마다 그 구간 길이(초) — 전사 세션 committed 응답 순서대로 꺼낸다 */
+  private readonly pendingCuts: number[] = [];
+  /** text 방식: 아직 닫히지 않은 전사 항목의 턴 (말하는 중) */
+  private openTextTurn: Turn | null = null;
+  /** text 방식 긴 말 나누기: 지금 이어지는 쉼 길이(ms), 말소리 평균 크기, 이번 쉼에서 이미 나눴는지 */
+  private quietMs = 0;
+  private speechLevel = 0;
+  private cutThisPause = false;
+  /** 확정 자막: 번역 세션에 넣은 음성 (최근 HEARD_KEEP_MS) — 시각은 세션에 넣은 전체 음성 기준 ms */
+  private readonly heard: { startMs: number; pcm: Buffer }[] = [];
+  private heardMs = 0;
+  /** 확정 자막: 지금 턴의 말 시작·끝 (번역 세션 VAD), 지난 턴 끝 */
+  private speechStartMs: number | null = null;
+  private speechEndMs: number | null = null;
+  private lastTurnEndMs = 0;
 
   constructor(
     private readonly options: RealtimeStreamOptions,
@@ -285,6 +405,7 @@ class RealtimeConnection implements StreamConnection {
     this.sttAlive = live;
     this.sttModel = options.streamTranscribeModel ?? options.transcribeModel;
     this.liveStt = isLiveTranscribeModel(this.sttModel);
+    this.textWanted = options.translateFrom === "text" && live && this.liveStt;
     this.ws = new WebSocket(`${base}?model=${encodeURIComponent(options.model)}`, { headers });
     const convReady = this.waitReady(this.ws, "conversation", () => this.send(this.sessionUpdate(true)));
     if (live) {
@@ -427,8 +548,53 @@ class RealtimeConnection implements StreamConnection {
     if (this.failed || this.closedByUs) return;
     this.bytesSinceCommit += pcm.length;
     const event = JSON.stringify({ type: "input_audio_buffer.append", audio: pcm.toString("base64") });
-    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(event);
-    if (this.sttAlive && this.stt?.readyState === WebSocket.OPEN) this.stt.send(event);
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(event);
+      if (this.options.finalStt) this.keepHeard(pcm);
+    }
+    if (this.sttAlive && this.stt?.readyState === WebSocket.OPEN) {
+      this.stt.send(event);
+      this.sttBytesSinceCut += pcm.length;
+      if (this.textActive) this.maybeSegment(pcm);
+    }
+  }
+
+  /** text 방식을 지금 쓰는지 (전사 세션이 끊기면 음성 방식으로 돌아간다) */
+  private get textActive(): boolean {
+    return this.textWanted && this.sttAlive;
+  }
+
+  /**
+   * text 방식 긴 말 나누기: 한 턴이 segmentAfterMs 를 넘었고 지금 segmentPauseMs 이상 쉬는 중이며 이 턴에 말(임시 자막)이 있으면
+   * 전사 세션만 commit 해 턴을 나눈다. 쉼은 받은 음성 크기로 판단한다 (말소리 평균의 QUIET_RATIO 배 또는 QUIET_FLOOR_RMS 미만)
+   */
+  private maybeSegment(pcm: Buffer): void {
+    const afterMs = this.options.segmentAfterMs ?? 0;
+    if (afterMs <= 0) return;
+    const level = rms(pcm);
+    const quiet = level < Math.max(QUIET_FLOOR_RMS, this.speechLevel * QUIET_RATIO);
+    if (!quiet) {
+      this.speechLevel = this.speechLevel === 0 ? level : this.speechLevel * 0.9 + level * 0.1;
+      this.quietMs = 0;
+      this.cutThisPause = false;
+      return;
+    }
+    this.quietMs += (pcm.length / 2 / RATE) * 1000;
+    const turnMs = (this.sttBytesSinceCut / 2 / RATE) * 1000;
+    const open = this.openTextTurn;
+    if (this.cutThisPause || this.quietMs < (this.options.segmentPauseMs ?? 200) || turnMs < afterMs || !open || !hasSpeech(open.partial)) return;
+    this.cutThisPause = true;
+    this.options.trace?.("transcription", "segment.cut", { turnId: open.id, turnMs: Math.round(turnMs), partial: open.partial });
+    this.cutStt();
+  }
+
+  /** text 방식: 전사 세션 commit 으로 지금까지의 음성을 한 턴으로 닫는다 (너무 짧으면 보내지 않는다) */
+  private cutStt(): void {
+    if (this.sttBytesSinceCut < MIN_CUT_BYTES) return;
+    this.pendingCuts.push(this.sttBytesSinceCut / 2 / RATE);
+    this.sttBytesSinceCut = 0;
+    this.openTextTurn = null;
+    this.sendStt({ type: "input_audio_buffer.commit" });
   }
 
   commit(): void {
@@ -472,6 +638,8 @@ class RealtimeConnection implements StreamConnection {
     if (existing) return existing;
     let turn: Turn | undefined;
     for (const candidate of this.turns.values()) {
+      // text 방식 턴은 짝짓기 대상이 아니다 (전사 세션이 끊겨 음성 방식으로 돌아간 뒤에 남은 턴)
+      if (candidate.text) continue;
       const slot = source === "conversation" ? candidate.convItemId : candidate.sttItemId;
       if (slot === null) {
         turn = candidate;
@@ -479,33 +647,7 @@ class RealtimeConnection implements StreamConnection {
       }
     }
     if (!turn) {
-      turn = {
-        id: randomUUID(),
-        convItemId: null,
-        sttItemId: null,
-        inputSeconds: 0,
-        responseId: null,
-        started: false,
-        translation: "",
-        original: null,
-        originalDone: false,
-        sttUsage: undefined,
-        sttModel: this.options.transcribeModel,
-        responseDone: false,
-        responseStatus: null,
-        itemIds: [],
-        reservation: null,
-        sttReservation: null,
-        reserved: Promise.resolve(),
-        cancelled: false,
-        originalTimer: null,
-        firstDeltaSeen: false,
-        partial: "",
-        termsKey: "",
-        speech: "unknown",
-        held: [],
-        holdTimer: null,
-      };
+      turn = this.blankTurn(false);
       this.turns.set(turn.id, turn);
     }
     if (source === "conversation") turn.convItemId = itemId;
@@ -514,7 +656,62 @@ class RealtimeConnection implements StreamConnection {
     return turn;
   }
 
+  /** text 방식: 전사 항목 1개 = 턴 1개 (짝짓기 없이 item_id 로) */
+  private textTurnFor(itemId: string): Turn {
+    const existing = this.bySttItem.get(itemId);
+    if (existing) return existing;
+    const turn = this.blankTurn(true);
+    turn.sttItemId = itemId;
+    turn.sttModel = this.sttModel;
+    this.turns.set(turn.id, turn);
+    this.bySttItem.set(itemId, turn);
+    return turn;
+  }
+
+  private blankTurn(text: boolean): Turn {
+    return {
+      id: randomUUID(),
+      convItemId: null,
+      sttItemId: null,
+      inputSeconds: 0,
+      responseId: null,
+      started: false,
+      translation: "",
+      original: null,
+      originalDone: false,
+      sttUsage: undefined,
+      sttModel: this.options.transcribeModel,
+      responseDone: false,
+      responseStatus: null,
+      itemIds: [],
+      reservation: null,
+      sttReservation: null,
+      reserved: Promise.resolve(),
+      cancelled: false,
+      originalTimer: null,
+      firstDeltaSeen: false,
+      partial: "",
+      termsKey: "",
+      speech: "unknown",
+      held: [],
+      holdTimer: null,
+      text,
+      committed: false,
+      requestText: null,
+      verified: false,
+      redo: false,
+      queued: false,
+      adopted: false,
+      usageAcc: null,
+      finalState: "none",
+      finalText: null,
+      finalTimer: null,
+    };
+  }
+
   private forget(turn: Turn): void {
+    if (turn.finalTimer) clearTimeout(turn.finalTimer);
+    turn.finalTimer = null;
     if (turn.originalTimer) clearTimeout(turn.originalTimer);
     turn.originalTimer = null;
     if (turn.holdTimer) clearTimeout(turn.holdTimer);
@@ -532,18 +729,35 @@ class RealtimeConnection implements StreamConnection {
     this.trace("conversation", event);
     switch (event.type) {
       case "input_audio_buffer.committed":
+        if (this.textActive) {
+          // text 방식: 말 끝 신호로만 쓴다. 음성 항목은 응답에 쓰지 않으니 바로 지우고, 전사 세션을 commit 해 턴을 닫는다
+          this.bytesSinceCommit = 0;
+          if (event.item_id) this.send({ type: "conversation.item.delete", item_id: event.item_id });
+          this.cutStt();
+          break;
+        }
         // 서버 VAD 가 말 끝을 정해 확정함 → 턴 시작 (create_response 로 응답이 저절로 붙는다)
         // gpt-live-transcribe 전사 세션은 VAD 가 없어 같은 자리에서 서버가 commit 을 보내 그 턴의 전사 항목을 닫는다 (턴당 1번)
-        if (this.sttAlive && this.liveStt) this.sendStt({ type: "input_audio_buffer.commit" });
+        if (this.sttAlive && this.liveStt) {
+          this.sendStt({ type: "input_audio_buffer.commit" });
+          this.sttBytesSinceCut = 0;
+        }
         if (event.item_id) {
           void this.newTurn(event.item_id);
           const turn = this.turnFor("conversation", event.item_id);
+          this.startFinalStt(turn);
           if (this.turnTermsMode === "update") {
             this.options.trace?.("conversation", "turnTerms.atCommit", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
           }
           this.createQueue.push(turn);
           this.pumpResponses();
         }
+        break;
+      case "input_audio_buffer.speech_started":
+        if (typeof event.audio_start_ms === "number") this.speechStartMs = event.audio_start_ms;
+        break;
+      case "input_audio_buffer.speech_stopped":
+        if (typeof event.audio_end_ms === "number") this.speechEndMs = event.audio_end_ms;
         break;
       case "response.created": {
         const pending = this.creating;
@@ -554,10 +768,12 @@ class RealtimeConnection implements StreamConnection {
         const turn = pending.turn;
         turn.responseId = event.response.id;
         this.responseToTurn.set(event.response.id, turn);
-        if (turn.cancelled) {
+        // 버린 턴 / text 방식에서 요청 뒤 확정 원문이 달라진 턴: 이 응답은 취소한다 (redo 면 끝난 뒤 확정 원문으로 다시 요청)
+        if (turn.cancelled || turn.redo) {
           this.send({ type: "response.cancel", response_id: event.response.id });
-          break;
+          if (turn.cancelled) break;
         }
+        if (turn.started) break; // text 방식 다시 요청: 시작은 이미 알렸다
         turn.started = true;
         this.events.turnStart(turn.id);
         // update 방식: 이 응답은 이미 만들어졌으므로 지시문 끝의 턴 용어를 비운다 (다음 턴에 남지 않게)
@@ -566,17 +782,19 @@ class RealtimeConnection implements StreamConnection {
           this.send(this.sessionUpdate(false));
         }
         // 전사 세션이 번역 응답보다 먼저 완성본을 낸 경우: 턴이 시작된 지금 올린다 (듣는 사람 앱은 start 뒤의 자막만 받는다)
-        if (turn.originalDone && turn.original) this.events.original(turn.id, turn.original);
+        // text 방식은 요청 글자와 확정 원문이 같다고 확인된(verified) 뒤에만 올린다
+        if (turn.text ? turn.originalDone && turn.original && turn.verified : this.originalReady(turn)) this.events.original(turn.id, this.shownOriginal(turn)!);
         break;
       }
       case "response.output_audio.delta": {
         const turn = this.turnOf(event.response_id);
-        if (turn && !turn.cancelled && event.delta) this.output(turn, { audio: Buffer.from(event.delta, "base64") });
+        // redo: 취소 중인 예측 응답의 조각은 버린다 (확정 원문으로 다시 요청한다)
+        if (turn && !turn.cancelled && !turn.redo && event.delta) this.output(turn, { audio: Buffer.from(event.delta, "base64") });
         break;
       }
       case "response.output_audio_transcript.delta": {
         const turn = this.turnOf(event.response_id);
-        if (turn && !turn.cancelled && event.delta) {
+        if (turn && !turn.cancelled && !turn.redo && event.delta) {
           turn.translation += event.delta;
           this.output(turn, { text: event.delta });
         }
@@ -584,7 +802,7 @@ class RealtimeConnection implements StreamConnection {
       }
       case "response.output_audio_transcript.done": {
         const turn = this.turnOf(event.response_id);
-        if (turn && event.transcript) turn.translation = event.transcript;
+        if (turn && !turn.redo && event.transcript) turn.translation = event.transcript;
         break;
       }
       case "conversation.item.input_audio_transcription.delta":
@@ -599,6 +817,10 @@ class RealtimeConnection implements StreamConnection {
         // 다음 턴 응답을 요청한다 (이 턴 정리와 별개)
         queueMicrotask(() => this.pumpResponses());
         if (!turn) break;
+        if (turn.text) {
+          this.onTextResponseDone(turn, event);
+          break;
+        }
         turn.responseDone = true;
         turn.responseStatus = event.response?.status ?? null;
         for (const item of event.response?.output ?? []) if (item.id) turn.itemIds.push(item.id);
@@ -627,7 +849,9 @@ class RealtimeConnection implements StreamConnection {
     if (this.creating || this.responseActive || this.failed || this.closedByUs) return;
     while (this.createQueue.length > 0) {
       const turn = this.createQueue.shift()!;
-      if (!this.turns.has(turn.id) || turn.convItemId === null) continue;
+      turn.queued = false;
+      if (!this.turns.has(turn.id)) continue;
+      if (turn.text ? turn.requestText === null : turn.convItemId === null) continue;
       if (turn.cancelled) {
         // 응답 전에 버린 턴: 응답이 끝난 것으로 치고 정리한다 (항목 지우기·예약 풀기)
         turn.responseDone = true;
@@ -636,8 +860,8 @@ class RealtimeConnection implements StreamConnection {
         this.maybeFinish(turn);
         continue;
       }
-      const terms = this.turnTermsMode === "create" ? (this.findTurnTerms?.(turn.partial) ?? []) : this.sessionTurnTerms;
-      if (this.turnTermsMode === "create") {
+      const terms = turn.text ? [] : this.turnTermsMode === "create" ? (this.findTurnTerms?.(turn.partial) ?? []) : this.sessionTurnTerms;
+      if (this.turnTermsMode === "create" && !turn.text) {
         turn.termsKey = terms.map((term) => term.source).join("|");
         this.options.trace?.("conversation", "turnTerms.create", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
       }
@@ -650,14 +874,22 @@ class RealtimeConnection implements StreamConnection {
         this.pumpResponses();
       }, CREATE_TIMEOUT_MS);
       this.creating = { turn, eventId, timer };
+      const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms);
       this.send({
         type: "response.create",
         event_id: eventId,
-        response: {
-          instructions: buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms),
-          // 이 턴의 말만 번역한다 (아직 안 지운 예전 항목이 섞이지 않게)
-          input: [{ type: "item_reference", id: turn.convItemId }],
-        },
+        response: turn.text
+          ? {
+              instructions,
+              // text 방식: 화면에 보이는 원문 글자만 넣는다 (음성은 듣지 않는다). 대화에 남기지 않아 지울 항목도 없다
+              conversation: "none",
+              input: [{ type: "message", role: "user", content: [{ type: "input_text", text: turn.requestText }] }],
+            }
+          : {
+              instructions,
+              // 이 턴의 말만 번역한다 (아직 안 지운 예전 항목이 섞이지 않게)
+              input: [{ type: "item_reference", id: turn.convItemId }],
+            },
       });
       return;
     }
@@ -707,6 +939,10 @@ class RealtimeConnection implements StreamConnection {
   private handleStt(event: ServerEvent | null): void {
     if (!event || this.failed || !this.sttAlive) return;
     this.trace("transcription", event);
+    if (this.textActive) {
+      this.handleTextStt(event);
+      return;
+    }
     switch (event.type) {
       case "input_audio_buffer.speech_started":
       case "input_audio_buffer.committed":
@@ -723,6 +959,328 @@ class RealtimeConnection implements StreamConnection {
         this.options.log?.("Realtime 전사 세션 오류 이벤트", { code: event.error?.code, message: event.error?.message });
         break;
     }
+  }
+
+  // ─── text 방식 (글자 기반 통역, 2026-10-28) ─────────────
+
+  /** text 방식 전사 세션 이벤트: 조각 → 임시 자막, committed → 턴 닫힘(예측 요청), completed/failed → 확정 원문 */
+  private handleTextStt(event: ServerEvent): void {
+    switch (event.type) {
+      case "input_audio_buffer.committed": {
+        if (!event.item_id) break;
+        const seconds = this.pendingCuts.shift() ?? 0;
+        const turn = this.textTurnFor(event.item_id);
+        if (this.openTextTurn === turn) this.openTextTurn = null;
+        this.onTextCommitted(turn, seconds);
+        break;
+      }
+      case "conversation.item.input_audio_transcription.delta": {
+        if (!event.item_id || !event.delta) break;
+        const turn = this.textTurnFor(event.item_id);
+        if (!turn.committed) this.openTextTurn = turn;
+        if (!turn.firstDeltaSeen) {
+          turn.firstDeltaSeen = true;
+          this.options.trace?.("transcription", `${event.type} (first)`, { itemId: event.item_id, turnId: turn.id, delta: event.delta });
+        }
+        if (turn.cancelled || turn.originalDone) break;
+        turn.partial += event.delta;
+        this.events.originalDelta(turn.id, event.delta);
+        break;
+      }
+      case "conversation.item.input_audio_transcription.completed":
+      case "conversation.item.input_audio_transcription.failed": {
+        // 이미 끝나 정리된 턴(요청 글자로 확정한 뒤 늦게 온 완성본 등)은 새 턴을 만들지 않는다
+        const turn = event.item_id ? this.bySttItem.get(event.item_id) : undefined;
+        if (!turn) break;
+        const completed = event.type.endsWith("completed");
+        if (turn.adopted) {
+          // 이미 요청 글자로 확정한 턴: 늦게 온 완성본은 쓰지 않는다 (내보낸 통역과 원문이 달라지지 않게)
+          break;
+        }
+        if (turn.originalDone) break;
+        // 전사 실패면 임시 자막을 원문으로 쓴다 (말이 없다는 뜻이 아니므로)
+        const text = (completed ? (event.transcript ?? "") : turn.partial).trim();
+        turn.original = text || null;
+        turn.originalDone = true;
+        turn.sttUsage = completed ? (event.usage ?? null) : null;
+        if (turn.committed) void this.commitStt(turn);
+        this.advanceText(turn);
+        break;
+      }
+      case "error":
+        this.options.log?.("Realtime 전사 세션 오류 이벤트", { code: event.error?.code, message: event.error?.message });
+        break;
+    }
+  }
+
+  /** text 방식: 전사 항목이 닫힘 → 비용 예약, 그리고 예측 요청(임시 자막) 또는 확정 원문 처리 */
+  private onTextCommitted(turn: Turn, seconds: number): void {
+    if (turn.committed) return;
+    turn.committed = true;
+    turn.inputSeconds = seconds;
+    const { budget, model } = this.options;
+    const instructionsChars = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary).length;
+    let ok = true;
+    turn.reserved = (async () => {
+      try {
+        // 입력은 글자지만 예상치는 음성 기준(여유 있게)으로 잡는다
+        turn.reservation = await budget.reserve(budget.estimate(model, turnEstimate(instructionsChars, seconds)));
+        turn.sttReservation = await budget.reserve(budget.estimate(turn.sttModel, transcribeEstimate(turn.sttModel, seconds)));
+      } catch {
+        ok = false;
+      }
+    })();
+    void turn.reserved.then(() => {
+      if (ok) {
+        if (turn.originalDone) void this.commitStt(turn);
+        return;
+      }
+      turn.cancelled = true;
+      if (turn.responseId && !turn.responseDone) this.send({ type: "response.cancel", response_id: turn.responseId });
+      this.releaseTurn(turn);
+      if (turn.started) this.events.turnEnd(turn.id, { status: "failed", code: "BUDGET_EXCEEDED" });
+      this.fail("budget");
+    });
+    this.advanceText(turn);
+  }
+
+  /**
+   * text 방식 턴 진행 (닫힘·확정 원문이 올 때마다 부른다):
+   *   - 확정 원문에 말이 없으면 버린다
+   *   - 아직 요청 전이면: 확정 원문이 있으면 그것으로, 없으면 임시 자막으로 예측 요청 (speculative)
+   *   - 예측 요청 뒤 확정 원문이 오면: 같으면 내보내고, 다르면 확정 원문으로 다시 요청한다
+   */
+  private advanceText(turn: Turn): void {
+    if (!turn.committed || turn.cancelled || !this.turns.has(turn.id)) return;
+    if (!turn.originalDone) {
+      if (turn.requestText === null && this.options.speculative !== false && hasSpeech(turn.partial)) {
+        turn.requestText = turn.partial.trim();
+        this.enqueue(turn);
+      }
+      return;
+    }
+    const final = turn.original ?? "";
+    if (!hasSpeech(final)) {
+      this.dropText(turn);
+      return;
+    }
+    if (turn.verified) return;
+    if (turn.requestText === null) {
+      turn.requestText = final;
+      this.verify(turn);
+      this.enqueue(turn);
+      return;
+    }
+    if (sameText(turn.requestText, final)) {
+      this.verify(turn);
+      return;
+    }
+    // 예측이 틀림: 확정 원문으로 다시 요청한다 (붙잡아 둔 통역은 버린다)
+    this.options.trace?.("conversation", "speculation.miss", { turnId: turn.id, requested: turn.requestText, final });
+    turn.requestText = final;
+    turn.held = [];
+    turn.translation = "";
+    if (turn.holdTimer) clearTimeout(turn.holdTimer);
+    turn.holdTimer = null;
+    // 다시 요청할 글자 = 확정 원문 → 다음 응답은 붙잡지 않는다. (턴은 다음 응답이 끝날 때 닫는다 — 여기서 verify 로 닫지 않는다)
+    turn.verified = true;
+    turn.speech = "yes";
+    if (turn.started && turn.original) this.events.original(turn.id, turn.original);
+    if (turn.queued) return; // 아직 요청 전: 새 글자로 요청된다
+    if (this.creating?.turn === turn || (turn.responseId !== null && !turn.responseDone)) {
+      // 요청 중·응답 중: 취소하고, 끝나면(response.done) 다시 요청한다
+      turn.redo = true;
+      if (turn.responseId !== null) this.send({ type: "response.cancel", response_id: turn.responseId });
+      return;
+    }
+    // 예측 응답이 이미 끝났다: 바로 다시 요청한다
+    this.resetForRedo(turn);
+    this.enqueue(turn, true);
+  }
+
+  /** text 방식: 요청 글자 = 화면에 고정할 원문 → 통역을 내보내고 원문을 올린다. 응답이 이미 끝났으면 턴을 닫는다 */
+  private verify(turn: Turn): void {
+    turn.verified = true;
+    this.allowOutput(turn);
+    if (turn.started && turn.original) this.events.original(turn.id, turn.original);
+    if (turn.responseDone && !turn.redo) this.finishText(turn);
+  }
+
+  private enqueue(turn: Turn, front = false): void {
+    if (turn.queued) return;
+    turn.queued = true;
+    if (front) this.createQueue.unshift(turn);
+    else this.createQueue.push(turn);
+    this.pumpResponses();
+  }
+
+  /** text 방식 응답 끝: 사용량을 모으고, 다시 요청할 턴이면 확정 원문으로 다시 줄 세운다 */
+  private onTextResponseDone(turn: Turn, event: ServerEvent): void {
+    turn.usageAcc = addUsage(turn.usageAcc, realtimeUsage(event.response?.usage));
+    if (turn.redo && !turn.cancelled) {
+      turn.redo = false;
+      this.resetForRedo(turn);
+      this.enqueue(turn, true);
+      return;
+    }
+    turn.responseDone = true;
+    turn.responseStatus = event.response?.status ?? null;
+    if (turn.cancelled) {
+      this.releaseTurn(turn);
+      this.maybeFinish(turn);
+      return;
+    }
+    // 아직 확정 원문을 기다린다: 통역은 붙잡아 둔 채 둔다 (verify 가 닫는다)
+    if (turn.verified) this.finishText(turn);
+  }
+
+  /** text 방식 턴 끝: 모은 사용량을 기록하고 닫는다 */
+  private finishText(turn: Turn): void {
+    if (turn.usageAcc) {
+      const usage = turn.usageAcc;
+      turn.usageAcc = null;
+      void turn.reserved.then(async () => {
+        const reservation = turn.reservation;
+        turn.reservation = null;
+        if (!reservation) return;
+        await this.options.budget.commit(reservation, { ...usage, kind: "translate", model: this.options.model }).catch(() => {});
+      });
+    }
+    this.maybeFinish(turn);
+  }
+
+  /** 다시 요청하기 전에 앞 응답의 흔적을 지운다 (시작 알림은 그대로) */
+  private resetForRedo(turn: Turn): void {
+    if (turn.responseId) this.responseToTurn.delete(turn.responseId);
+    turn.responseId = null;
+    turn.responseDone = false;
+    turn.responseStatus = null;
+    turn.translation = "";
+    turn.held = [];
+  }
+
+  /** text 방식: 확정 원문에 말이 없음 → 자막도 통역도 없이 조용히 버린다 (예측 응답이 이미 시작됐으면 EMPTY 실패) */
+  private dropText(turn: Turn): void {
+    turn.speech = "no";
+    turn.cancelled = true;
+    turn.held = [];
+    if (turn.holdTimer) clearTimeout(turn.holdTimer);
+    turn.holdTimer = null;
+    this.options.trace?.("conversation", "text.empty", { turnId: turn.id, partial: turn.partial });
+    if (turn.started) this.events.turnEnd(turn.id, { status: "failed", code: "EMPTY" });
+    if (turn.queued) return; // 대기열에서 정리된다 (pumpResponses)
+    if (this.creating?.turn === turn) return; // response.created 에서 취소 → response.done 에서 정리
+    if (turn.responseId !== null && !turn.responseDone) {
+      this.send({ type: "response.cancel", response_id: turn.responseId });
+      return;
+    }
+    turn.responseDone = true;
+    turn.responseStatus = "cancelled";
+    this.releaseTurn(turn);
+    this.maybeFinish(turn);
+  }
+
+  /** text 방식: 확정 원문이 끝내 안 옴 → 요청한 글자를 원문으로 확정하고 통역을 내보낸다 (자막과 통역은 같은 글자) */
+  private adoptRequestText(turn: Turn): void {
+    if (turn.verified || turn.cancelled || turn.requestText === null) return;
+    this.options.log?.("확정 원문이 늦어 요청한 글자를 원문으로 확정", { turnId: turn.id, text: turn.requestText });
+    turn.adopted = true;
+    turn.original = turn.requestText;
+    turn.originalDone = true;
+    void this.commitStt(turn);
+    this.verify(turn);
+  }
+
+  // ─── 확정 자막 (2026-10-28) ───────────────────────────
+
+  private get finalReplace(): boolean {
+    return this.options.finalSttMode === "replace";
+  }
+
+  /** 화면·기록에 쓸 원문: replace 는 확정 자막 우선, fallback 은 전사 세션 완성본에 말이 있으면 그것, 없으면 확정 자막 */
+  private shownOriginal(turn: Turn): string | null {
+    if (this.finalReplace) return turn.finalText ?? turn.original;
+    return turn.original && hasSpeech(turn.original) ? turn.original : (turn.finalText ?? turn.original);
+  }
+
+  /** 확정 자막을 기다려야 하는지: replace 는 받는 중이면 언제나, fallback 은 전사 세션 완성본에 말이 없을 때만 */
+  private waitingFinal(turn: Turn): boolean {
+    if (turn.finalState !== "pending") return false;
+    return this.finalReplace || !(turn.originalDone && turn.original && hasSpeech(turn.original));
+  }
+
+  /** 원문을 올려도 되는지 (음성 방식): 전사 세션 완성본이 왔고, 확정 자막을 기다릴 필요가 없으며, 글자가 있다 */
+  private originalReady(turn: Turn): boolean {
+    return turn.originalDone && !this.waitingFinal(turn) && !!this.shownOriginal(turn);
+  }
+
+  /** 번역 세션에 넣은 음성을 보관한다 (최근 HEARD_KEEP_MS) */
+  private keepHeard(pcm: Buffer): void {
+    this.heard.push({ startMs: this.heardMs, pcm });
+    this.heardMs += (pcm.length / 2 / RATE) * 1000;
+    while (this.heard.length > 0) {
+      const first = this.heard[0]!;
+      if (first.startMs + (first.pcm.length / 2 / RATE) * 1000 >= this.heardMs - HEARD_KEEP_MS) break;
+      this.heard.shift();
+    }
+  }
+
+  /** 보관한 음성에서 [fromMs, toMs) 구간을 잘라 낸다 */
+  private sliceHeard(fromMs: number, toMs: number): Int16Array {
+    const bytesPerMs = (RATE / 1000) * 2;
+    const parts: Buffer[] = [];
+    for (const { startMs, pcm } of this.heard) {
+      const endMs = startMs + pcm.length / bytesPerMs;
+      if (endMs <= fromMs || startMs >= toMs) continue;
+      const a = Math.max(0, Math.floor((fromMs - startMs) * bytesPerMs / 2) * 2);
+      const b = Math.min(pcm.length, Math.ceil((toMs - startMs) * bytesPerMs / 2) * 2);
+      if (b > a) parts.push(pcm.subarray(a, b));
+    }
+    const all = Buffer.concat(parts);
+    return new Int16Array(all.buffer.slice(all.byteOffset, all.byteOffset + all.length));
+  }
+
+  /** 음성 방식 턴의 말 끝: 그 턴 음성을 잘라 확정 자막 받아쓰기를 시작한다 */
+  private startFinalStt(turn: Turn): void {
+    const stt = this.options.finalStt;
+    const startMs = this.speechStartMs;
+    const endMs = this.speechEndMs ?? this.heardMs;
+    this.speechStartMs = null;
+    this.speechEndMs = null;
+    const fromMs = Math.max(0, startMs !== null ? startMs - FINAL_PAD_BEFORE_MS : this.lastTurnEndMs, endMs - FINAL_MAX_MS);
+    const toMs = Math.min(this.heardMs, endMs + FINAL_PAD_AFTER_MS);
+    this.lastTurnEndMs = toMs;
+    if (!stt || turn.finalState !== "none" || turn.cancelled) return;
+    const audio = this.sliceHeard(fromMs, toMs);
+    if (audio.length < RATE / 10) return; // 0.1초도 안 되는 음성은 받아쓰지 않는다
+    turn.finalState = "pending";
+    const startedAt = Date.now();
+    turn.finalTimer = setTimeout(() => this.onFinalText(turn, null, "timeout", startedAt), this.options.finalSttWaitMs ?? FINAL_STT_WAIT_MS);
+    stt.transcribe({ audio: { data: audio, sampleRate: RATE }, lang: this.sourceLang, prompt: STT_PROMPT }).then(
+      (result) => this.onFinalText(turn, result.text, "ok", startedAt),
+      (error: Error) => this.onFinalText(turn, null, `error: ${error.message}`, startedAt),
+    );
+  }
+
+  /** 확정 자막 결과 (또는 실패·시간 초과): 말이 있으면 원문으로 쓰고, 기다리던 원문·턴 끝을 이어 간다 */
+  private onFinalText(turn: Turn, text: string | null, why: string, startedAt: number): void {
+    if (turn.finalState !== "pending") {
+      this.options.trace?.("conversation", "finalStt.late", { turnId: turn.id, final: text, why, ms: Date.now() - startedAt });
+      return;
+    }
+    if (turn.finalTimer) clearTimeout(turn.finalTimer);
+    turn.finalTimer = null;
+    turn.finalState = "done";
+    const final = text?.trim() ?? "";
+    // 확정 받아쓰기에 말이 없으면(잡음 판단 차이 등) 전사 세션 완성본을 그대로 쓴다
+    if (hasSpeech(final)) turn.finalText = final;
+    this.options.trace?.("conversation", "finalStt", { turnId: turn.id, live: turn.original, final: text, why, ms: Date.now() - startedAt });
+    if (why !== "ok" && this.waitingFinal({ ...turn, finalState: "pending" })) this.options.log?.("확정 자막을 받지 못해 전사 세션 원문을 씀", { turnId: turn.id, why });
+    if (!this.turns.has(turn.id) || turn.cancelled) return;
+    // fallback 에서 전사 세션 완성본(말 있음)으로 이미 올렸으면 다시 올리지 않는다
+    const alreadyShown = !this.finalReplace && turn.originalDone && !!turn.original && hasSpeech(turn.original);
+    if (!alreadyShown && turn.started && this.originalReady(turn)) this.events.original(turn.id, this.shownOriginal(turn)!);
+    this.maybeFinish(turn);
   }
 
   /** 원문 전사 조각·완성본 (어느 세션에서 왔든 같은 규칙) */
@@ -756,7 +1314,8 @@ class RealtimeConnection implements StreamConnection {
       else this.dropNoSpeech(turn);
     }
     // 완성본은 턴이 시작된(응답이 붙은) 뒤에만 올린다. 아직이면 response.created 에서 올린다
-    if (turn.original && !turn.cancelled && turn.started) this.events.original(turn.id, turn.original);
+    // 확정 자막을 받아쓰는 중이면 그것을 기다린다 (onFinalText 가 올린다)
+    if (!turn.cancelled && turn.started && this.originalReady(turn)) this.events.original(turn.id, this.shownOriginal(turn)!);
     void this.commitStt(turn);
     if (turn.convItemId === null) {
       // 전사만 있고 번역 세션이 말 끝을 안 냈다: 잠시 기다렸다 짝이 안 생기면 버린다 (다음 턴에 잘못 붙지 않게)
@@ -790,11 +1349,19 @@ class RealtimeConnection implements StreamConnection {
       return;
     }
     turn.held.push(piece);
-    turn.holdTimer ??= setTimeout(() => {
-      turn.holdTimer = null;
-      this.options.log?.("원문 전사가 늦어 번역을 그대로 내보냄", { turnId: turn.id });
-      this.allowOutput(turn);
-    }, SPEECH_HOLD_MS);
+    turn.holdTimer ??= setTimeout(
+      () => {
+        turn.holdTimer = null;
+        // text 방식: 확인 전 통역은 그대로 내보내지 않고, 요청한 글자를 원문으로 확정한 뒤 내보낸다 (자막과 통역이 같은 글자)
+        if (turn.text) {
+          this.adoptRequestText(turn);
+          return;
+        }
+        this.options.log?.("원문 전사가 늦어 번역을 그대로 내보냄", { turnId: turn.id });
+        this.allowOutput(turn);
+      },
+      turn.text ? TEXT_FINAL_WAIT_MS : SPEECH_HOLD_MS,
+    );
   }
 
   private allowOutput(turn: Turn): void {
@@ -904,6 +1471,10 @@ class RealtimeConnection implements StreamConnection {
   /** 번역 응답과 원문 전사가 모두 끝나면 턴을 닫고, 세션 안 항목을 지운다 */
   private maybeFinish(turn: Turn): void {
     if (!turn.responseDone || !turn.originalDone || !this.turns.has(turn.id)) return;
+    // 확정 자막을 받아쓰는 중이면 기다린다 (기록에 남길 원문)
+    if (this.waitingFinal(turn) && !turn.cancelled) return;
+    // text 방식은 확인(verified)된 턴만 닫는다 (버린 턴은 cancelled 로 아래에서 조용히 정리)
+    if (turn.text && !turn.verified && !turn.cancelled) return;
     // 전사 없이 기다림이 끝난 턴(ORIGINAL_WAIT_MS): 붙잡아 둔 번역을 내보내고 끝낸다
     if (turn.speech === "unknown") this.allowOutput(turn);
     this.forget(turn);
@@ -914,7 +1485,7 @@ class RealtimeConnection implements StreamConnection {
       this.events.turnEnd(turn.id, { status: "failed", code: translation ? "TRANSLATION_FAILED" : "EMPTY" });
       return;
     }
-    this.events.turnEnd(turn.id, { status: "done", original: turn.original, translation, model: this.options.model });
+    this.events.turnEnd(turn.id, { status: "done", original: this.shownOriginal(turn), translation, model: this.options.model });
   }
 
   private onClose(code: number): void {
@@ -938,7 +1509,24 @@ class RealtimeConnection implements StreamConnection {
     // 번역 세션 설정을 다시 보내 전사를 켠다 (아직 열리는 중이면 open 때 보내는 설정에 이미 들어간다)
     if (this.ws.readyState === WebSocket.OPEN) this.send(this.sessionUpdate(true));
     // 전사만 있던 턴은 짝이 생기지 않는다 → 정리. 번역 턴은 응답 뒤 ORIGINAL_WAIT_MS 가 지나면 원문 없이 끝난다
-    for (const turn of [...this.turns.values()]) if (turn.convItemId === null) this.forget(turn);
+    // text 방식 턴: 확정 원문이 안 올 것이므로 임시 자막(또는 요청한 글자)을 원문으로 확정해 마무리한다. 다음 말부터는 음성 방식
+    this.openTextTurn = null;
+    this.pendingCuts.length = 0;
+    for (const turn of [...this.turns.values()]) {
+      if (turn.text) this.abandonText(turn);
+      else if (turn.convItemId === null) this.forget(turn);
+    }
+  }
+
+  /** 전사 세션이 끊긴 text 방식 턴: 지금까지의 글자를 원문으로 확정한다 (말이 없으면 버린다) */
+  private abandonText(turn: Turn): void {
+    if (turn.originalDone || turn.cancelled) return;
+    const text = (turn.requestText ?? turn.partial).trim();
+    turn.committed = true;
+    turn.adopted = true;
+    turn.original = text || null;
+    turn.originalDone = true;
+    this.advanceText(turn);
   }
 
   /** 진행 중인 턴을 실패로 닫고 연결을 끝낸다 */

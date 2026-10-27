@@ -62,11 +62,13 @@ export const MyCaptions = memo(function MyCaptions({ captions }: { captions: MyC
   const failed = last.status === "failed";
   // 완성본 원문 → 받아쓰는 중 조각 → 둘 다 없으면 상태 문구
   const original = last.original ?? (last.partial || null);
+  // 받아쓰는 중 조각은 아직 바뀔 수 있는 글자 → 흐리게. 확정 원문(통역에 쓴 글자)이 오면 진하게 바뀐다 (2026-10-28, docs/streaming-plan.md 4-4절)
+  const provisional = !failed && last.original === null && !!last.partial;
   const pending = last.status === "speaking" ? t("stream.mine.speaking") : t("stream.mine.processing");
   return (
     <View style={[styles.caption, styles.mine]} accessibilityLiveRegion="polite">
       <Text style={[font.caption, { color: colors.muted }]}>{t("stream.mine.me")}</Text>
-      <Text style={[font.bodyStrong, failed && { color: colors.danger }]}>
+      <Text style={[font.bodyStrong, provisional && styles.provisional, failed && { color: colors.danger }]}>
         {failed && !original ? t("stream.mine.failed") : (original ?? pending)}
       </Text>
       {!failed && last.translation ? <Text style={[font.caption, { color: colors.inkSoft }]}>{last.translation}</Text> : null}
@@ -80,4 +82,6 @@ const styles = StyleSheet.create({
   modeChip: { alignSelf: "flex-start" },
   caption: { padding: spacing.md, borderRadius: 12, backgroundColor: colors.surfaceAlt, gap: 2 },
   mine: { alignSelf: "flex-end", maxWidth: "90%", borderWidth: 1, borderColor: colors.border },
+  /** 받아쓰는 중(아직 확정 전) 원문 */
+  provisional: { color: colors.muted, fontWeight: "400" },
 });

@@ -15,12 +15,23 @@
 #
 # 덮어쓸 수 있는 환경 변수: AWS_REGION, SSM_PREFIX, DB_INSTANCE_ID, DB_USER, DB_NAME,
 #   DB_HOST·DB_PORT(지정하면 RDS 조회 생략), OPENAI_BUDGET_USD,
-#   STREAM_AUDIO_FILTER(passthrough|sidecar, 기본 passthrough — 2번째 인자가 우선), DENOISE_URL(기본 ws://denoise:8765)
+#   STREAM_AUDIO_FILTER(passthrough|sidecar, 기본 passthrough — 2번째 인자가 우선), DENOISE_URL(기본 ws://denoise:8765),
+#   STREAM_TRANSLATE_FROM(audio|text, 기본 audio — text 는 화면 원문 글자로 통역, docs/streaming-plan.md 4-4절),
+#   STREAM_SPECULATIVE(on|off, 기본 on), STREAM_SEGMENT_AFTER_MS(기본 4000), STREAM_SEGMENT_PAUSE_MS(기본 200),
+#   STREAM_FINAL_STT(on|off, 기본 off — 확정 자막을 STT_MODEL 로, docs/streaming-plan.md 4-5절), STREAM_FINAL_STT_MODE(fallback|replace, 기본 fallback)
 set -euo pipefail
 umask 077
 
 ENGINE="${1:-fake}"
 FILTER="${2:-${STREAM_AUDIO_FILTER:-passthrough}}"
+TRANSLATE_FROM="${STREAM_TRANSLATE_FROM:-audio}"
+case "$TRANSLATE_FROM" in
+  audio | text) ;;
+  *)
+    echo "STREAM_TRANSLATE_FROM 는 audio 또는 text" >&2
+    exit 2
+    ;;
+esac
 case "$ENGINE" in
   fake | openai) ;;
   *)
@@ -141,6 +152,12 @@ STREAM_MAX_SESSIONS=8
 STREAM_VAD_SILENCE_MS=350
 STREAM_LIVE_TRANSCRIPTION=on
 STREAM_DEBUG=0
+STREAM_TRANSLATE_FROM=$TRANSLATE_FROM
+STREAM_SPECULATIVE=${STREAM_SPECULATIVE:-on}
+STREAM_SEGMENT_AFTER_MS=${STREAM_SEGMENT_AFTER_MS:-4000}
+STREAM_SEGMENT_PAUSE_MS=${STREAM_SEGMENT_PAUSE_MS:-200}
+STREAM_FINAL_STT=${STREAM_FINAL_STT:-off}
+STREAM_FINAL_STT_MODE=${STREAM_FINAL_STT_MODE:-fallback}
 STREAM_AUDIO_FILTER=$FILTER
 DENOISE_URL='$DENOISE_URL'
 
@@ -164,7 +181,7 @@ EOF
 chmod 600 "$TMP"
 mv -f "$TMP" "$OUT"
 trap - EXIT
-echo "작성 완료: $OUT (권한 600, ENGINE=$ENGINE, STREAM_AUDIO_FILTER=$FILTER, OPENAI_BUDGET_USD=$BUDGET). 값은 출력하지 않았습니다."
+echo "작성 완료: $OUT (권한 600, ENGINE=$ENGINE, STREAM_AUDIO_FILTER=$FILTER, STREAM_TRANSLATE_FROM=$TRANSLATE_FROM, OPENAI_BUDGET_USD=$BUDGET). 값은 출력하지 않았습니다."
 if [ "$FILTER" = "sidecar" ]; then
   echo "적용: cd $DIR && docker compose --profile denoise up -d   (denoise 사이드카와 함께)"
 else

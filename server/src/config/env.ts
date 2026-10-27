@@ -47,6 +47,23 @@ const envSchema = z.object({
    * off 면 예전처럼 번역 세션이 전사까지 한다(원문이 0.5–1.5초 늦고 빠지기도 했다)
    */
   STREAM_LIVE_TRANSCRIPTION: z.enum(["on", "off"]).default("on"),
+  /**
+   * 스트리밍 통역 입력 (2026-10-28, docs/streaming-plan.md 4-4절). audio = 번역 모델이 음성을 직접 듣는다(예전 그대로),
+   * text = 전사 세션의 원문 글자만 넣어 통역 → 말한 사람 화면의 원문과 통역이 같은 글자. STREAM_LIVE_TRANSCRIPTION=on + gpt-live-transcribe 일 때만
+   */
+  STREAM_TRANSLATE_FROM: z.enum(["audio", "text"]).default("audio"),
+  /** text 방식: 임시 자막으로 미리 요청하고 확정 원문과 같을 때만 내보낸다 (확정을 기다리는 시간과 통역 생성이 겹침) */
+  STREAM_SPECULATIVE: z.enum(["on", "off"]).default("on"),
+  /** text 방식 긴 말 나누기: 한 턴이 이 길이(ms)를 넘으면 STREAM_SEGMENT_PAUSE_MS 쉼에서도 턴을 나눈다. 0 이면 나누지 않는다 */
+  STREAM_SEGMENT_AFTER_MS: z.coerce.number().int().min(0).max(60_000).default(4_000),
+  STREAM_SEGMENT_PAUSE_MS: z.coerce.number().int().min(80).max(2_000).default(200),
+  /**
+   * 확정 자막 (2026-10-28, docs/streaming-plan.md 4-5절): on 이면 말 끝마다 그 턴 음성을 STT_MODEL(gpt-4o-transcribe)로 다시 받아써
+   * 화면·기록 원문으로 쓴다. 말하는 도중 자막은 그대로 gpt-live-transcribe. 통역은 그대로 음성을 직접 듣는다. off 면 예전 그대로
+   */
+  STREAM_FINAL_STT: z.enum(["on", "off"]).default("off"),
+  /** 확정 자막 방식: fallback = 전사 세션 완성본이 비었을 때만 채움(10-28 실측 권장), replace = 언제나 확정 자막으로 */
+  STREAM_FINAL_STT_MODE: z.enum(["fallback", "replace"]).default("fallback"),
   /** 1 이면 스트리밍 엔진의 OpenAI 이벤트(조각 제외)를 세션 종류와 함께 info 로 남긴다 (원문 누락 진단용) */
   STREAM_DEBUG: z.enum(["0", "1"]).default("0"),
   /** 업로드 음성·번역 음성 저장 위치 */
