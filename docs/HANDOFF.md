@@ -45,7 +45,7 @@
 | 3 | 2번 뒤 iPhone 재확인: 스피커 통화 3번 + 에어팟 양방향 전환 + 점검 화면 (`docs/testguide.md` 4-12·4-13절, 가짜 엔진) | 장태웅 + Claude | 0 | ⬜ |
 | 4 | **시연 진행 순서 확정**: 장면 순서·말할 문장(은어 포함)·기기 배치. 걸려 온 전화는 **받는 사람이 그 현장 화면 안에 있어야** 뜬다 — 앱을 고칠지 결정 | 팀 결정 (Claude 가 대본 초안 가능) | 0 | ⬜ |
 | 5 | 시연용 은어 뜻을 현장 사람에게 확인 | 장태웅 | 0 | ⬜ |
-| 6 | 노이즈 필터 켤지 결정 (10/27) | 조현수 | - | ⬜ |
+| 6 | 노이즈 필터 켤지 결정 (10/27) → **켠다 (10-27 장태웅 결정)**. 시드니 재배포 때 `./render-env.sh openai sidecar` + `docker compose --profile denoise up -d --build` (`deploy/README.md` 7절) | 조현수(배포) | - | 🔶 결정됨·배포 전 |
 | 7 | 2·6번이 바뀌면 시드니 재배포 → 짧은 리허설 한 번 더 | 조현수 → 장태웅 | 약 $0.1–0.2 | ⬜ |
 | 8 | **10/31 AWS 시드니 자원 삭제** (`deploy/README.md` 8절) — 놓치면 비용 계속 | 조현수 | - | ⬜ |
 | 8-1 | **C1 새 기능 (10-26 요청·시작 승인, 브랜치 `feature/c1-call-cycle`)**: 통화 중 음량 증가 두 번 → 다음 멤버, 감소 두 번 → 이전 멤버(원형 순회, 새 상대 이름 음성 안내, 상대는 받기 눌러야 함, 두 번 누르기는 음량 안 바꿈) + 어느 화면에서든 걸려 온 전화가 뜨게. `docs/implementation-plan.md` C1, `docs/live-interpretation.md` 3-1절 | 장태웅 + Claude | 0 (가짜 엔진) | 🟡 1단계(어느 화면에서든 전화, live e2e 47 통과)·2단계(두 번 누르기 판정·원형 순회 `src/audio/callCycle.ts`, 앱 단위 64 통과) 완료, 3단계(네이티브 음량 버튼 `VolumeKeys.swift`·`VolumeKeys.kt`, iPhone·Note 9 실기기 통과 10-26, 두 기기에 개발 빌드 설치됨) 완료, 4단계(통화 화면 연결·이름 안내 `src/audio/useCallCycle.ts`) 구현·**데모 e2e 107·live e2e 49 통과**, **휴대폰 3대 실기기 통과 10-26**(세 번째 계정 `syncrew-e2e-member2`, Galaxy A52s Android 14). → 다음: **C2 "연결" 방식 화면 개편**(10-26 승인, `docs/implementation-plan.md` C2) |
