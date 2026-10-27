@@ -16,7 +16,12 @@ import {
 
 // OpenAI Realtime 스트리밍 엔진 (gpt-realtime-2.1, GA 인터페이스 — 2026-10-13 S0 측정 스크립트로 실제 확인한 설정).
 //   - 화자 1명 × 대상 언어 1개당 **번역 세션**(conversation) WebSocket 1개를 통화 내내 연다
-//   - server_vad(무음 500ms, 앞 300ms) + create_response, interrupt_response=false (이어 말해도 앞 번역을 끊지 않음)
+//   - server_vad(무음 500ms, 앞 300ms), interrupt_response=false (이어 말해도 앞 번역을 끊지 않음)
+//   - **응답은 서버가 하나씩 요청한다 (2026-10-27, create_response 끔)**: 말 끝(committed)마다 그 항목만 가리켜
+//     (`response.input = [item_reference]`) response.create 를 보내고, 앞 응답이 끝나야(response.done) 다음을 보낸다.
+//     예전(자동 응답)에는 번역이 나오는 중에 다음 말·잡음이 끝나면 OpenAI 가 그 응답을 거절(conversation_already_has_active_response)해
+//     ① 응답 ↔ 턴 짝이 한 칸씩 밀리고(원문 자막과 번역이 어긋남) ② 거절된 말이 대화에 남아 다음 번역마다 예전 말이 함께 번역됐다
+//     (2026-10-27 시드니 실기기 "예전에 했던 말이 다시 전달", 로그 거절 6건). 요청에 이벤트 id 를 붙여 거절되면 다시 줄 세운다
 //   - **말 끝은 서버 VAD 만 정한다.** 단말은 말이 멎은 뒤 ≥0.6초 무음까지 보내고, stream:pause 는 "보내기 중단" 뜻일 뿐이다.
 //     수동 input_audio_buffer.commit 은 보내지 않는다 — 2026-10-19 실제 API 실측: 수동 commit 을 한 번 보내면 그 세션의
 //     서버 VAD 가 다시는 speech_started 를 내지 않아 뒤의 말이 모두 조용히 사라진다. 수동 commit 없이 무음 ≥0.5초면
@@ -37,11 +42,12 @@ import {
 //     사용량은 duration(초) 형 → durationUsage 로 기록 ($0.017/분). STREAM_STT_MODEL=gpt-4o-transcribe 면 위의 server_vad 방식 그대로.
 //   - 턴 = 엔진이 만든 id 로, 두 세션의 항목(item_id)을 **순서대로** 묶는다 (아래 "턴 짝짓기")
 //   - 입력 전사(원문 기록) = STT_MODEL (기본 gpt-4o-transcribe), 출력 PCM16 24kHz 음성 + 자막
-//   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3)
+//   - 턴이 끝나면 세션 안 대화 항목을 모두 지우고(conversation.item.delete), 직전 1–2턴은 텍스트로 지시문에 넣는다 (P3).
+//     응답 입력은 그 턴 항목만이라(item_reference) 지우기 전의 예전 항목이 번역에 섞이지 않는다
 //   - 언어 쌍 용어집(glossary)은 세션을 열 때 지시문 앞쪽에 고정 (2026-10-19, buildStreamInstructions)
 //   - 턴 용어(turnTerms, 2026-10-24 실험, 기본 off): 말하는 도중 전사 조각에서 이번 턴 용어(뜻·규칙)를 찾아 지시문 끝에 넣는다
 //       update: 찾는 즉시 session.update (자동 응답 그대로 — 말 끝 전에 도착해야 반영)
-//       create: 자동 응답을 끄고(create_response false) 말 끝(committed)에 response.create + 그 응답 전용 지시문으로 넣는다
+//       create: 말 끝(committed) 뒤 그 턴의 response.create 지시문에 넣는다 (응답 요청은 이제 항상 서버가 한다)
 //   - 비용: 열기 전 남은 한도 확인, 턴마다 예상치 예약 → response.done / 전사 completed 사용량으로 기록 (BudgetGuard)
 //
 // 턴 짝짓기 (전사 세션 ↔ 번역 세션): 두 세션은 같은 음성·같은 VAD 설정이라 같은 자리에서 말 끝을 낸다고 가정하고,
@@ -58,6 +64,8 @@ const OPEN_TIMEOUT_MS = 10_000;
 const ORIGINAL_WAIT_MS = 4_000;
 /** 세션을 열 때 남아 있어야 하는 최소 한도 (말한 약 10초 분량) */
 const MIN_REMAINING_USD = 0.03;
+/** 응답 요청(response.create) 뒤 response.created 가 이만큼 안 오면 그 턴을 실패로 넘기고 다음 턴을 요청한다 (멈춤 방지) */
+const CREATE_TIMEOUT_MS = 8_000;
 /** 원문에 말이 있는지 아직 모를 때 번역 음성·자막을 붙잡아 두는 최대 시간. 넘으면 그대로 내보낸다 (전사가 늦거나 안 올 때) */
 const SPEECH_HOLD_MS = 2_000;
 
@@ -156,7 +164,7 @@ type ServerEvent = {
   item_id?: string;
   response_id?: string;
   item?: { id?: string };
-  error?: { message?: string; code?: string };
+  error?: { message?: string; code?: string; event_id?: string };
   usage?: SttUsage;
   response?: { id?: string; status?: string; usage?: Usage; output?: { id?: string }[] };
 };
@@ -247,8 +255,12 @@ class RealtimeConnection implements StreamConnection {
   private readonly turns = new Map<string, Turn>();
   private readonly byConvItem = new Map<string, Turn>();
   private readonly bySttItem = new Map<string, Turn>();
-  /** 응답이 아직 안 붙은 확정 턴 (순서대로) */
-  private readonly awaitingResponse: Turn[] = [];
+  /** 응답을 아직 요청하지 않은 확정 턴 (순서대로, 한 번에 하나씩 요청한다) */
+  private readonly createQueue: Turn[] = [];
+  /** response.create 를 보내고 response.created 를 기다리는 턴 */
+  private creating: { turn: Turn; eventId: string; timer: NodeJS.Timeout } | null = null;
+  /** 진행 중인 응답이 있다 (response.created ~ response.done) — 그동안 다음 요청을 보내지 않는다 */
+  private responseActive = false;
   private readonly responseToTurn = new Map<string, Turn>();
   private bytesSinceCommit = 0;
   private context: ContextLine[] = [];
@@ -355,8 +367,8 @@ class RealtimeConnection implements StreamConnection {
             format: { type: "audio/pcm", rate: RATE },
             // 전사 세션이 있으면 번역 세션은 전사하지 않는다 (받아쓰기 2번 청구 방지)
             ...(this.sttAlive ? {} : { transcription: this.transcriptionConfig() }),
-            // create 방식은 말 끝에 서버가 response.create 를 보낸다 (그 응답 전용 지시문에 턴 용어)
-            turn_detection: this.turnDetection({ create_response: this.turnTermsMode !== "create", interrupt_response: false }),
+            // 응답은 서버가 턴마다 그 항목만 가리켜 하나씩 요청한다 (pumpResponses, 2026-10-27)
+            turn_detection: this.turnDetection({ create_response: false, interrupt_response: false }),
           },
           output: { format: { type: "audio/pcm", rate: RATE }, voice: options.voice },
         },
@@ -430,6 +442,7 @@ class RealtimeConnection implements StreamConnection {
 
   close(): void {
     this.closedByUs = true;
+    this.clearRequests();
     for (const turn of this.turns.values()) this.releaseTurn(turn);
     this.turns.clear();
     this.byConvItem.clear();
@@ -524,16 +537,21 @@ class RealtimeConnection implements StreamConnection {
         if (this.sttAlive && this.liveStt) this.sendStt({ type: "input_audio_buffer.commit" });
         if (event.item_id) {
           void this.newTurn(event.item_id);
-          if (this.turnTermsMode === "create") this.createResponse(this.turnFor("conversation", event.item_id));
-          else if (this.turnTermsMode === "update") {
-            const turn = this.turnFor("conversation", event.item_id);
+          const turn = this.turnFor("conversation", event.item_id);
+          if (this.turnTermsMode === "update") {
             this.options.trace?.("conversation", "turnTerms.atCommit", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
           }
+          this.createQueue.push(turn);
+          this.pumpResponses();
         }
         break;
       case "response.created": {
-        const turn = this.awaitingResponse.shift();
-        if (!turn || !event.response?.id) break;
+        const pending = this.creating;
+        if (!pending || !event.response?.id) break;
+        clearTimeout(pending.timer);
+        this.creating = null;
+        this.responseActive = true;
+        const turn = pending.turn;
         turn.responseId = event.response.id;
         this.responseToTurn.set(event.response.id, turn);
         if (turn.cancelled) {
@@ -577,6 +595,9 @@ class RealtimeConnection implements StreamConnection {
         break;
       case "response.done": {
         const turn = this.turnOf(event.response?.id);
+        this.responseActive = false;
+        // 다음 턴 응답을 요청한다 (이 턴 정리와 별개)
+        queueMicrotask(() => this.pumpResponses());
         if (!turn) break;
         turn.responseDone = true;
         turn.responseStatus = event.response?.status ?? null;
@@ -594,8 +615,91 @@ class RealtimeConnection implements StreamConnection {
       }
       case "error":
         this.options.log?.("Realtime 스트림 오류 이벤트", { code: event.error?.code, message: event.error?.message });
+        this.onCreateError(event.error);
         break;
     }
+  }
+
+  // ─── 응답 요청 (한 번에 하나씩) ─────────────────────
+
+  /** 진행 중인 응답·요청이 없으면 다음 턴의 응답을 요청한다. 이미 버린 턴(말 없음·비용 한도)은 요청 없이 정리한다 */
+  private pumpResponses(): void {
+    if (this.creating || this.responseActive || this.failed || this.closedByUs) return;
+    while (this.createQueue.length > 0) {
+      const turn = this.createQueue.shift()!;
+      if (!this.turns.has(turn.id) || turn.convItemId === null) continue;
+      if (turn.cancelled) {
+        // 응답 전에 버린 턴: 응답이 끝난 것으로 치고 정리한다 (항목 지우기·예약 풀기)
+        turn.responseDone = true;
+        turn.responseStatus = "cancelled";
+        this.releaseTurn(turn);
+        this.maybeFinish(turn);
+        continue;
+      }
+      const terms = this.turnTermsMode === "create" ? (this.findTurnTerms?.(turn.partial) ?? []) : this.sessionTurnTerms;
+      if (this.turnTermsMode === "create") {
+        turn.termsKey = terms.map((term) => term.source).join("|");
+        this.options.trace?.("conversation", "turnTerms.create", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
+      }
+      const eventId = `create_${turn.id}`;
+      const timer = setTimeout(() => {
+        if (this.creating?.turn !== turn) return;
+        this.options.log?.("번역 응답이 시작되지 않아 턴을 넘김", { turnId: turn.id });
+        this.creating = null;
+        this.giveUp(turn);
+        this.pumpResponses();
+      }, CREATE_TIMEOUT_MS);
+      this.creating = { turn, eventId, timer };
+      this.send({
+        type: "response.create",
+        event_id: eventId,
+        response: {
+          instructions: buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms),
+          // 이 턴의 말만 번역한다 (아직 안 지운 예전 항목이 섞이지 않게)
+          input: [{ type: "item_reference", id: turn.convItemId }],
+        },
+      });
+      return;
+    }
+  }
+
+  /** 응답 요청이 거절됨: 다른 응답이 진행 중이면 다시 줄 세우고(그 응답이 끝나면 요청), 그 밖의 거절은 그 턴을 실패로 넘긴다 */
+  private onCreateError(error: ServerEvent["error"]): void {
+    const pending = this.creating;
+    if (!pending || !error?.event_id || error.event_id !== pending.eventId) return;
+    clearTimeout(pending.timer);
+    this.creating = null;
+    if (error.code === "conversation_already_has_active_response") {
+      this.createQueue.unshift(pending.turn);
+      this.responseActive = true; // 진행 중인 응답의 response.done 에서 다시 요청한다
+      return;
+    }
+    this.giveUp(pending.turn);
+    this.pumpResponses();
+  }
+
+  /** 응답을 받지 못한 턴: 실패로 닫는다 (턴 시작을 알리지 않았으므로 앱에는 보이지 않는다) */
+  private giveUp(turn: Turn): void {
+    turn.responseDone = true;
+    turn.responseStatus = "failed";
+    this.releaseTurn(turn);
+    if (!turn.originalDone) {
+      // 원문을 기다리다 안 오면 정리한다 (response.done 과 같은 규칙)
+      if (turn.originalTimer) clearTimeout(turn.originalTimer);
+      turn.originalTimer = setTimeout(() => {
+        turn.originalDone = true;
+        this.maybeFinish(turn);
+      }, ORIGINAL_WAIT_MS);
+    }
+    this.maybeFinish(turn);
+  }
+
+  /** 응답 요청 대기열 비우기 (닫기·실패) */
+  private clearRequests(): void {
+    if (this.creating) clearTimeout(this.creating.timer);
+    this.creating = null;
+    this.createQueue.length = 0;
+    this.responseActive = false;
   }
 
   // ─── 전사 세션 이벤트 ───────────────────────────────
@@ -678,15 +782,6 @@ class RealtimeConnection implements StreamConnection {
     this.options.trace?.("conversation", "turnTerms.update", { turnId: turn.id, partial: turn.partial, terms: key });
   }
 
-  /** create 방식: 말 끝에 지금까지의 전사 조각으로 턴 용어를 찾아 그 응답 전용 지시문으로 응답을 만든다 */
-  private createResponse(turn: Turn): void {
-    const terms = this.findTurnTerms?.(turn.partial) ?? [];
-    turn.termsKey = terms.map((term) => term.source).join("|");
-    const instructions = buildStreamInstructions(this.sourceLang, this.targetLang, this.context, this.glossary, terms);
-    this.send({ type: "response.create", response: { instructions } });
-    this.options.trace?.("conversation", "turnTerms.create", { turnId: turn.id, partial: turn.partial, terms: turn.termsKey });
-  }
-
   /** 번역 음성·자막 조각: 원문에 말이 있다고 확인된 턴은 바로, 아직 모르면 붙잡아 둔다 (SPEECH_HOLD_MS 넘으면 그대로 내보냄) */
   private output(turn: Turn, piece: { audio: Buffer } | { text: string }): void {
     if (turn.speech === "yes") {
@@ -738,7 +833,6 @@ class RealtimeConnection implements StreamConnection {
     // 전사만 있던 턴이면 짝을 기다리던 타이머를 멈춘다
     if (turn.originalTimer) clearTimeout(turn.originalTimer);
     turn.originalTimer = null;
-    this.awaitingResponse.push(turn);
     const { budget, model } = this.options;
     // 전사를 맡은 모델: 전사 세션이 살아 있으면 전사 세션 모델, 아니면 번역 세션 전사(STT_MODEL)
     turn.sttModel = this.sttAlive ? this.sttModel : this.options.transcribeModel;
@@ -851,6 +945,7 @@ class RealtimeConnection implements StreamConnection {
   private fail(reason: "error" | "budget"): void {
     if (this.failed) return;
     this.failed = true;
+    this.clearRequests();
     for (const turn of this.turns.values()) {
       this.releaseTurn(turn);
       if (!turn.cancelled && turn.started) this.events.turnEnd(turn.id, { status: "failed", code: "ENGINE_CLOSED" });
