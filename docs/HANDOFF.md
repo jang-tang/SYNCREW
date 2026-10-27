@@ -18,7 +18,7 @@
 
 ### ▶ 새 세션은 여기부터 — 지금 상태와 남은 일 (2026-10-25 밤 기준, 10/30 시연까지 5일)
 
-> **2026-10-28 갱신 (가장 먼저 읽기)**: PR #24 병합(`af55747`) + 시드니 재배포(노이즈 필터 끔) → **"예전 말" 문제 실기기 해결 확인**. 남은 일: ① **자막 최근 10초 여러 줄** 구현됨(커밋 전) → 커밋·PR + **세 폰 출시용 빌드 다시 만들어 설치**(A52s 포함) ② **원문 받아쓰기 개선 = 조현수** (`docs/streaming-plan.md` 5-8절, 추천 A 서버 재받아쓰기 + B 듣는 사람 원문 줄 빼기 — B 를 하면 앱이라 출시용 빌드 다시) ③ 시연 진행 순서·은어 확인·당일 체크 ④ 10/31 AWS 삭제
+> **2026-10-28 갱신 (가장 먼저 읽기)**: PR #24 병합(`af55747`) + 시드니 재배포(노이즈 필터 끔) → **"예전 말" 문제 실기기 해결 확인**. 이어서 **PR #25(조현수, 확정 자막 `STREAM_FINAL_STT`·글자 기반 통역 `STREAM_TRANSLATE_FROM` — 둘 다 기본 꺼짐, 말한 사람 임시 자막 흐리게) 병합 `365a507`** + **받은 자막 최근 10초 여러 줄(장태웅, `feature/recent-captions`)** 을 합침. 남은 일: ① 시드니 재배포 — 확정 자막을 켤지(`STREAM_FINAL_STT=on`, `fallback`) 조현수 판단 ② **세 폰 출시용 빌드 다시 만들어 설치**(앱 변경: 자막 여러 줄·임시 자막 흐리게, A52s 포함) ③ 시연 진행 순서·은어 확인·당일 체크 ④ 10/31 AWS 삭제
 >
 > **2026-10-28 새벽 갱신**: ① 시드니 `824fdab` 재배포·리허설 3대 통과 ② **세 폰에 출시용 빌드 설치** (Metro·Mac 없이 실행, 시드니 주소 내장 — Android `cd frontend/android && JAVA_HOME=<JDK21> ./gradlew assembleRelease` → `adb install -r app/build/outputs/apk/release/app-release.apk`, iOS `xcodebuild … -configuration Release` → `devicectl device install app …/Release-iphoneos/SYNCREW.app`, 빌드 전 `frontend/.env` 가 live + https://syncrew.hyunshu.com 이어야 함. iOS 개인 팀 서명이라 7일 뒤 만료). **앱 코드를 고치면 세 폰을 다시 빌드해야 한다**, 서버만 고치면 재배포로 끝 ③ 서버 노이즈 필터는 쓰지 않기로(인식 정확도 하락) ④ 실기기에서 "예전 말이 다시 전달" → 원인: 번역 엔진 자동 응답이 겹침으로 거절돼 응답 ↔ 턴 짝이 밀림. **고침(서버만, PR `fix/stream-response-order`)** — 실제 OpenAI 재현 시험에서 고치기 전 6문장 중 3개·한 칸 밀림 → 고친 뒤 6/6 (`docs/device-test-log.md` 10-28). 다음: 병합 → 조현수 재배포(노이즈 필터 끄기 함께) → 두 폰 실제 시험
 >
