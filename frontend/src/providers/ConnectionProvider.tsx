@@ -15,7 +15,7 @@ import { services } from "@/services";
 import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
-// 1:1 연결 (C2 "연결" 방식, docs/live-interpretation.md 3-2절, 2026-10-26).
+// 1:1 연결 (C2 "연결" 방식, docs/live-interpretation.md 3-2절, 2026-10-26) + 현장 전체 연결 (2026-10-27, 같은 음성 경로를 여러 명이 쓴다).
 // 연결은 앱 전체에 하나뿐이고, 어느 화면에 있든 음성은 계속 오간다 (예전에는 통화 화면 안에서만).
 // 화면(멤버 탭의 연결 패널·다른 탭의 배너)은 useConnection() 으로 상태를 읽는다.
 // 통화 중에는 먼저 스트리밍 통역을 시도하고, 안 되면 발화 단위 방식 (예전 통화 화면과 같다).
@@ -37,9 +37,14 @@ const IDLE_AUDIO: AudioReport = {
 };
 
 type Connection = {
-  /** 지금 연결 (통화 중인 1:1 세션) */
+  /** 지금 연결 (통화 중인 1:1 세션 또는 내가 들어가 있는 현장 전체 연결) */
   session: LiveSession | undefined;
+  /** 1:1 상대 (현장 전체 연결이면 없음 → peers) */
   peer: SessionParticipant | undefined;
+  /** 현장 전체 연결인가 */
+  group: boolean;
+  /** 나를 뺀 지금 연결의 사람들 (1:1 이면 상대 1명) */
+  peers: SessionParticipant[];
   streaming: AudioReport["streaming"];
   /** 스트리밍(또는 같은 언어 직접 전달) 중인지 */
   streamingOn: boolean;
@@ -83,8 +88,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const listed = useActiveConnection(signedIn ? siteId : "");
   // 목록은 다시 불러와야 바뀌므로, 실시간으로 바로 갱신되는 세션 상세를 함께 본다 (끝나면 즉시 소리를 멈추게)
   const detail = useSession(listed?.id ?? "");
-  const session = detail.data?.status === "active" ? detail.data : undefined;
-  const peer = session?.participants.find((p) => p.userId !== myId);
+  // 현장 전체 연결은 내가 나가도 계속되므로, 내가 아직 들어가 있는지까지 본다 (나가자마자 소리를 멈추게)
+  const session =
+    detail.data?.status === "active" && detail.data.participants.some((p) => p.userId === myId && !p.leftAt) ? detail.data : undefined;
+  const group = session?.mode === "group";
+  const peers = useMemo(() => session?.participants.filter((p) => p.userId !== myId && !p.leftAt) ?? [], [session, myId]);
+  const peer = group ? undefined : peers[0];
   const online = connection === "connected";
   const active = !!session && online;
   const action = useSessionAction();
@@ -117,11 +126,17 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     setTimeout(done, 5000);
   }, [announcement, session, audioReady, lang]);
 
-  // 연결 알림: 누가 나에게 연결했을 때, 상대가 나가거나 다른 사람으로 바꿨을 때 (내가 나가거나 바꾼 때는 알리지 않는다)
-  const previous = useRef<{ id: string; peerName: string } | null>(null);
+  // 연결 알림: 누가 나에게 연결했을 때, 상대가 나가거나 다른 사람으로 바꿨을 때 (내가 나가거나 바꾼 때는 알리지 않는다).
+  // 현장 전체 연결은 사람이 들고 나는 것을 알리지 않고, 연결 자체가 끝났을 때만 알린다
+  const previous = useRef<{ id: string; peerName: string; group?: boolean } | null>(null);
   const leaving = useRef(false);
   useEffect(() => {
     const before = previous.current;
+    if (session && group) {
+      if (before?.id !== session.id) leaving.current = false;
+      previous.current = { id: session.id, peerName: t("conn.group"), group: true };
+      return;
+    }
     if (session && peer) {
       if (before?.id !== session.id) {
         const mine = session.participants.find((p) => p.userId === myId);
@@ -132,10 +147,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       previous.current = { id: session.id, peerName: peer.displayName };
       return;
     }
-    if (before && !leaving.current) toast(t("conn.ended", { name: before.peerName }), "default");
+    if (before && !before.group && !leaving.current) toast(t("conn.ended", { name: before.peerName }), "default");
     previous.current = null;
     leaving.current = false;
-  }, [session?.id, peer?.displayName, myId, session, peer, t]);
+  }, [session?.id, peer?.displayName, myId, session, peer, group, t]);
   // 다른 사람으로 바뀌면 앞 연결의 자막·상태를 지운다
   useEffect(() => setAudio(IDLE_AUDIO), [session?.id]);
   // 연결이 끝나면 음성 상태를 원래대로
@@ -149,6 +164,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       peer,
+      group,
+      peers,
       streaming,
       streamingOn,
       handsFree,
@@ -163,7 +180,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       },
       sendDemo: () => send.mutate({ uri: "demo", mimeType: "audio/mp4" }, { onError: (error) => toast(errorMessage(error), "error") }),
     }),
-    [session, peer, streaming, streamingOn, handsFree, messages.data, online, cycle, action, errorMessage, send],
+    [session, peer, group, peers, streaming, streamingOn, handsFree, messages.data, online, cycle, action, errorMessage, send],
   );
 
   return (

@@ -174,6 +174,8 @@ await check("보내기 전 요약", "2명 · 2개 언어 · 연결 2명");
 await typeInto(1, "비계 위에서는 안전고리를 꼭 거세요.");
 await tap("2명에게 보내기");
 await check("전송 알림", "지시를 보냈어요");
+// 보낸 지시는 지시 탭의 "보낸 지시 기록" 화면에 있다 (2026-10-27)
+await tap("보낸 지시 기록");
 await check("목록에 새 지시", "0/2명 확인");
 await check("작업자 확인 반영(실시간)", "1/2명 확인", 9000);
 await tap("비계 위에서는 안전고리를 꼭 거세요.");
@@ -213,17 +215,21 @@ await expectCount("검색: 일치하는 사람만 보임", await visibleCount("�
 await expectCount("검색: 일치하지 않는 사람은 숨김(대조군)", await visibleCount("Nguyễn Văn An"), 0);
 await tap("전체 선택");
 await check("검색 결과만 전체 선택(선택 유지 + 1명)", "3명에게 보내기");
-await tap("선택 반전");
-await check("검색 결과만 반전", "2명에게 보내기");
 await typeInto(0, "zzz");
 await check("검색 결과 없음 안내", "일치하는 구성원이 없어요.");
 await typeInto(0, "");
 await wait(300);
 await expectCount("검색 지우면 전체 목록", await visibleCount("Nguyễn Văn An"), 1);
-await tap("선택 반전");
-await check("전체 반전(2명 → 나머지 3명)", "3명에게 보내기");
+// 선택 반전 버튼은 뺐다 (2026-10-27) → 해제 후 세 사람을 직접 고른다
+await tap("선택 해제");
+await check("검색 지운 뒤 선택 해제", "0명에게 보내기");
+await tap("Nguyễn Văn An");
+await tap("Иван Петров");
+await tap("김민준");
+await check("세 사람 직접 선택", "3명에게 보내기");
 await typeInto(1, "자재는 B문으로 들이세요.");
 await tap("3명에게 보내기");
+await tap("보낸 지시 기록");
 await check("선택한 3명에게 전송", "0/3명 확인");
 await tap("자재는 B문으로 들이세요.");
 await check("받는 사람: Nguyễn", "Nguyễn Văn An");
@@ -233,7 +239,7 @@ await expectCount("선택 안 한 사람은 받는 사람에 없음(李伟)", aw
 await expectCount("선택 안 한 사람은 받는 사람에 없음(Aziz)", await visibleCount("Aziz Karimov"), 0);
 await page.screenshot({ path: path.join(outDir, "flow-3-1-targets.png") });
 
-console.log("3-2) 관리자: 작업조 저장(B2) — 칩 선택·저장·덮어쓰기·작업조로 지시·이름 바꾸기·삭제");
+console.log("3-2) 관리자: 작업조 저장(B2) — 칩 선택·저장·덮어쓰기·작업조로 지시");
 await page.goto(base + "/site/instruction/new", { waitUntil: "networkidle0" });
 await check("저장된 작업조 칩(데모)", "1층 작업조 · 2");
 await tap("1층 작업조 · 2");
@@ -261,31 +267,19 @@ await tap("선택 해제");
 await tap("철근조 · 2");
 await typeInto(1, "철근 반입을 시작하세요.");
 await tap("2명에게 보내기");
+await tap("보낸 지시 기록");
 await check("작업조로 지시 전송", "0/2명 확인");
 await tap("철근 반입을 시작하세요.");
 await check("받는 사람: 작업조 구성원(Nguyễn)", "Nguyễn Văn An");
 await check("받는 사람: 작업조 구성원(李伟)", "李伟");
 await expectCount("작업조에서 뺀 사람은 받지 않음(Иван)", await visibleCount("Иван Петров"), 0);
-await page.goBack();
-await wait(800);
-// 관리 화면 (새로 고치면 데모 데이터가 초기화되므로 앱 안에서 이동)
-await tap("문자로 지시하기");
-await tap("직접 선택");
-await tap("작업조 관리");
-await check("작업조 관리 화면", "현장 관리자끼리 함께 써요");
-await check("목록: 데모 작업조", "1층 작업조");
-await check("목록: 저장한 작업조", "철근조");
-await tap("이름 바꾸기"); // 이름순 마지막 = 철근조
-await typeInto(0, "철근 1조");
-await tap("저장");
-await check("이름 바꾸기", "철근 1조");
-await tap("삭제");
-await check("삭제 확인", "'철근 1조' 작업조를 삭제할까요?");
-await tap("삭제");
-await wait(800);
-await expectCount("삭제됨", await visibleCount("철근 1조"), 0);
-await expectCount("다른 작업조는 남음(대조군)", await visibleCount("1층 작업조"), 1);
 await page.screenshot({ path: path.join(outDir, "flow-3-2-groups.png") });
+// 작업조 관리 버튼은 뺐다 (2026-10-27 사용자 요청)
+await page.goto(base + "/site/instruction/new", { waitUntil: "networkidle0" });
+await tap("직접 선택");
+await expectCount("작업조 관리 버튼 없음", await visibleCount("작업조 관리"), 0);
+await expectCount("선택 반전 버튼 없음", await visibleCount("선택 반전"), 0);
+await expectCount("전체 선택 버튼은 그대로(대조군)", await visibleCount("전체 선택"), 1);
 
 console.log("4) 관리자: 가입 승인 → 멤버 반영");
 await page.goto(base + "/site", { waitUntil: "networkidle0" });
@@ -440,15 +434,30 @@ console.log("7-1) 음량 버튼 두 번으로 연결 전환 (웹: 화살표 위�
   await check("나가기", "사람을 누르면 바로 연결돼요", 6000);
 }
 
+console.log("7-2) 현장 전체 연결 (2026-10-27): 각자 눌러서 들어가기 → 여러 명 패널 → 나가기");
+await page.goto(base + "/site", { waitUntil: "networkidle0" });
+await check("현장 전체 연결 카드", "누가 말하든 모두에게 각자 언어로 실시간 통역");
+await tap("들어가기");
+await check("들어가면 여러 명 패널", "현장 전체 연결 · 3명", 6000);
+await expectCount("현장 전체 연결에는 다음 멤버 버튼 없음", await visibleCount("다음 멤버"), 0);
+await expectCount("들어간 뒤에는 들어가기 카드가 없음", await visibleCount("들어가기"), 0);
+await check("다른 탭에서도 연결 중 배너", "현장 전체 연결", 3000);
+await page.screenshot({ path: path.join(outDir, "flow-7-2-group.png") });
+await tap("나가기");
+await check("나가면 다시 들어가기 카드", "들어가기", 6000);
+await expectCount("나가면 여러 명 패널 없음", await visibleCount("현장 전체 연결 · 3명"), 0);
+
 console.log("8) 관리자 실시간 일괄 지시 (여러 언어)");
+// 지시 탭 첫 화면에서 바로 고르고 시작한다 (2026-10-27): 처음엔 모두 골라져 있고, 누르면 빠진다
 await page.goto(base + "/site/instructions", { waitUntil: "networkidle0" });
-await tap("실시간 지시 시작");
-await check("대상 선택 화면", "실시간 일괄 지시");
-await check("대상자 연결 상태 요약", "명 연결됨");
-await check("연결 끊긴 대상 안내", "다시 접속하면");
-await tap("직접 선택");
-await tap("Nguyễn Văn An");
-await tap("Иван Петров");
+await check("처음에 모두 선택", "5명에게 실시간 지시 시작");
+await tap("李伟");
+await tap("김민준");
+await tap("Aziz Karimov");
+await check("누른 사람은 빠짐", "2명에게 실시간 지시 시작");
+await tap("김민준");
+await check("다시 누르면 다시 들어감", "3명에게 실시간 지시 시작");
+await tap("김민준");
 await check("선택 인원 반영", "2명에게 실시간 지시 시작");
 await tap("2명에게 실시간 지시 시작");
 await check("지시 중 화면", "구성원 연결 상태");
@@ -466,6 +475,8 @@ await wait(800);
 await tap("지시 끝내기");
 await check("지시 종료", "실시간 지시가 끝났어요");
 await tap("작업 지시");
+await tap("보낸 지시 기록");
+await check("지시 기록 화면", "보낸 지시 기록");
 await check("지시 기록에 실시간 표시", "실시간");
 await check("실시간 지시 전달 수", "명 전달", 8000);
 
@@ -483,9 +494,11 @@ await check("관리자 원문 함께 표시", "안전모를 착용하고 작업�
 await check("두 번째 지시", "Materiallarni B darvoza orqali olib kiring.", 6000);
 await page.screenshot({ path: path.join(outDir, "flow-9-listener.png") });
 await check("관리자가 끝내면 종료 표시", "Jonli topshiriq tugadi", 8000);
-// 새로 고치면 데모 데이터가 초기화되므로 앱 안에서 뒤로 간다
+// 저절로 열린 수신 화면에서 뒤로 가면 연결 탭으로 (2026-10-27: 여러 번 받아도 화면이 쌓이지 않게). 새로 고치면 데모 데이터가 초기화되므로 앱 안에서 이동
 await page.goBack();
 await wait(1000);
+await check("뒤로 가기 → 연결 탭", "Odamni bossangiz, darhol ulanadi");
+await tap("Topshiriqlar");
 await check("받은 지시 기록에 실시간 표시", "Jonli");
 
 console.log(`\n결과: 통과 ${pass} / 실패 ${fail}`);

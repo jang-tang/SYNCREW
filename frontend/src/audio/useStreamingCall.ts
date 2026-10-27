@@ -19,6 +19,8 @@ import { createVad } from "./vad";
 // - 스트림을 열 수 없거나(stream:open 실패, 이 기기에 이중 오디오 없음) 서버가 폴백을 알리면 mode = "utterance"
 //   → 통화 화면은 기존 핸즈프리(발화 단위) 방식을 쓴다
 // - 스트림으로 들은 문장은 기록 알림(message:new)이 와도 다시 재생하지 않는다 (audio/streamed.ts)
+// - 여러 사람의 통역이 겹치면(현장 전체 연결, 2026-10-27) 한 턴씩 차례로 재생한다: 재생 중인 턴이 끝날 때까지 다음 턴의 조각은 모아 둔다
+//   (그대로 넣으면 두 사람의 조각이 섞여 알아들을 수 없다)
 // - 저사양 폰 (2026-10-20): 마이크 음량은 React 상태가 아니라 audio/micLevel 저장소에 쓰고(음량 막대만 구독),
 //   자막 글자 조각은 CAPTION_BATCH_MS 안에 모아 한 번에 setState 한다 → 통화 화면이 조각마다 다시 그려지지 않는다
 
@@ -38,6 +40,8 @@ export type StreamMode = "off" | "connecting" | "stream" | "relay" | "utterance"
 
 export type Caption = {
   turnId: string;
+  /** 말한 사람 (현장 전체 연결에서 자막에 이름을 붙인다) */
+  fromUserId: string;
   original: string | null;
   translation: string;
   status: "live" | "done" | "failed";
@@ -83,6 +87,8 @@ export function useStreamingCall(options: {
     ),
   );
   const turns = useRef(new Map<string, number>()); // turnId → sampleRate
+  /** 차례 재생: 지금 이중 오디오에 넣고 있는 턴과, 그 뒤에 기다리는 턴들(조각을 모아 둔다) */
+  const playOrder = useRef({ current: null as string | null, waiting: [] as { turnId: string; chunks: ArrayBuffer[]; ended: boolean }[] });
   const fellBack = useRef(false);
   const vad = useRef(createVad({ endSilenceMs: 600 }));
 
@@ -154,6 +160,9 @@ export function useStreamingCall(options: {
       l.streamId = null;
       l.sending = false;
       playingReporter.current.reset();
+      // 받기 핸들러가 이 객체를 잡고 있으므로 바꾸지 말고 비운다
+      playOrder.current.current = null;
+      playOrder.current.waiting.length = 0;
       void duplex.stop();
       setMicLevel(0);
       setPlaying(false);
@@ -234,6 +243,22 @@ export function useStreamingCall(options: {
     const mine = mineBatch.current;
     const change = (turnId: string, apply: (c: Caption) => Caption) => (list: Caption[]) =>
       list.map((c) => (c.turnId === turnId ? apply(c) : c));
+    const order = playOrder.current;
+    /** 지금 턴이 끝나면 다음 턴의 모아 둔 조각을 넣는다 (그 턴도 이미 끝났으면 그다음으로) */
+    const advance = () => {
+      order.current = null;
+      while (!order.current && order.waiting.length > 0) {
+        const next = order.waiting.shift()!;
+        const rate = turns.current.get(next.turnId) ?? 24_000;
+        order.current = next.turnId;
+        for (const pcm of next.chunks) duplex.enqueue(next.turnId, pcm, rate);
+        if (next.ended) {
+          duplex.endStream(next.turnId);
+          turns.current.delete(next.turnId);
+          order.current = null;
+        }
+      }
+    };
 
     const offs = [
       realtime.on("stream:out:start", (p) => {
@@ -243,14 +268,19 @@ export function useStreamingCall(options: {
         if (!live.current.streamId) return;
         turns.current.set(p.turnId, p.sampleRate);
         debug.streamTurns += 1;
+        if (order.current === null) order.current = p.turnId;
+        else order.waiting.push({ turnId: p.turnId, chunks: [], ended: false });
         batch.flush();
-        setCaptions((list) => [...list, { turnId: p.turnId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS));
+        setCaptions((list) =>
+          [...list, { turnId: p.turnId, fromUserId: p.fromUserId, original: null, translation: "", status: "live" as const }].slice(-MAX_CAPTIONS),
+        );
       }),
       realtime.on("stream:out:audio", (p) => {
         const rate = turns.current.get(p.turnId);
         if (!rate) return;
         debug.streamChunks += 1;
-        duplex.enqueue(p.turnId, p.pcm, rate);
+        if (order.current === p.turnId) duplex.enqueue(p.turnId, p.pcm, rate);
+        else order.waiting.find((w) => w.turnId === p.turnId)?.chunks.push(p.pcm);
       }),
       realtime.on("stream:out:text", (p) => {
         if (!mineTurn(p.turnId)) return;
@@ -258,8 +288,16 @@ export function useStreamingCall(options: {
       }),
       realtime.on("stream:out:end", (p) => {
         if (!mineTurn(p.turnId)) return;
-        turns.current.delete(p.turnId);
-        duplex.endStream(p.turnId);
+        if (order.current === p.turnId) {
+          duplex.endStream(p.turnId);
+          turns.current.delete(p.turnId);
+          advance();
+        } else {
+          // 아직 차례가 안 온 턴: 표본률(turns)은 재생할 때까지 남겨 둔다
+          const waiting = order.waiting.find((w) => w.turnId === p.turnId);
+          if (waiting) waiting.ended = true;
+          else turns.current.delete(p.turnId);
+        }
         // 다음에 올 같은 문장의 기록 알림(message:new)은 재생하지 않는다
         if (p.messageId) markStreamed(p.messageId);
         batch.flush();

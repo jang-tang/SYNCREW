@@ -20,6 +20,7 @@ export function ConnectionPanel() {
   const { t } = useT();
   const c = useConnection();
 
+  if (c.session && c.group) return <GroupPanel />;
   if (!c.session || !c.peer) {
     return (
       <View style={[styles.panel, styles.idle]}>
@@ -69,6 +70,62 @@ export function ConnectionPanel() {
   );
 }
 
+/** 현장 전체 연결 중 (2026-10-27): 들어와 있는 사람들, 말한 사람 이름이 붙은 자막, 나가기 (다음 멤버 없음) */
+function GroupPanel() {
+  const { t } = useT();
+  const c = useConnection();
+  const peers = c.peers;
+  const nameOf = (userId: string) => peers.find((p) => p.userId === userId)?.displayName;
+  const showStreamCaptions = c.streaming.mode === "stream" || c.streaming.mode === "relay";
+  return (
+    <View style={[styles.panel, styles.live]} accessibilityLabel={t("conn.groupWith", { n: peers.length + 1 })}>
+      <View style={styles.row}>
+        <View style={styles.groupIcon}>
+          <Ionicons name="people" size={22} color={colors.onBrand} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={font.headline} numberOfLines={1}>
+            {t("conn.groupWith", { n: peers.length + 1 })}
+          </Text>
+          <Text style={[font.caption, { color: colors.muted }]} numberOfLines={1}>
+            {t("conn.groupDesc")}
+          </Text>
+        </View>
+      </View>
+      {peers.length > 0 ? (
+        <View style={styles.peers}>
+          {peers.map((p) => (
+            <View key={p.userId} style={styles.peer}>
+              <Avatar id={p.userId} name={p.displayName} size={28} online={p.online} />
+              <Text style={[font.caption, { color: colors.ink, fontWeight: "700", flexShrink: 1 }]} numberOfLines={1}>
+                {p.displayName}
+              </Text>
+              <LangBadge lang={p.lang} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <InfoNotice tone="info" text={t("conn.groupAlone")} />
+      )}
+      {!c.online && <InfoNotice text={t("call.reconnecting")} />}
+      <ModeChip mode={c.streaming.mode} />
+      <MicStatus state={c.mic.state} error={c.mic.error} />
+      {!c.streamingOn && <HeadsetNotice device={c.handsFree.device} />}
+      {showStreamCaptions && <LiveCaptions captions={c.streaming.captions} peerName="" nameOf={nameOf} />}
+      {c.streaming.mode === "stream" && <MyCaptions captions={c.streaming.myCaptions} />}
+      {!c.streamingOn && c.lastMessage?.text ? (
+        <View style={styles.message}>
+          <Text style={[font.caption, { color: colors.muted }]}>{c.lastMessage.senderName}</Text>
+          <Text style={font.bodyStrong}>{c.lastMessage.text}</Text>
+        </View>
+      ) : null}
+      {services.mode === "mock" && <Button title={t("live.demoSpeak")} icon="sparkles-outline" variant="ghost" onPress={c.sendDemo} />}
+      <Button title={t("conn.leave")} icon="exit-outline" variant="danger" size="md" onPress={c.leave} />
+      {!c.streamingOn && c.handsFree.error && <Button title={t("common.retry")} variant="secondary" onPress={c.handsFree.retry} />}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   panel: { borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   idle: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -76,4 +133,17 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   message: { padding: spacing.md, borderRadius: 12, backgroundColor: colors.surfaceAlt, gap: 2 },
   actions: { flexDirection: "row", gap: spacing.sm },
+  groupIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
+  peers: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  peer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: 4,
+    paddingLeft: 4,
+    paddingRight: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    maxWidth: "100%",
+  },
 });

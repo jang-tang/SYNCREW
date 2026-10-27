@@ -23,7 +23,8 @@
 | Phase 4 통역 파이프라인 + 1:1 대화 | 완료 (Fake 엔진 검증. 실제 OpenAI 확인은 키 입력 후) | `fd2caf0` |
 | Phase 5 실시간 통역 (1:1 통화 + 실시간 일괄 지시) | 완료 (기기 확인 일부는 추후) | `d7f29a4` |
 | Phase 6 안정화 + 실제 OpenAI + live 모드 + 기기 확인 | 완료 (실기기·블루투스는 추후) | `022f261` |
-| C1·C2 (10-26) | **C1 완료·PR #19** (음량 두 번으로 상대 바꾸기, 어느 화면에서든 전화, 휴대폰 3대 통과) / **C2 "연결" 방식 1단계 세 기기 통과(10-27)** + 탭 개편(대화 탭 삭제, [연결][지시][설정]) (`feature/c2-connect` 커밋 전, 데모 e2e 110·live e2e 48·`E2E_MIXED` 17·mic 2 통과) — `docs/implementation-plan.md` C1·C2 | `d878673` |
+| C1·C2·iOS 수정 (10-26–27) | **`main` 병합 `e95e9ca`** (PR #19 C1·#20 C2·#21 iOS `inPlace` 기본값·무음 시작·에어팟 전환 종료 — iPhone 실기기 통과) | `e95e9ca` |
+| C3 (10-27 밤) | **커밋 전**: 지시 탭 개편(첫 화면에서 바로 실시간 지시·보낸 기록 따로·선택 반전/작업조 관리 삭제), 저절로 열린 화면 쌓임 방지(뒤로 = 연결 탭), **현장 전체 연결(여러 명 실시간 스트리밍, 새 마이그레이션)** — 서버 274·데모 e2e 115·live e2e 59·`E2E_MIXED` 17 통과, 실기기 전. `docs/implementation-plan.md` C3, `docs/live-interpretation.md` 3-3절 | - |
 | Phase 7 진짜 스트리밍 통역 (1:1 통화) + 일괄 지시 대상 선택 UX | 진행 중: B1·S0 ①·S1·S2·B2·안정화·실기기 없이 할 일 완료 (10-14). **실기기 준비·T2 기준선 (10-14–15): Android·iPhone A·B 통과, iPhone 헤드셋 통과, Android 헤드셋 마이크 무음 → S3. 실기기 버그 6개 수정** (`docs/implementation-plan.md` T2 절). **S3 구현 (10-15 새벽): 자체 Expo 모듈 `frontend/modules/syncrew-duplex/`, 에뮬레이터 확인, 실기기 시험 전** (`docs/streaming-plan.md` 5-3절). **실기기 없이 마무리 (2) (10-17)**: S3 코드 재점검, 혼합 통화 무음 버그 수정(+e2e `E2E_MIXED`), 상대 역할 스크립트 `server/scripts/call-peer.ts`, OpenAI 가격 대조, 캐시 정리 (`74a7969`). **S3 iOS 실기기 시험 (10-17 밤, 새 담당자 현슈, iPhone 15 Pro Max + AirPods Pro, 가짜 엔진)**: 점검 화면 + F 스트리밍 통화 통과, iOS voice processing 무한 재시작 버그 수정 (`4fd2d9d`, PR #1). ⚠ 통화 시작 때 스피커에서도 에코 제거가 꺼지는 문제 (→ 10-23 PR #12 `71126d5` 로 수정, 실기기 확인 전 — `docs/testguide.md` 4-12절). **10-19–22 (현슈, PR #2–#10)**: AWS 시드니 배포(10/30 시연·10/31 삭제), 노이즈 필터 사이드카, iPhone 실기기 2차 발견 수정(서버 VAD 만으로 말 끝·반이중 메아리 차단·`stream:playing`·전사 전용 세션 `gpt-live-transcribe`·스트리밍 용어집, 실기기 재확인 전), 앱 경량화·네트워크 성능, 보안 9건. **10-22 결정: 10/30 시연은 Android·iPhone 모두, 모든 시험은 장태웅이 이 PC 에서.** **10-23 새벽 Android S3 (Note 9 Android 10 + WH-1000XM6, 가짜 엔진): 점검 화면·F·C(헤드셋 마이크 SCO 해결)·같은 언어 통과, 버그 2개 수정(미커밋: Android 11 이하 SCO 해제, 무음 -160 헤드셋 문장 단위 VAD). 실제 OpenAI($0.161, DB 누적 $0.498): G 에코 통과, 스트리밍 통역 헤드셋 재생 통과 / 실패 2건 → 수정·재시험 통과(누적 $0.709): 스트리밍 원문 밀림(서버 `pauseSilenceMs` 무음 주입), 문장 단위 통역 헤드셋 재생(네이티브 `playInCall` + expo-audio 스피커폰 강제 회피). 10-23 커밋. 이어서 문장 단위 스피커 재생·H(Wi-Fi 끊김) 통과 → **Android 단독 시험 끝**(누적 $0.750). 무선 adb 로 전환(방법 `docs/HANDOFF.md`).** **10-23 낮 iOS 에코 제거 꺼짐 수정(현슈, 실기기 없이, PR #12 병합 `71126d5`, `docs/streaming-plan.md` 5-6절 — 확인 절차 `docs/testguide.md` 4-12절).** **10-24 낮: 로컬 S4 휴대폰 2대 통화 통과(Note 9 ↔ iPhone, 실제 OpenAI), 말 없는 턴 버리기 수정(미커밋), 현장 용어 400문장 정확도 89.5%·지연 중앙값 1.9초(`docs/field-accuracy.md`), OpenAI 누적 $5.495.** **10-24 밤–10-25: PR #15–#17 `main` 병합(`9e0487f`), 시드니 `bf22f8b` 배포(조현수), iOS 에코 제거 후보 시험 장치(현슈, PR #17, 실기기 확인 전), 이 PC 서버 OpenAI 한도 $20.** **10-25 저녁 iPhone 에코 제거 후보 시험: `inPlace` 통과(스피커 3/3·전환·실제 OpenAI G, $0.048 → 누적 $17.306) → 기본값 변경은 현슈. 새 문제 2개(에어팟→스피커 전환 때 앱 종료 1/3, 무음 시작 1/3) → 현슈.** **10-25 밤 시드니 리허설 통과(iPhone ↔ Note 9, 실제 OpenAI, Note 9 에 우리 시제품 헤드셋으로도 통과, 통화 음량 낮으면 에어팟 무음 → 시연 전 음량 올리기).** **다음: 시연 진행 순서 확정** — `docs/HANDOFF.md` 1·7절, `docs/device-test-log.md` | `b1eb6d6`·`713c5e3`·`14a55da`·`d47b83d`·`12831ff`·`0c995ad`·`b038223`·`74a7969`·`4fd2d9d`·`3d72cad`·`9e0487f` |
 
 - 진행 현황·검증 결과·미검증 항목의 기준 문서: `docs/implementation-plan.md` (Phase가 끝날 때마다 갱신).
@@ -31,7 +32,7 @@
 - 통역: `server/src/messaging/pipeline.ts`(작업 큐), 엔진은 `context.stt`·`context.translator`(키 없으면 null, `ENGINE=fake`면 가짜). 메시지 생성은 `messaging/createMessage.ts` 하나로 (대화·통화 발화·지시 공통).
 - 앱은 `EXPO_PUBLIC_API_MODE=mock`(기본)으로 서버 없이 동작. 서버 API·이벤트는 `server/src/shared/api.ts`·`realtime.ts` 계약과 `frontend/src/services/live/*` 호출에 맞출 것. 계약을 바꾸면 앱 mock 구현(`frontend/src/services/mock/`)도 함께 고친다.
 - 설정 완료: Supabase URL·키(`server/.env`, `frontend/.env`), **OpenAI API 키(2026-10-12 입력)**.
-- **OpenAI 비용**: 2026-10-14 사용자: 충전 잔액 **$80** — 걱정하지 않아도 되지만 **막 쓰지는 말 것**. 서버 한도 `OPENAI_BUDGET_USD`(`OPENAI_BUDGET_PERIOD=total` 누적, 10-13 $3 → 10-25 $20), **2026-10-14 누적 $0.3149**. **2026-10-24 누적 $17.26 (S4·400문장 측정 3회·설정 비교 300턴, 사용자 승인). 2026-10-25 사용자 지시로 `server/.env` 한도 `OPENAI_BUDGET_USD=20` (10-25 저녁 G 뒤 누적 $17.306, 남은 여유 약 $2.69 — 넘을 작업이면 금액 먼저 안내).** 실제 호출 전에는 예상 비용을 말하고 실행 상한(`--max-usd` 또는 `OPENAI_BUDGET_USD=<누적+여유>`로 서버 실행)을 건다. 한도를 더 올릴 때는 금액을 먼저 알린다. 실제 청구액 대조는 하지 않기로 함(사용자 결정). 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 흐름 확인은 `ENGINE=fake`(비용 0).
+- **OpenAI 비용**: 2026-10-14 사용자: 충전 잔액 **$80** — 걱정하지 않아도 되지만 **막 쓰지는 말 것**. 서버 한도 `OPENAI_BUDGET_USD`(`OPENAI_BUDGET_PERIOD=total` 누적, 10-13 $3 → 10-25 $20), **2026-10-14 누적 $0.3149**. **2026-10-24 누적 $17.26 (S4·400문장 측정 3회·설정 비교 300턴, 사용자 승인). 2026-10-25 사용자 지시로 `server/.env` 한도 `OPENAI_BUDGET_USD=20` (10-25 저녁 G 뒤 누적 $17.306 → **10-27 밤 현장 전체 연결·일괄 지시 실제 확인 뒤 $17.494, 남은 여유 약 $2.51** — 넘을 작업이면 금액 먼저 안내).** 실제 호출 전에는 예상 비용을 말하고 실행 상한(`--max-usd` 또는 `OPENAI_BUDGET_USD=<누적+여유>`로 서버 실행)을 건다. 한도를 더 올릴 때는 금액을 먼저 알린다. 실제 청구액 대조는 하지 않기로 함(사용자 결정). 스트리밍 실호출은 턴당 약 $0.01, 말한 1분당 약 $0.18. 흐름 확인은 `ENGINE=fake`(비용 0).
 - **Phase 7 S0 보고: `docs/s0-report.md`** (① OpenAI 스트리밍 실측: 말 끝 → 첫 번역 음성 P50 1.83초, 비용·토큰·함정 문장·세션 끊김 1회, ② 실기기 절차·후보 조사, 3절 계획 변경 제안 P1–P7). B1 결과는 `docs/implementation-plan.md` Phase 7.
 - Phase 6 정리 문서: `docs/phase6-report.md` (실제 OpenAI 결과·비용·지연, 기기 확인, 시나리오 1–17·A–G 결과표, 알려진 문제, 결정 필요 사항). 운영 문서: `docs/operations.md` (설치·실행·비용·플러그인 연결·확인 도구).
 - Phase 4 정리 문서: `docs/phase4-report.md` (결정·비용 추정·검증·에뮬레이터 실행 방법).
@@ -63,7 +64,7 @@
 ### 지켜야 할 사용자 결정 (요약, 상세는 `docs/streaming-plan.md` 0-1·0-2절)
 - Phase·단계마다 멈추고 승인. 커밋·푸시는 요청할 때만
 - OpenAI: 실제 호출 전 예상 비용 안내·승인, 실행 상한을 걸고 최소로. 서버 한도 $20 누적(10-25, 더 올릴 때는 금액 먼저 안내)
-- 스트리밍은 1:1 통화만, 일괄 지시는 발화 단위 유지. 같은 언어 통화는 OpenAI 없이 직접 전달. 실패한 문장은 기록 안 함. 스트림으로 들은 문장은 다시 재생하지 않음
+- 스트리밍은 1:1 통화 + **현장 전체 연결(2026-10-27 사용자 결정 — 각자 눌러서 들어감·1:1 중인 사람은 그대로·동시 발화는 차례 재생·방 전체 반이중)**, 일괄 지시는 발화 단위 유지. 같은 언어 통화는 OpenAI 없이 직접 전달. 실패한 문장은 기록 안 함. 스트림으로 들은 문장은 다시 재생하지 않음
 - OpenAI 세션 안 문맥은 응답마다 삭제하고 직전 1–2문장을 텍스트로 넣는다 (DB 기록은 그대로)
 - 시험은 iOS·Android 모두
 - **번역 모델은 `gpt-realtime-2.1` 유지 — 번역 전용 `gpt-realtime-translate` 는 쓰지 않는다** (2026-10-14 결정: 현장 용어·숫자 오역 6/9, 지시문·용어집 불가, 우즈베크어 출력 불가. `docs/s0-report.md` 4절)
@@ -73,7 +74,7 @@
 0. **프로젝트 위치는 `/Users/taewoongjang/PlayGround/SYNCREW`** (2026-10-14 이동). 세션도 이 폴더에서 시작한다.
 1. **`docs/HANDOFF.md` 를 먼저 읽는다** — 현재 상태·남은 작업·실기기 준비·가장 먼저 할 일·"이제 할 일이 뭐지?" 응답 규칙이 있다. 그다음 이 파일(규칙·비용·결정), 필요하면 `docs/streaming-plan.md`·`docs/operations.md`.
 2. `git log --oneline | head -5`와 `git status`로 상태를 확인한다. 실기기 시험 기록은 `docs/device-test-log.md`.
-3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**266개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**64개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
+3. 기준선 확인 (비용 0): `cd server && npm run typecheck && npm test` (**274개** 통과 + 실제 사이드카 시험 1개 건너뜀 — `DENOISE_TEST_URL` 있을 때만), `cd frontend && npm run typecheck && npm run test:unit` (**64개**). 이 컨테이너처럼 root 로 실행하면 임시 Postgres 가 실패하므로 `runuser -u postgres -- env HOME=/tmp/pg-home PATH="$PATH" npx vitest run` 으로 돌린다.
 4. **작업 환경(이 PC / 현슈 Mac)·연결된 기기·(이 PC 라면) 디스크 여유 15GB 이상을 먼저 확인**한다 (`df -h /System/Volumes/Data`, `docs/HANDOFF.md` 1·5·7절). 모자라거나 준비 전이면 그것부터 안내한다.
 5. **실제 OpenAI를 부르는 작업은 하기 전에 예상 비용을 말하고 승인받는다** (서버 한도 $20 누적 중 $17.26 사용, 10-25). 실행 상한을 건다.
 6. 작업을 끝내면: `docs/HANDOFF.md`(상태·다음 작업)·`docs/implementation-plan.md`·이 파일의 상태 표를 갱신하고 보고한 뒤 멈춘다. 커밋·푸시는 사용자가 요청할 때 한다 (커밋 전 `git grep --cached -nE "sk-proj-|sb_secret_"`로 키 혼입 검사).
@@ -137,7 +138,7 @@
 # 서버
 cd server && npm run db:start                    # 터미널 1: 로컬 Postgres (localhost:5433)
 cd server && npm run db:deploy && npm run dev    # 터미널 2: http://0.0.0.0:4000/health
-cd server && npm run typecheck && npm test       # 테스트 266개 (C2 연결·전환 포함) (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션(gpt-live-transcribe)·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
+cd server && npm run typecheck && npm test       # 테스트 274개 (C2 연결·전환, 현장 전체 연결 groupCall 8개 포함) (임시 Postgres·실제 Socket.IO 통합 테스트, 스트리밍·전사 전용 세션(gpt-live-transcribe)·메아리 차단·용어집·노이즈 필터 사이드카·작업조·역할 포함)
 cd server && ENGINE=fake npm run dev             # OpenAI 없이 가짜 통역 (비용 0)
 cd server && npx tsx scripts/openai-check.ts     # 실제 OpenAI 5개 언어 왕복 (약 $0.05, 승인 후)
 cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측정 계획·예상 비용 (비용 0). 실제 실행은 승인 후 (턴당 약 $0.01, --max-usd 상한)
@@ -146,10 +147,10 @@ cd server && npx tsx scripts/stream-measure.ts --dry-run   # S0 스트리밍 측
 cd frontend && npm run typecheck && npm run doctor
 cd frontend && npm run bundle:android            # Android 번들 빌드 확인
 cd frontend && npm run test:unit                 # 단위 테스트 64개 (통화 상대 바꾸기 판정·순서 12·VAD·대상 선택·작업조·이중 오디오 base64·내 말 자막·재생 신호·배치 상태·마이크 음량·통화 세션 표시 + 출시 빌드 API 주소 검사 4)
-cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 110개 자동 검증 (C2 연결·전환·음량 버튼으로 전환·일괄 지시·대상 선택·작업조·관리자 지정 포함)
+cd frontend && npm run bundle:web && npm run e2e # 데모 모드 사용 흐름 115개 자동 검증 (C2 연결·전환·음량 버튼으로 전환·현장 전체 연결·지시 탭 바로 시작·보낸 기록·뒤로 가기·대상 선택·작업조·관리자 지정 포함). .env 가 live 면 EXPO_PUBLIC_API_MODE=mock 을 앞에 붙여 만든다
 cd frontend && npm run e2e:screens               # 주요 화면 캡처 → e2e/output/screens/
 cd frontend && npm run e2e:mic                   # 실제 말소리로 핸즈프리 자동 전송 + 무음 대조군 (bundle:web 후)
-cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 48개 (C2 받기 없이 연결·나가기, 통화는 스트리밍, 현장 목록에서 연결 열림·바꿀 사람 없음 안내, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
+cd frontend && npm run bundle:web:live && npm run e2e:live   # live 모드 2인 e2e 59개 (현장 전체 연결·지시 탭 바로 시작 포함) (C2 받기 없이 연결·나가기, 통화는 스트리밍, 현장 목록에서 연결 열림·바꿀 사람 없음 안내, 같은 언어 직접 전달·작업조 저장 포함. E2E_STREAMING=off 폴백, E2E_ONLY_CALL=1 통화만, E2E_REAL=1 실제 OpenAI) (ENGINE=fake 서버 실행 중이어야 함)
 cd frontend && npm run e2e:latency               # 서버 경로 지연 1회 (ENGINE=openai면 약 $0.006, 승인 후)
 cd frontend && E2E_MIXED=1 npm run e2e:live      # 한쪽만 스트리밍하는 통화 18개 (서버를 ENGINE=fake STREAM_MAX_SESSIONS=1 로 실행 중이어야 함)
 cd server && npx tsx scripts/call-peer.ts        # 실기기 시험용 통화 상대 (e2e 계정, 합성 음성 말하기·휴대폰 소리 음량/wav). --answer·--utterance·--as manager·--listen·--continuous(말 사이에도 잡음 계속). ENGINE=fake 면 비용 0

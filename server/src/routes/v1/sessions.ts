@@ -19,7 +19,7 @@ const clientMessageId = z.string().trim().min(1).max(64);
 const utteranceText = z.object({ clientMessageId, text: z.string().trim().min(1).max(1000) });
 const utteranceAudio = z.object({ clientMessageId });
 const historyQuery = z.object({
-  mode: z.enum(["call", "broadcast"]).optional(),
+  mode: z.enum(["call", "broadcast", "group"]).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
@@ -41,6 +41,16 @@ export function sessionsRouter(context: AppContext): Router {
   router.post("/sites/:siteId/calls", member, async (req, res) => {
     const { userId, connect } = callInput.parse(req.body);
     res.status(201).json(await sessions().startCall(req.membership!.siteId, req.auth!.userId, userId, { connect }));
+  });
+
+  /** 지금 열린 현장 전체 연결 (없으면 null) — 참여하지 않은 멤버도 본다 (2026-10-27) */
+  router.get("/sites/:siteId/group-call", member, async (req, res) => {
+    res.json(await sessions().currentGroup(req.membership!.siteId));
+  });
+
+  /** 현장 전체 연결에 들어가기 (없으면 연다, 누구나). 1:1 연결 중이었으면 그 연결은 끝난다. 나가기는 POST /sessions/:id/end */
+  router.post("/sites/:siteId/group-call", member, async (req, res) => {
+    res.status(201).json(await sessions().joinGroup(req.membership!.siteId, req.auth!.userId));
   });
 
   /** 관리자 일괄 지시 시작 → 대상자들에게 session:invite (관리자만, 구성원은 403) */
@@ -91,7 +101,8 @@ export function sessionsRouter(context: AppContext): Router {
 
   /**
    * 세션 발화 1건: multipart 음성(앱이 말이 끝난 것을 감지해 문장 단위로 보낸다) 또는 JSON 텍스트.
-   * 통화 → 상대에게 1:1 메시지, 일괄 지시 → 수신 대상 전원에게 지시 메시지 (언어별 1회 번역)
+   * 통화 → 상대에게 1:1 메시지, 일괄 지시 → 수신 대상 전원에게 지시 메시지 (언어별 1회 번역),
+   * 현장 전체 연결 → 나머지 참여자에게 현장 그룹 대화 메시지 (스트리밍을 못 쓸 때)
    */
   router.post("/sessions/:sessionId/utterances", limiter, audioUpload, async (req, res) => {
     const sessionId = idParam(req.params["sessionId"]);

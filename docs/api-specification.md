@@ -113,8 +113,10 @@
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| POST | `/sites/:siteId/calls` | 멤버 | `{userId}` 1:1 통역 통화 걸기 → 201 `LiveSession(ringing)`, 상대에게 `session:invite`. 자기 자신 400, 비멤버 대상 404, 상대 미접속 409 `CONFLICT`, 어느 한쪽이 통화 중 409 `BUSY` |
+| POST | `/sites/:siteId/calls` | 멤버 | `{userId}` 1:1 통역 통화 걸기 → 201 `LiveSession(ringing)`, 상대에게 `session:invite`. 자기 자신 400, 비멤버 대상 404, 상대 미접속 409 `CONFLICT`, 어느 한쪽이 통화 중·상대가 현장 전체 연결 중 409 `BUSY`. 건 사람이 현장 전체 연결 중이면 거기서 나간다 |
 | POST | `/sites/:siteId/broadcasts` | 관리자 | `{target:'all'\|{userIds}}` 실시간 일괄 지시 시작 → 201 `LiveSession(active)`, 대상자에게 `session:invite`. 구성원 403, 현장 밖 대상 400, 대상 없음 409, 이미 지시 중 409 `BUSY` |
+| GET | `/sites/:siteId/group-call` | 멤버 | 지금 열린 현장 전체 연결 `LiveSession(mode group)` 또는 `null` (참여하지 않아도 본다, 2026-10-27) |
+| POST | `/sites/:siteId/group-call` | 멤버 | 현장 전체 연결에 들어가기 → 201 `LiveSession`. 열린 것이 없으면 연다(누구나, 현장마다 하나). 내 1:1 연결은 끝난다. 나가기는 `POST /sessions/:id/end` (그 사람만 빠지고 마지막 사람이 나가면 `ended`) |
 | GET | `/sites/:siteId/sessions/open` | 멤버 | 내가 참여 중인 울림·진행 중 세션 (재시작·재연결 후 복원) |
 | GET | `/sites/:siteId/sessions?mode=call\|broadcast&limit=20` | 멤버 | 내가 참여한 최근 세션 (기록) |
 | GET | `/sessions/:id` | 참여자 | 세션 상태·참여자(이름·언어·역할·접속·장치) |

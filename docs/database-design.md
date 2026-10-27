@@ -161,21 +161,21 @@ Supabase `auth.users`와 1:1. 최초 인증 요청 시 서버가 생성(upsert).
 | 컬럼 | 타입 | 제약 |
 |---|---|---|
 | site_id | uuid | FK sites |
-| mode | text | CHECK in ('call','broadcast') |
+| mode | text | CHECK in ('call','broadcast','group') — group: 현장 전체 연결 (2026-10-27, 마이그레이션 `20261027120000_group_live_sessions`) |
 | status | text | CHECK in ('ringing','active','ended'). CHECK: ended ↔ ended_at NOT NULL |
-| conversation_id | uuid | NULL. call이면 NOT NULL (두 사람의 1:1 대화, 발화가 여기 저장) |
+| conversation_id | uuid | NULL. call이면 NOT NULL (두 사람의 1:1 대화, 발화가 여기 저장), group이면 NOT NULL (현장 그룹 대화) |
 | started_by / ended_by | uuid | |
 | end_reason | text | NULL. CHECK in ('hangup','declined','missed','cancelled','connection_lost','removed') |
 | answered_at / ended_at | timestamptz | NULL |
 
-- INDEX(site_id, mode, created_at), INDEX(status).
+- INDEX(site_id, mode, created_at), INDEX(status). 부분 UNIQUE(site_id) WHERE mode='group' AND status<>'ended' (`live_sessions_one_open_group` — 현장마다 열린 현장 전체 연결은 하나)
 
 ### live_session_participants (Phase 5)
 | 컬럼 | 타입 | 제약 |
 |---|---|---|
 | session_id | uuid | FK live_sessions |
 | user_id | uuid | |
-| role | text | CHECK in ('caller','callee','speaker','listener') |
+| role | text | CHECK in ('caller','callee','speaker','listener','participant') — participant: 현장 전체 연결 |
 | joined_at / left_at | timestamptz | NULL. 종료·제외 시 left_at |
 
 - PK(session_id, user_id). INDEX(user_id).

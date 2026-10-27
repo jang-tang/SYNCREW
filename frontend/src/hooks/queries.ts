@@ -23,6 +23,7 @@ export const qk = {
   session: (sessionId: string) => ["session", sessionId] as const,
   sessionMessages: (sessionId: string) => ["sessionMessages", sessionId] as const,
   openSessions: (siteId: string) => ["openSessions", siteId] as const,
+  groupCall: (siteId: string) => ["groupCall", siteId] as const,
   sessions: (siteId: string, mode?: SessionMode) => ["sessions", siteId, mode ?? "all"] as const,
 };
 
@@ -257,10 +258,26 @@ export function cacheSession(client: QueryClient, session: LiveSession) {
   void client.invalidateQueries({ queryKey: qk.openSessions(session.siteId) });
 }
 
-/** 지금 내 1:1 연결 (C2 연결 방식): 열린 세션 중 통화 중인 1:1 */
+/** 지금 내 연결 (C2 연결 방식): 열린 세션 중 통화 중인 1:1 또는 내가 들어가 있는 현장 전체 연결 */
 export function useActiveConnection(siteId: string) {
   const open = useOpenSessions(siteId);
-  return open.data?.find((s) => s.mode === "call" && s.status === "active");
+  return open.data?.find((s) => (s.mode === "call" || s.mode === "group") && s.status === "active");
+}
+
+/** 지금 열린 현장 전체 연결 (참여하지 않아도 본다, group:updated 로 바로 갱신). 없으면 null */
+export const useGroupCall = (siteId: string) =>
+  useQuery({ queryKey: qk.groupCall(siteId), queryFn: () => api.currentGroup(siteId), enabled: !!siteId });
+
+/** 현장 전체 연결에 들어가기 (없으면 연다) */
+export function useJoinGroup(siteId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.joinGroup(siteId),
+    onSuccess: (session) => {
+      client.setQueryData(qk.groupCall(siteId), session);
+      cacheSession(client, session);
+    },
+  });
 }
 
 /** 1:1 연결 시작 (C2): 받기 없이 바로 연결 */

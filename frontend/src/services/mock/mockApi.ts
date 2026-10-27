@@ -138,6 +138,8 @@ export function createMockApi(): ApiService {
       if ("error" in outcome) throw new ApiError(outcome.error!, outcome.error!);
       return wait(outcome.session!, 300);
     },
+    currentGroup: async (siteId) => wait(mockDb.currentGroup(siteId)),
+    joinGroup: async (siteId) => wait(mockDb.joinGroup(siteId), 300),
     async startBroadcast(siteId, target) {
       const userIds =
         target === "all"

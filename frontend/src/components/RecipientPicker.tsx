@@ -1,5 +1,4 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DeviceChip, InfoNotice } from "@/components/live/LiveParts";
@@ -89,7 +88,7 @@ export function useRecipientPicker(siteId: string) {
         setSelected(new Set(group.userIds));
       } else setSelected((current) => toggleGroup(current, group));
     },
-    bulk: (action: "all" | "none" | "invert") => setSelected((current) => bulkSelect(current, visible, action)),
+    bulk: (action: "all" | "none") => setSelected((current) => bulkSelect(current, visible, action)),
     /** 보내기에 성공하면 호출: 직접 선택한 대상을 다음 지시의 "지난번 대상"으로 저장 */
     remember: () => {
       if (!myId || mode !== "select") return;
@@ -156,7 +155,6 @@ export function RecipientPicker({ picker }: { picker: RecipientPickerState }) {
           <View style={styles.bulkRow}>
             <BulkButton label={t("recip.selectAll")} onPress={() => picker.bulk("all")} />
             <BulkButton label={t("recip.selectNone")} onPress={() => picker.bulk("none")} />
-            <BulkButton label={t("recip.invert")} onPress={() => picker.bulk("invert")} />
           </View>
         </>
       )}
@@ -230,7 +228,7 @@ export function RecipientSummary({ picker }: { picker: RecipientPickerState }) {
   );
 }
 
-/** 지금 선택을 작업조로 저장 (같은 이름이 있으면 확인 후 그 작업조를 지금 선택으로 바꾼다) + 작업조 관리 화면 */
+/** 지금 선택을 작업조로 저장 (같은 이름이 있으면 확인 후 그 작업조를 지금 선택으로 바꾼다) */
 function SaveGroup({ picker }: { picker: RecipientPickerState }) {
   const { t } = useT();
   const errorMessage = useErrorMessage();
@@ -254,8 +252,8 @@ function SaveGroup({ picker }: { picker: RecipientPickerState }) {
   return (
     <View style={{ gap: spacing.sm }}>
       <View style={styles.bulkRow}>
+        {/* 선택 반전·작업조 관리 버튼은 뺐다 (2026-10-27 사용자 요청) */}
         {!open && userIds.length > 0 && <BulkButton label={t("groups.saveCurrent")} onPress={() => setOpen(true)} />}
-        <BulkButton label={t("groups.manage")} onPress={() => router.push("/site/target-groups")} />
       </View>
       {open && (
         <View style={styles.saveBox}>

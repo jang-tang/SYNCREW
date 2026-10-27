@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -15,7 +16,19 @@ import { ListRow } from "@/components/ui/ListRow";
 import { LargeHeader, Screen } from "@/components/ui/Screen";
 import { Sheet } from "@/components/ui/Sheet";
 import { SiteEyebrow } from "@/components/SiteEyebrow";
-import { useConnect, useConversations, useCurrentSite, useMe, useMembers, useOpenDirect, useSiteId, useSwitchConnection, useUpdateMember } from "@/hooks/queries";
+import {
+  useConnect,
+  useConversations,
+  useCurrentSite,
+  useGroupCall,
+  useJoinGroup,
+  useMe,
+  useMembers,
+  useOpenDirect,
+  useSiteId,
+  useSwitchConnection,
+  useUpdateMember,
+} from "@/hooks/queries";
 import { useErrorMessage } from "@/hooks/useErrorMessage";
 import { useT } from "@/i18n";
 import { nativeNameOf } from "@/lib/format";
@@ -37,7 +50,7 @@ function confirm(message: string, onConfirm: () => void, confirmLabel: string, c
 
 /**
  * 연결 탭 = 현장의 첫 화면 (2026-10-27: 대화 탭을 없애고 합침).
- * 위에서부터 연결 패널 → 멤버(누르면 바로 연결) → 음성 기록(현장 전체 대화·1:1 대화 기록).
+ * 위에서부터 연결 패널 → 현장 전체 연결(2026-10-27, 각자 눌러서 들어감) → 멤버(누르면 바로 1:1 연결) → 음성 기록(현장 전체 대화·1:1 대화 기록).
  * 처음 1:1 메시지를 보낼 때는 멤버 줄의 ⋯ → 1:1 대화.
  */
 export default function Connect() {
@@ -56,6 +69,10 @@ export default function Connect() {
   const connection = useConnection();
   const connect = useConnect(siteId);
   const switchConnection = useSwitchConnection();
+  const groupCall = useGroupCall(siteId);
+  const joinGroup = useJoinGroup(siteId);
+  /** 현장 전체 연결에 들어가 있는 사람들 (멤버 줄에 표시 — 이 사람들에게는 1:1 을 걸 수 없다) */
+  const inGroup = new Set(groupCall.data?.participants.filter((p) => !p.leftAt).map((p) => p.userId) ?? []);
   const [selected, setSelected] = useState<Member | null>(null);
   const [langSheet, setLangSheet] = useState(false);
   const onError = (e: unknown) => toast(errorMessage(e), "error");
@@ -70,7 +87,7 @@ export default function Connect() {
     openDirect.mutate(member.userId, { onSuccess: (c) => router.push(`/site/chat/${c.id}`), onError });
   };
 
-  const connectedTo = connection.session?.participants.find((p) => p.userId !== me.data?.id)?.userId;
+  const connectedTo = connection.group ? undefined : connection.peer?.userId;
   /**
    * 1:1 연결 (C2 "연결" 방식, 2026-10-26): 사람을 누르면 바로 연결, 연결 중에 다른 사람을 누르면 그 사람으로 전환.
    * 상대가 다른 사람과 연결 중이거나 접속하지 않았으면 안내만 하고 지금 연결은 그대로.
@@ -84,7 +101,8 @@ export default function Connect() {
       else if (error instanceof ApiError && error.code === "CONFLICT") toast(t("conn.offline", { name }), "default");
       else onError(error);
     };
-    if (connection.session) switchConnection.mutate({ sessionId: connection.session.id, userId: member.userId }, { onError: onFail });
+    // 1:1 중이면 전환, 아니면(현장 전체 연결 중이어도) 새로 연결 — 현장 전체 연결에서는 서버가 빼 준다
+    if (connection.session && !connection.group) switchConnection.mutate({ sessionId: connection.session.id, userId: member.userId }, { onError: onFail });
     else connect.mutate(member.userId, { onError: onFail });
   };
 
@@ -141,6 +159,14 @@ export default function Connect() {
 
         <ConnectionPanel />
 
+        {!connection.group && (
+          <GroupConnectCard
+            count={inGroup.size}
+            joining={joinGroup.isPending}
+            onJoin={() => joinGroup.mutate(undefined, { onError })}
+          />
+        )}
+
         <SectionTitle title={`${t("members.active")} · ${active.length}`} />
         {active.length <= 1 && !members.isPending && (
           <Card>
@@ -168,6 +194,7 @@ export default function Connect() {
                   right={
                     <View style={styles.badges}>
                       {connected && <Badge label={t("conn.badge")} tone="brand" />}
+                      {!isMe && !connected && inGroup.has(member.userId) && <Badge label={t("conn.groupInside")} tone="brand" />}
                       {/* 기기를 아직 모르면 칩을 빼서 이름 자리를 남긴다 (10-27 Note 9 에서 이름이 "…" 로 잘림) */}
                       {!isMe && member.online && !connected && member.device && <DeviceChip device={member.device} />}
                       {isMe && <Badge label={t("common.you")} tone="brand" />}
@@ -255,6 +282,29 @@ export default function Connect() {
   );
 }
 
+/** 현장 전체 연결 카드: 열려 있으면 인원, 누르면 들어간다 (없으면 연다). 들어가 있을 때는 연결 패널이 대신한다 */
+function GroupConnectCard({ count, joining, onJoin }: { count: number; joining: boolean; onJoin: () => void }) {
+  const { t } = useT();
+  return (
+    <Card style={[styles.groupCard, count > 0 && styles.groupLive]}>
+      <View style={styles.row}>
+        <View style={styles.groupIcon}>
+          <Ionicons name="people" size={22} color={colors.onBrand} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={font.bodyStrong} numberOfLines={1}>
+            {t("conn.group")}
+          </Text>
+          <Text style={styles.meta} numberOfLines={2}>
+            {count > 0 ? t("conn.groupLive", { n: count }) : t("conn.groupDesc")}
+          </Text>
+        </View>
+        <Button title={t("conn.groupJoin")} icon="enter-outline" size="md" fullWidth={false} loading={joining} onPress={onJoin} />
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.sm },
   pending: { gap: spacing.md, borderColor: colors.brandBorder },
@@ -263,4 +313,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: spacing.sm },
   badges: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flexShrink: 1 },
   connected: { backgroundColor: colors.brandSoft },
+  groupCard: { gap: spacing.sm },
+  groupLive: { borderColor: colors.brand, borderWidth: 2, backgroundColor: colors.brandSoft },
+  groupIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
 });

@@ -30,13 +30,22 @@ export const ModeChip = memo(function ModeChip({ mode }: { mode: StreamMode }) {
 });
 
 /** 상대 말의 실시간 자막: 번역(크게) + 원문(작게). 가장 최근 턴만. captions 배열이 바뀔 때만 다시 그린다 (memo) */
-export const LiveCaptions = memo(function LiveCaptions({ captions, peerName }: { captions: Caption[]; peerName: string }) {
+/** peerName: 1:1 상대 이름. nameOf 가 있으면(현장 전체 연결) 말한 사람마다 이름을 찾는다 */
+export const LiveCaptions = memo(function LiveCaptions({
+  captions,
+  peerName,
+  nameOf,
+}: {
+  captions: Caption[];
+  peerName: string;
+  nameOf?: (userId: string) => string | undefined;
+}) {
   const { t } = useT();
   const last = captions.at(-1);
   if (!last) return null;
   return (
     <View style={styles.caption} accessibilityLiveRegion="polite">
-      <Text style={[font.caption, { color: colors.muted }]}>{peerName}</Text>
+      <Text style={[font.caption, { color: colors.muted }]}>{nameOf?.(last.fromUserId) ?? peerName}</Text>
       <Text style={[font.bodyStrong, last.status === "failed" && { color: colors.danger }]}>
         {last.status === "failed" ? t("stream.failed") : last.translation || "…"}
       </Text>

@@ -308,6 +308,9 @@ export function attachRealtime(
       // 주의: nsp.to([]) 는 전체 전송이 되므로 빈 대상은 보내지 않는다.
       if (userIds.length > 0) emit(userIds.map(rooms.user), "session:updated", { session });
     },
+    groupUpdated({ siteId, session }) {
+      emit(rooms.site(siteId), "group:updated", { siteId, session });
+    },
     deviceChanged({ siteIds, userId, device }) {
       for (const siteId of siteIds) emit(rooms.site(siteId), "device:changed", { siteId, userId, device });
     },

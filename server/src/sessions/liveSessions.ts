@@ -14,6 +14,9 @@ import type {
 // 실시간 통역 세션 (docs/live-interpretation.md)
 //   call      : 1:1 통역 통화. 울림(ringing) → 수락 → 통화 중(active) → 종료. 발화는 두 사람의 1:1 대화에 저장
 //   broadcast : 관리자 일괄 지시. 시작하면 바로 active, 관리자(speaker)의 발화가 수신 대상(listener)들에게 지시로 전달
+//   group     : 현장 전체 연결 (2026-10-27). 현장마다 열린 것은 하나 — 누구나 열고 각자 눌러서 들어온다(participant).
+//               누가 말하든 나머지 참여자에게 각자 언어로 전달, 기록은 현장 그룹 대화. 나가면 그 사람만 빠지고 마지막 사람이 나가면 끝난다.
+//               1:1 연결 중인 사람은 끌어오지 않는다 (본인이 누르면 1:1 을 끝내고 들어온다). 참여 중인 사람에게는 1:1 연결을 걸 수 없다(BUSY)
 // 상태 변경은 REST, 알림은 Socket.IO(session:invite / session:updated).
 // 연결 감시: 참여자의 실시간 연결이 모두 끊기면 '오프라인'으로 알리고, 유예 시간 안에 돌아오지 않으면 종료한다.
 
@@ -58,7 +61,7 @@ export class LiveSessionService {
       siteLangs(prisma, row.siteId, userIds),
     ]);
     const nameOf = new Map(profiles.map((p) => [p.id, p.displayName]));
-    const order: SessionRole[] = ["caller", "speaker", "callee", "listener"];
+    const order: SessionRole[] = ["caller", "speaker", "callee", "listener", "participant"];
     return {
       id: row.id,
       siteId: row.siteId,
@@ -135,6 +138,9 @@ export class LiveSessionService {
     if (!presence.isOnline(calleeId)) throw new AppError("CONFLICT", "상대가 앱에 접속해 있지 않습니다.");
     await this.assertFree([callerId], "call", "이미 통화 중입니다.");
     await this.assertFree([calleeId], "call", "상대가 다른 통화 중입니다.");
+    await this.assertFree([calleeId], "group", "상대가 현장 전체 연결 중입니다.");
+    // 현장 전체 연결에 있던 사람이 1:1 을 걸면 전체 연결에서 나간다 (연결은 한 번에 하나)
+    await this.leaveOpenGroups(callerId);
 
     const { conversation } = await ensureDirectConversation(prisma, siteId, callerId, calleeId);
     const now = new Date();
@@ -184,6 +190,7 @@ export class LiveSessionService {
     if (!target || target.status !== "active") throw new AppError("NOT_FOUND", "멤버를 찾을 수 없습니다.");
     if (!presence.isOnline(targetId)) throw new AppError("CONFLICT", "상대가 앱에 접속해 있지 않습니다.");
     await this.assertFree([targetId], "call", "상대가 다른 통화 중입니다.");
+    await this.assertFree([targetId], "group", "상대가 현장 전체 연결 중입니다.");
     await this.finish(sessionId, "hangup", userId);
     return this.startCall(row.siteId, userId, targetId, { connect: true });
   }
@@ -222,6 +229,7 @@ export class LiveSessionService {
     const row = await this.requireParticipant(sessionId, userId);
     if (row.status === "ended") return this.view(row);
     const role = row.participants.find((p) => p.userId === userId)!.role;
+    if (row.mode === "group") return this.leaveGroup(sessionId, userId, userId);
     if (row.mode === "broadcast" && role !== "speaker") throw new AppError("FORBIDDEN", "일괄 지시는 관리자만 끝낼 수 있습니다.");
     const reason: SessionEndReason = row.status === "ringing" ? (role === "caller" ? "cancelled" : "declined") : "hangup";
     return this.finish(sessionId, reason, userId);
@@ -267,11 +275,109 @@ export class LiveSessionService {
     return this.publish(row.id, listenerIds);
   }
 
+  // ─── 현장 전체 연결 ─────────────────────────────────
+
+  private openGroupRow(siteId: string): Promise<FullRow | null> {
+    return this.ctx.prisma.liveSession.findFirst({ where: { siteId, mode: "group", status: { in: OPEN } }, include: { participants: true } });
+  }
+
+  /** 지금 열린 현장 전체 연결 (현장 활성 멤버 누구나 — 참여하지 않은 사람도 "현장 전체 연결 중" 을 본다). 없으면 null */
+  async currentGroup(siteId: string): Promise<LiveSession | null> {
+    const row = await this.openGroupRow(siteId);
+    return row ? this.view(row) : null;
+  }
+
+  /**
+   * 현장 전체 연결에 들어간다. 열린 것이 없으면 새로 연다 (누구나). 1:1 연결 중이었으면 그 연결은 끝낸다 (본인이 눌렀으므로).
+   * 현장마다 열린 것은 하나 — 두 사람이 동시에 열면 DB 부분 고유 인덱스가 하나만 남기고, 늦은 쪽은 그 연결에 들어간다.
+   */
+  async joinGroup(siteId: string, userId: string): Promise<LiveSession> {
+    const { prisma } = this.ctx;
+    const conversation = await prisma.conversation.findFirst({ where: { siteId, type: "group" } });
+    if (!conversation) throw new AppError("NOT_FOUND", "현장 그룹 대화를 찾을 수 없습니다.");
+    // 1:1 연결은 한 번에 하나: 울림·통화 중인 1:1 을 끝낸다
+    const calls = await prisma.liveSession.findMany({
+      where: { mode: "call", status: { in: OPEN }, participants: { some: { userId, leftAt: null } } },
+      select: { id: true },
+    });
+    for (const call of calls) await this.end(call.id, userId);
+
+    const now = new Date();
+    let row = await this.openGroupRow(siteId);
+    if (!row) {
+      try {
+        const created = await prisma.liveSession.create({
+          data: {
+            siteId,
+            mode: "group",
+            status: "active",
+            answeredAt: now,
+            conversationId: conversation.id,
+            startedBy: userId,
+            participants: { create: [{ userId, role: "participant", joinedAt: now }] },
+          },
+        });
+        this.ctx.logger.info({ sessionId: created.id, siteId }, "현장 전체 연결 시작");
+        return this.groupChanged(created.id, siteId);
+      } catch (error) {
+        // 동시에 다른 사람이 먼저 열었다 (live_sessions_one_open_group) → 그 연결에 들어간다
+        row = await this.openGroupRow(siteId);
+        if (!row) throw error;
+      }
+    }
+    await prisma.liveSessionParticipant.upsert({
+      where: { sessionId_userId: { sessionId: row.id, userId } },
+      create: { sessionId: row.id, userId, role: "participant", joinedAt: now },
+      update: { leftAt: null, joinedAt: now },
+    });
+    this.clearGrace(row.id, userId);
+    return this.groupChanged(row.id, siteId);
+  }
+
+  /** 현장 전체 연결에서 나간다. 마지막 사람이 나가면 끝난다. leftBy = 직접 나간 사람(연결 끊김·제외면 null) */
+  private async leaveGroup(sessionId: string, userId: string, leftBy: string | null): Promise<LiveSession> {
+    const { prisma } = this.ctx;
+    await prisma.liveSessionParticipant.updateMany({ where: { sessionId, userId, leftAt: null }, data: { leftAt: new Date() } });
+    this.clearGrace(sessionId, userId);
+    this.ctx.streams?.closeSpeaker(sessionId, userId);
+    const remaining = await prisma.liveSessionParticipant.count({ where: { sessionId, leftAt: null } });
+    if (remaining === 0) return this.finish(sessionId, "hangup", leftBy);
+    const row = (await this.loadRow(sessionId))!;
+    const session = await this.groupChanged(sessionId, row.siteId);
+    // 나간 사람에게도 바뀐 상태를 알린다 (그 사람 앱이 연결을 닫게)
+    this.ctx.events.sessionUpdated({ userIds: [userId], session });
+    return session;
+  }
+
+  /** 1:1 을 걸 때: 그 사람이 들어가 있는 현장 전체 연결에서 뺀다 */
+  private async leaveOpenGroups(userId: string): Promise<void> {
+    const rows = await this.ctx.prisma.liveSession.findMany({
+      where: { mode: "group", status: { in: OPEN }, participants: { some: { userId, leftAt: null } } },
+      select: { id: true },
+    });
+    for (const { id } of rows) await this.leaveGroup(id, userId, userId);
+  }
+
+  /** 참여자 변화 알림: 참여자 전원(session:updated) + 현장 전원(group:updated) + 스트리밍 레인 맞추기 */
+  private async groupChanged(sessionId: string, siteId: string): Promise<LiveSession> {
+    const session = await this.publish(sessionId);
+    this.ctx.events.groupUpdated({ siteId, session: session.status === "ended" ? null : session });
+    const inside = session.participants.filter((p) => !p.leftAt).map((p) => ({ userId: p.userId, lang: p.lang }));
+    await this.ctx.streams?.groupChanged(sessionId, inside).catch((err: unknown) => this.ctx.logger.warn({ err, sessionId }, "현장 전체 연결 레인 맞추기 실패"));
+    return session;
+  }
+
+  private clearGrace(sessionId: string, userId: string) {
+    const key = `${sessionId}:${userId}`;
+    clearTimeout(this.graceTimers.get(key));
+    this.graceTimers.delete(key);
+  }
+
   // ─── 발화 대상 ─────────────────────────────────────
 
   /**
    * 세션 발화를 보낼 수 있는지 확인하고, 메시지 생성에 필요한 정보를 돌려준다.
-   * call: 통화 중인 두 사람 모두 / broadcast: 관리자(speaker)만
+   * call: 통화 중인 두 사람 모두 / broadcast: 관리자(speaker)만 / group: 지금 들어와 있는 참여자 (받는 사람 = 나머지 참여자)
    */
   async utteranceTarget(sessionId: string, senderId: string) {
     const { row, siteRole } = await this.loadAsParticipant(sessionId, senderId);
@@ -281,13 +387,10 @@ export class LiveSessionService {
     if (row.mode === "broadcast" && (me.role !== "speaker" || siteRole !== "manager")) {
       throw new AppError("FORBIDDEN", "일괄 지시는 관리자만 말할 수 있습니다.");
     }
+    if (row.mode === "group" && me.leftAt) throw new AppError("CONFLICT", "현장 전체 연결에서 나갔습니다.");
     const recipientIds = row.participants.filter((p) => p.userId !== senderId && !p.leftAt).map((p) => p.userId);
-    return {
-      siteId: row.siteId,
-      kind: row.mode === "call" ? ("direct" as const) : ("instruction" as const),
-      conversationId: row.mode === "call" ? row.conversationId : null,
-      recipientIds,
-    };
+    const kind = row.mode === "call" ? ("direct" as const) : row.mode === "group" ? ("group" as const) : ("instruction" as const);
+    return { siteId: row.siteId, kind, conversationId: row.mode === "broadcast" ? null : row.conversationId, recipientIds };
   }
 
   // ─── 종료 · 연결 감시 ───────────────────────────────
@@ -324,7 +427,9 @@ export class LiveSessionService {
     if (count === 0) return this.view((await this.loadRow(sessionId))!);
     await this.ctx.prisma.liveSessionParticipant.updateMany({ where: { sessionId, leftAt: null }, data: { leftAt: now } });
     this.ctx.logger.info({ sessionId, reason }, "통역 세션 종료");
-    return this.publish(sessionId);
+    const session = await this.publish(sessionId);
+    if (session.mode === "group") this.ctx.events.groupUpdated({ siteId: session.siteId, session: null });
+    return session;
   }
 
   private clearRing(sessionId: string) {
@@ -340,6 +445,20 @@ export class LiveSessionService {
     });
     for (const row of rows) {
       const role = row.participants.find((p) => p.userId === userId)!.role;
+      // 현장 전체 연결: 유예 후 그 사람만 나간다 (다른 사람은 계속)
+      if (row.mode === "group") {
+        const key = `${row.id}:${userId}`;
+        clearTimeout(this.graceTimers.get(key));
+        this.graceTimers.set(
+          key,
+          setTimeout(() => {
+            this.graceTimers.delete(key);
+            void this.leaveGroup(row.id, userId, null).catch((err) => this.ctx.logger.warn({ err }, "현장 전체 연결 끊김 처리 실패"));
+          }, this.timings.disconnectGraceMs),
+        );
+        await this.publish(row.id);
+        continue;
+      }
       // 통화 상대 또는 일괄 지시 관리자가 끊기면 유예 후 종료. 지시 수신자가 끊기면 상태만 알린다.
       const ends = row.mode === "call" || role === "speaker";
       if (ends) {
@@ -385,7 +504,9 @@ export class LiveSessionService {
     });
     for (const row of rows) {
       const role = row.participants.find((p) => p.userId === userId)!.role;
-      if (row.mode === "call" || role === "speaker") {
+      if (row.mode === "group") {
+        await this.leaveGroup(row.id, userId, null);
+      } else if (row.mode === "call" || role === "speaker") {
         await this.finish(row.id, "removed", null);
       } else {
         await this.ctx.prisma.liveSessionParticipant.update({
