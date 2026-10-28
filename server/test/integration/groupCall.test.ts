@@ -362,14 +362,24 @@ describe("현장 전체 연결 — 되돌린 자막 (STREAM_MINE_CAPTION=back, 2
         env.managerSocket.on("stream:mine:text", (p) => p.kind === "original" && originals.push(p));
         const mineEnd = waitFor(env.managerSocket, "stream:mine:end", (p) => p.sessionId === group.id);
         const ends = env.workerSockets.map((socket) => waitFor(socket, "stream:out:end", (p) => p.status === "done"));
+        const heard = env.workerSockets.map((socket) => {
+          const list: Payload<"stream:out:text">[] = [];
+          socket.on("stream:out:text", (p) => p.kind === "original" && list.push(p));
+          return list;
+        });
 
         speak(env.managerSocket, streamIdOf(result), 1.2);
         const end = await mineEnd;
-        await Promise.all(ends);
+        const workerEnds = await Promise.all(ends);
         await new Promise((resolve) => setTimeout(resolve, 400));
 
         expect(originals.map((p) => p.text)).toEqual([`[ko] [${first}] [음성 ko] 1.2s`]);
         expect(originals[0]!.turnId).toBe(end.turnId); // 대표 레인 턴(흐린 조각과 같은 줄)에 붙는다
+        // 듣는 사람도 언어와 관계없이 같은 되돌린 글로, 자기 레인 턴의 원문을 덮어쓴다 (2026-10-29)
+        heard.forEach((list, i) => {
+          expect(list.map((p) => p.text)).toEqual(["[음성 ko] 1.2s", `[ko] [${first}] [음성 ko] 1.2s`]);
+          expect(list.every((p) => p.turnId === workerEnds[i]!.turnId)).toBe(true);
+        });
         const body = (await env.manager.as("get", `/conversations/${group.conversationId}/messages`)).body as { messages?: MessageView[] } | MessageView[];
         const mine = (Array.isArray(body) ? body : body.messages ?? []).filter((m) => m.sessionId === group.id);
         expect(mine.map((m) => m.originalText)).toEqual([`[ko] [${first}] [음성 ko] 1.2s`]);

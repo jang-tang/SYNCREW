@@ -651,6 +651,7 @@ export class StreamHub {
     }
     // 되돌린 자막 (mineCaption=back): 대표 레인은 자기 자리의 글을, 다른 레인은 비어 있는 같은 말 자리를 먼저 채운다
     const back = this.options.mineCaption === "back" ? this.backCaption(lane, turn, result.translation) : null;
+    const heard = back ? this.heardBack(lane, turn) : null;
     let saved: Awaited<ReturnType<typeof persistTurn>> | null = null;
     try {
       saved = await persistTurn(this.ctx, {
@@ -681,6 +682,10 @@ export class StreamHub {
     }
     // 순서 중요: end(messageId) 를 먼저 보내고 기록 알림(message:new)을 보낸다 → 앱은 이미 들은 문장을 다시 재생하지 않는다
     this.endTurn(lane, turnId, "done", saved?.messageId ?? null);
+    // 듣는 사람 원문 자막도 되돌린 글로 바꾼다 (2026-10-29 사용자). 받아쓰기 원문은 이미 받았고, 되돌린 글이 오면 덮어쓴다
+    void heard?.then((text) => {
+      if (text && !stream.closed) this.toListeners(lane, "stream:out:text", { turnId, kind: "original", text });
+    });
     const original = (result.original ?? turn.original)?.trim();
     if (original) {
       lane.history = [...lane.history, { original, translation: result.translation }].slice(-2);
@@ -730,6 +735,13 @@ export class StreamHub {
     }
     if (!slot.claimed) this.claim(stream, slot, done);
     return Promise.resolve(slot.value ?? null);
+  }
+
+  /** 듣는 사람 원문 자막에 쓸 되돌린 글 (backCaption 뒤에 부른다). 다른 레인도 같은 말 자리의 되돌리기를 기다린다 */
+  private heardBack(lane: Lane, turn: TurnState): Promise<string | null> {
+    const slots = lane.stream.slots;
+    const slot = lane.primary ? slots.find((s) => s.turnId === turn.id) : slots.find((s) => sameUtterance(s.span, turn.span));
+    return slot?.claimed ? slot.text : Promise.resolve(null);
   }
 
   private claim(stream: Stream, slot: CaptionSlot, done: DoneTurn): void {
