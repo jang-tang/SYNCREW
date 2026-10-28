@@ -1,6 +1,6 @@
 # SYNCREW 인수인계 문서 (작업 재개 기준)
 
-작성 2026-10-14 (커밋 `12831ff` 기준), **최종 갱신 2026-10-25 밤 (iPhone 에코 제거 `inPlace` 후보 실기기 통과, 시드니 리허설·시제품 헤드셋 리허설 통과, PR #18 열림 — 브랜치 `ios-inplace-sydney-rehearsal`). **새 세션은 1절 "▶ 새 세션은 여기부터" 를 먼저 읽는다**. 그 전: 10-24 S4·현장 용어 400문장 측정(`docs/field-accuracy.md`), 10-23 Android S3, 10-22 PR #2–#10)**. 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
+작성 2026-10-14 (커밋 `12831ff` 기준), **최종 갱신 2026-10-28 새벽 (`main` `536d34b` — 1절 "▶ 새 세션은 여기부터" 맨 위 "10-28 새벽 기준 정리"가 기준)**. 이전 갱신 2026-10-25 밤 (iPhone 에코 제거 `inPlace` 후보 실기기 통과, 시드니 리허설·시제품 헤드셋 리허설 통과, PR #18 열림 — 브랜치 `ios-inplace-sydney-rehearsal`). **새 세션은 1절 "▶ 새 세션은 여기부터" 를 먼저 읽는다**. 그 전: 10-24 S4·현장 용어 400문장 측정(`docs/field-accuracy.md`), 10-23 Android S3, 10-22 PR #2–#10)**. 이 문서만 읽고 바로 작업을 이어 갈 수 있도록 작성했다.
 더 자세한 근거는 각 절에 적은 문서·파일에 있다. 작업 규칙의 원본은 루트 `CLAUDE.md`.
 
 표기: ✅ 완료(실제로 실행·확인함) · 🟡 진행 중/부분 완료 · ⬜ 미완료(아직 안 함) · ❓ 미확인(상태를 확인하지 못함)
@@ -16,7 +16,72 @@
 - 언어: 한국어(ko)·중국어(zh)·베트남어(vi)·우즈베크어(uz)·러시아어(ru)
 - 기능: 1:1 대화, 현장 그룹 대화, 관리자 일괄 지시(문자·실시간 음성) + 확인·완료 응답, **1:1 실시간 통역 통화**
 
-### ▶ 새 세션은 여기부터 — 지금 상태와 남은 일 (2026-10-25 밤 기준, 10/30 시연까지 5일)
+### ▶ 새 세션은 여기부터 — 지금 상태와 남은 일
+
+#### ★ 10-28 새벽 기준 정리 (10/30 시연까지 이틀) — 새 세션은 이 소절만 읽으면 이어서 작업할 수 있다
+
+**한 줄 요약**: 시연에 쓸 기능은 모두 `main`에 들어갔고 시드니 서버·세 폰(출시용 빌드)에 올라가 있다. 남은 것은 **실기기 확인 1개(아래 "다음에 확인할 것")**, 시연 진행 순서·은어 확인·당일 체크, 10/31 AWS 삭제.
+
+**지금 상태 (10-28 01:40 KST)**
+
+| 항목 | 상태 |
+|---|---|
+| 코드 | `main` = `536d34b` (PR #19–#27 모두 병합). 기준선: 서버 **293 통과·1 건너뜀**, 앱 단위 **69**, 데모 e2e **115**, live e2e **59** |
+| 시드니 서버 (https://syncrew.hyunshu.com) | `4b630c2` 배포(조현수, 10-28). 그 뒤 `main` 변경(#27)은 **앱만** → 서버 재배포 불필요. `ENGINE=openai`, `STREAM_MAX_SESSIONS=8`, **노이즈 필터 끔**(passthrough), 확정 자막 `STREAM_FINAL_STT` 켰는지는 **조현수에게 확인**(기본 off) |
+| 세 폰 | 모두 **출시용 빌드 `536d34b`** (Metro·Mac·같은 Wi-Fi 없이 실행, 시드니 주소 내장). iOS 는 개인 팀 서명이라 **11/4경 만료** |
+| 이 PC | 로컬 서버·DB·Metro **꺼짐**. `frontend/.env` = **live + https://syncrew.hyunshu.com** (출시용 빌드에 필요 — 데모 e2e 는 `EXPO_PUBLIC_API_MODE=mock npm run bundle:web` 로 덮어써 만든다). 디스크 여유 약 8.8GB (에뮬레이터 AVD 삭제함) |
+| OpenAI (이 PC 서버 DB) | 누적 **$17.728** / 한도 $20 (남은 약 $2.27). 시드니 사용분은 시드니 DB 에 따로 |
+
+**기기·계정** (비밀번호 `server/.e2e-accounts.json`, 시드니 현장 **"E2E 시드니 시험 현장"**)
+
+| 기기 | 계정·언어 | 연결 |
+|---|---|---|
+| iPhone 17 Pro | `syncrew-e2e-manager` 관리자, ko | USB 또는 같은 Wi-Fi, `xcrun devicectl …` (UDID 00008150-0014783A3630C01C) |
+| Galaxy Note 9 (Android 10) | `syncrew-e2e-member` "E2E Member", vi | 무선 adb `172.16.12.32:5555` |
+| Galaxy A52s (Android 14) | `syncrew-e2e-member2` "Li E2E", zh (시드니에서 10-27 처음 가입) | 무선 adb `172.16.1.239:5555` (IP 는 바뀜 — 끊기면 USB 로 꽂고 `adb tcpip 5555` → `adb connect <IP>:5555`) |
+| 헤드셋 | Sony WH-1000XM6 (Note 9 에 연결해 리허설 통과). **시제품 헤드셋은 최종 점검 때** | |
+
+**다음에 확인할 것 (실기기, 시드니, 실제 OpenAI 약 $0.05)**
+1. **"내 말" 자막 최근 10초 여러 줄** (PR #27 — 아직 실기기 확인 전): iPhone ↔ Note 9 를 1:1 로 연결 → iPhone 에서 짧은 말 2–3번 이어서 → **iPhone 의 "내 말" 자막**에 여러 줄이 쌓이고(앞 줄 흐리게, 받아쓰는 중 글자는 흐리게) 10초가 지나면 마지막 줄만 남는지. 받은 자막(Note 9)도 같은 규칙인지
+2. (최종 점검) 시제품 헤드셋을 Note 9 에 연결해 1:1·현장 전체 연결 한 번씩
+
+**남은 일 (우선순위 순)**
+
+| # | 할 일 | 담당 | 상태 |
+|---|---|---|---|
+| 1 | 위 "다음에 확인할 것" 1 | 장태웅 + Claude | ⬜ |
+| 1-1 | **되돌린 자막 (10-28 사용자 요청, 서버만, 커밋 전)**: 말한 사람 "내 말" 자막·기록 원문 = 통역문을 말한 사람 언어로 되돌린 글 (`STREAM_MINE_CAPTION=back`, 기본 off, 현장 전체는 먼저 끝난 언어 기준, 일괄 지시는 시연 뒤). 서버 298 통과. **실제 OpenAI 1:1 확인(10-28, $0.096): 은어 문장 6/6 뜻 맞게 되돌림, 말 끝 → 되돌린 자막 3.8–4.4초(번역기 연결 미리 열기 후)**. 현장 전체는 가짜 엔진만. 남은 것: 커밋·PR → 조현수 재배포 `STREAM_MINE_CAPTION=back ./render-env.sh openai` → 세 폰 리허설. 앱 재빌드 불필요. `docs/streaming-plan.md` 4-6절 | 장태웅 + Claude → 조현수 | ⬜ |
+| 2 | **시연 진행 순서 확정**: 장면 순서(1:1 연결·다음 멤버 / 현장 전체 연결 3명 / 일괄 지시 / 헤드셋), 말할 문장(은어 포함), 기기 배치 — Claude 가 대본 초안 가능 | 팀 | ⬜ |
+| 3 | 시연용 은어 뜻을 현장 사람에게 확인 | 장태웅 | ⬜ |
+| 4 | 확정 자막(`STREAM_FINAL_STT=on`, fallback) 시드니에서 켤지 | 조현수 | ❓ |
+| 5 | **당일 체크**: 세 폰 통화·미디어 음량 최대, 모두 충전(A52s 배터리 낮음), Note 9 Wi-Fi 켜기(유심 없음), 시연장 Wi-Fi 로그인 페이지면 미리 로그인(안 되면 핫스팟), 시제품 헤드셋 미리 연결, **폰끼리 떨어뜨리기**(가까우면 옆 폰 통역이 마이크로 들어감 — 현장에서는 문제 아님) | 장태웅 | ⬜ |
+| 6 | **10/31 AWS 시드니 자원 삭제** (`deploy/README.md` 8절) — 놓치면 비용 계속 | 조현수 | ⬜ |
+| 7 | 시연 뒤: 원문 받아쓰기 경계·오인식(`docs/streaming-plan.md` 5-8·4-5절, 조현수), 현장 전체 연결 잡음 턴이 언어 수만큼 생김(받아쓰기·말 끝 판정 한 번만), 연결 전환 0.5초 소리 끊김, 음량 up 3초 = 1:1 말하기 모드, UI 문구 원어민 검수, S6 지연 튜닝(약 $3–6), Android 12+ 확인, 개발 빌드 경고 "Can't perform a React state update on a component that hasn't mounted yet"(A52s 프로필 화면, 출시용에는 안 보임), 보안 F12 | - | ⬜ |
+
+**앱·서버를 고치면**
+- **서버만** 고치면: 커밋·PR·병합 → **조현수에게 시드니 재배포 요청**(`git pull` → (마이그레이션 있으면 `db:deploy`) → `docker compose build server && docker compose up -d server`, 설정은 `./render-env.sh openai` 로 다시 만듦 — `deploy/README.md` 3·7절). 이 PC 에는 AWS CLI 가 없어 직접 배포 못 함
+- **앱**을 고치면: 세 폰 **출시용 빌드를 다시 만들어 설치**(약 20–30분, 아래). 개발 빌드(Metro)로 시험하려면 `frontend/.env` 를 그대로 두고 `cd frontend && npx expo start --dev-client --lan --clear` → Android 는 `adb reverse tcp:8081 tcp:8081`, iPhone 은 Mac 과 같은 Wi-Fi + 개발 빌드 다시 설치(Mac IP 가 앱에 박힘)
+
+**출시용 빌드 다시 만들기** (빌드 전 `frontend/.env` 가 live + https://syncrew.hyunshu.com 인지, `df -h /System/Volumes/Data` 8GB 이상인지)
+```bash
+cd frontend/android && JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.8/libexec/openjdk.jdk/Contents/Home ./gradlew assembleRelease
+adb -s <기기> install -r app/build/outputs/apk/release/app-release.apk     # 두 Android (로그인 유지)
+cd ../ios && xcodebuild -workspace SYNCREW.xcworkspace -scheme SYNCREW -configuration Release -destination 'id=00008150-0014783A3630C01C' -allowProvisioningUpdates DEVELOPMENT_TEAM=RVB3MMNVS6 CODE_SIGN_STYLE=Automatic build
+xcrun devicectl device install app --device 00008150-0014783A3630C01C ~/Library/Developer/Xcode/DerivedData/SYNCREW-*/Build/Products/Release-iphoneos/SYNCREW.app
+```
+(app.json·네이티브 설정을 바꿨으면 Android 는 먼저 `npx expo prebuild --platform android --no-install`, 그 뒤 `git checkout -- frontend/package.json` — prebuild 가 scripts 를 바꾼다)
+
+**10-27–28 에 바뀐 것 (상세: `docs/implementation-plan.md` C3, `docs/device-test-log.md` 10-27·10-28)**
+- 현장 전체 연결(여러 명 실시간 통역), 지시 탭(첫 화면에서 바로 실시간 지시·보낸 기록 따로·지시 끝나면 듣던 사람은 연결 탭), 저절로 열린 화면 쌓임 방지 — PR #22·#23
+- iOS `inPlace` 기본값·무음 시작·에어팟 전환 종료 — PR #21
+- **"예전 말이 다시 전달"** 고침: 번역 엔진이 응답을 턴마다 하나씩 요청(item_reference) — PR #24, 실기기 확인
+- 확정 자막·글자 기반 통역(둘 다 기본 꺼짐)·임시 자막 흐리게 — PR #25 (조현수)
+- 자막 최근 10초 여러 줄 — 받은 자막 PR #26(실기기 확인), 내 말 자막 PR #27(실기기 확인 전)
+- 서버 노이즈 필터는 쓰지 않음(인식 정확도 하락), 일괄 지시 언어별 1–2초 도착 차이는 그대로 두기로(사용자)
+
+---
+
+#### (이전 메모 — 기록용, 10-25 밤–10-28)
 
 > **2026-10-28 갱신 (가장 먼저 읽기)**: PR #24 병합(`af55747`) + 시드니 재배포(노이즈 필터 끔) → **"예전 말" 문제 실기기 해결 확인**. 이어서 **PR #25(조현수, 확정 자막 `STREAM_FINAL_STT`·글자 기반 통역 `STREAM_TRANSLATE_FROM` — 둘 다 기본 꺼짐, 말한 사람 임시 자막 흐리게) 병합 `365a507`** + **받은 자막 최근 10초 여러 줄(장태웅, `feature/recent-captions`)** 을 합침. 남은 일: ① 시드니 재배포 — 확정 자막을 켤지(`STREAM_FINAL_STT=on`, `fallback`) 조현수 판단 ② ~~세 폰 출시용 빌드 다시 만들어 설치~~ ✅ 10-28 01:10 `main` `4b630c2` 로 세 폰 모두 설치(Metro 없이 실행 확인), 시드니도 재배포됨(조현수) ③ 시연 진행 순서·은어 확인·당일 체크 ④ 10/31 AWS 삭제
 >

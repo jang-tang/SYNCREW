@@ -198,6 +198,16 @@ socket.on("message:new", ({ message }) => {
   log(`◀ 기록 도착 (${message.sourceLang}→${me.preferredLang}): ${message.text ?? message.originalText ?? "(처리 중)"}${message.audioUrl ? " [음성]" : ""}`);
 });
 socket.on("message:status", (p) => log(`▶ 내 문장 상태: ${p.status}`));
+// 나 → 휴대폰: 내 말 자막 (말 끝 기준 시간. STREAM_MINE_CAPTION=back 이면 original 은 통역문을 되돌린 글)
+const mineTranslation = new Map<string, string>();
+socket.on("stream:mine:text", (p) => {
+  if (p.kind === "translation") mineTranslation.set(p.turnId, (mineTranslation.get(p.turnId) ?? "") + p.text);
+  if (p.kind === "original") log(`▶ 내 말 자막 (말 끝 +${Date.now() - voiceEndAt}ms): ${p.text}`);
+});
+socket.on("stream:mine:end", (p) => {
+  log(`▶ 내 말 턴 끝 (${p.status}, 말 끝 +${Date.now() - voiceEndAt}ms) 통역: ${mineTranslation.get(p.turnId) ?? ""}`);
+  mineTranslation.delete(p.turnId);
+});
 socket.on("stream:fallback", (p) => {
   if (p.streamId !== streamId) return;
   log(`스트리밍 중단 (${p.reason}) → 문장 단위로 보냅니다`);
@@ -271,6 +281,7 @@ async function speakStream(id: string) {
   padded.set(voice);
   speaking = true;
   const start = Date.now();
+  voiceEndAt = start + (voice.length / RATE) * 1000;
   for (let i = 0; i * FRAME_SAMPLES < padded.length; i += 1) {
     if (streamId !== id || ended) return;
     const frame = padded.slice(i * FRAME_SAMPLES, (i + 1) * FRAME_SAMPLES);
@@ -283,6 +294,7 @@ async function speakStream(id: string) {
 }
 let seq = 0;
 let speaking = false;
+let voiceEndAt = 0;
 
 /** --continuous: 말하지 않는 동안에도 100ms 마다 마이크 잡음 수준(약 -66dBFS)의 조각을 보낸다 */
 function noiseFrame(): ArrayBuffer {

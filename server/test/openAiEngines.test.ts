@@ -25,9 +25,11 @@ async function fakeRealtime(script: (send: (event: object) => void, socket: WebS
   const received: { type: string; [key: string]: unknown }[] = [];
   let headers: IncomingMessage["headers"] = {};
   let url = "";
+  let connections = 0;
   const server = createServer();
   const wss = new WebSocketServer({ server });
   wss.on("connection", (socket, req) => {
+    connections += 1;
     headers = req.headers;
     url = req.url ?? "";
     socket.on("message", (raw) => {
@@ -45,7 +47,7 @@ async function fakeRealtime(script: (send: (event: object) => void, socket: WebS
         server.close(() => resolve());
       }),
   );
-  return { url: `ws://127.0.0.1:${(server.address() as AddressInfo).port}/v1/realtime`, received, headers: () => headers, path: () => url };
+  return { url: `ws://127.0.0.1:${(server.address() as AddressInfo).port}/v1/realtime`, received, headers: () => headers, path: () => url, connections: () => connections };
 }
 
 const context = { terms: [{ source: "데스라", target: "lan can", meaning: "난간" }] };
@@ -113,6 +115,27 @@ describe("RealtimeTranslator (gpt-realtime-2.1)", () => {
     expect(out).toMatchObject({ text: "Остановите работу." });
     expect(out.audio).toBeUndefined();
     expect(server.received[0]).toMatchObject({ session: { output_modalities: ["text"] } });
+  });
+
+  it("warm(): 미리 연 연결을 다음 번역이 그대로 쓴다 (새로 연결하지 않음). 대조군: warm 없이는 번역마다 새 연결", async () => {
+    const server = await fakeRealtime((send) => {
+      send({ type: "response.output_text.done", text: "콘크리트 타설 전에 평탄하게 하세요." });
+      send({ type: "response.done", response: { status: "completed", usage: {} } });
+    });
+    const translator = new RealtimeTranslator({ apiKey: "k", model: "gpt-realtime-2.1", voice: "marin", reasoning: "low", budget: budget().guard, url: server.url });
+    const input = { text: "San phẳng hết trước khi đổ bê tông.", sourceLang: "vi" as const, targetLang: "ko" as const, context: { terms: [] }, withAudio: false };
+    translator.warm();
+    await new Promise((resolve) => setTimeout(resolve, 100)); // 연결이 열린 뒤 번역
+    expect(server.connections()).toBe(1);
+    expect((await translator.translate(input)).text).toBe("콘크리트 타설 전에 평탄하게 하세요.");
+    expect(server.connections()).toBe(1);
+    // 아직 열리는 중인 연결도 쓴다
+    translator.warm();
+    expect((await translator.translate(input)).text).toBe("콘크리트 타설 전에 평탄하게 하세요.");
+    expect(server.connections()).toBe(2);
+    // 대조군: 미리 연 연결이 없으면 새로 연다
+    await translator.translate(input);
+    expect(server.connections()).toBe(3);
   });
 
   it("error 이벤트·실패 응답·시간 초과는 오류로 끝나고, 예약한 비용은 기록하지 않는다", async () => {
