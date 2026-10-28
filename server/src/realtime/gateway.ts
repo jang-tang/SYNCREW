@@ -103,6 +103,7 @@ export function attachRealtime(
   const streams = new StreamHub(context, context.streamEngine, streamEmitter, {
     enabled: context.env.STREAMING === "on",
     maxStreams: context.env.STREAM_MAX_SESSIONS,
+    mineCaption: context.env.STREAM_MINE_CAPTION,
     ...options.stream,
   });
   context.streams = streams;

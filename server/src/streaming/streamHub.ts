@@ -52,6 +52,14 @@ export type StreamHubOptions = {
   /** 통역 스트림: stream:pause(단말이 보내기를 멈춤) 때 엔진에 넣는 무음 길이. 서버 VAD 는 받은 소리만 보고 무음 500ms 를 세므로,
    *  단말이 말 끝 뒤 0.6초만 보내고 멈추면 실제로는 3초를 쉬어도 그 꼬리의 잡음 때문에 다음 말과 한 턴으로 붙는다 (2026-10-23 Note 9 스피커) */
   pauseSilenceMs: number;
+  /**
+   * 말한 사람의 "내 말" 자막·기록 원문 (2026-10-28 사용자): transcript = 받아쓰기(예전 그대로),
+   * back = 통역문을 말한 사람 언어로 되돌린 글 (받아쓰기는 틀려도 통역은 맞는 경우가 많아, 상대에게 실제로 전달된 뜻을 보여 준다).
+   * back 이어도 말하는 도중 자막(original_partial)은 받아쓰기 그대로다. 현장 전체 연결은 같은 말 중 먼저 통역이 끝난 언어로 되돌린다
+   */
+  mineCaption: "transcript" | "back";
+  /** 되돌리기 한 번의 최대 시간 — 넘거나 실패하면 받아쓰기로 */
+  backTimeoutMs: number;
 };
 
 export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
@@ -63,6 +71,8 @@ export const DEFAULT_STREAM_HUB_OPTIONS: StreamHubOptions = {
   filter: DEFAULT_STREAM_FILTER_OPTIONS,
   echoGuardMs: 300,
   pauseSilenceMs: 700,
+  mineCaption: "transcript",
+  backTimeoutMs: 4_000,
 };
 
 /** 사용자 1명에게 재생 중인 턴들과, 마지막 턴이 끝난 뒤 차단이 풀리는 시각 */
@@ -80,7 +90,27 @@ type TurnState = {
   original: string | null;
   startedAt: number;
   firstAudioAt: number | null;
+  /** 이 턴이 차지한 입력 구간 (스트림 입력 바이트 위치) — 현장 전체 연결에서 언어마다 따로 끊긴 턴을 서로 맞춘다 */
+  span: Span;
 };
+
+/** 스트림 입력 위치 구간 [start, end) (말한 사람 표본률의 바이트) */
+type Span = { start: number; end: number };
+
+/** 되돌린 자막 자리 = 대표 레인의 턴 1개. 같은 말의 통역 중 먼저 끝난 것(claim)을 되돌려 채운다 */
+type CaptionSlot = {
+  turnId: string;
+  span: Span;
+  claimed: boolean;
+  /** 되돌린 글 (실패·시간 초과면 null) */
+  text: Promise<string | null>;
+  resolve: (text: string | null) => void;
+  /** 채워진 글 (기다리지 않고 읽을 때) */
+  value: string | null | undefined;
+};
+
+/** 끝난 통역 턴 — 아직 대표 레인 턴이 생기지 않아 자리를 못 찾은 것 (현장 전체 연결) */
+type DoneTurn = { span: Span; translation: string; lang: Lang; at: number };
 
 /** 앱이 연 스트림 1개 = 말하는 사람 1명 × 세션 1개 */
 type Stream = {
@@ -108,6 +138,12 @@ type Stream = {
   filter: SafeStreamFilter;
   /** 대상 언어별 레인 */
   lanes: Map<Lang, Lane>;
+  /** 지금까지 넣은 입력 길이 (바이트, 메아리 차단 무음 포함) — 턴 구간 계산용 */
+  position: number;
+  /** 되돌린 자막 자리 (mineCaption=back, 최근 것만) */
+  slots: CaptionSlot[];
+  /** 자리를 못 찾은 끝난 통역 턴 (최근 것만) */
+  doneTurns: DoneTurn[];
 };
 
 /** 대상 언어 1개: 엔진 연결 1개(통역) 또는 같은 언어 직접 전달 */
@@ -131,6 +167,8 @@ type Lane = {
   relay: boolean;
   relayTurn: { id: string; seq: number } | null;
   relayTimer: NodeJS.Timeout | null;
+  /** 지난 턴이 끝난 입력 위치 (다음 턴 구간의 시작) */
+  cutPos: number;
 };
 
 export class StreamHub {
@@ -220,6 +258,9 @@ export class StreamHub {
           this.ctx.logger.warn({ err: error, sessionId, reason, filter: this.ctx.streamAudioFilter.name }, reason === "disabled" ? "스트리밍 노이즈 필터 끔 (연속 실패)" : "스트리밍 노이즈 필터 실패, 원본 조각 사용"),
       ),
       lanes: new Map(),
+      position: 0,
+      slots: [],
+      doneTurns: [],
     };
     this.streams.set(stream.id, stream);
     for (const [lang, listenerIds] of plan) this.addLane(stream, lang, listenerIds);
@@ -277,6 +318,7 @@ export class StreamHub {
       relay,
       relayTurn: null,
       relayTimer: null,
+      cutPos: stream.position,
     };
     stream.lanes.set(targetLang, lane);
     return lane;
@@ -326,7 +368,8 @@ export class StreamHub {
           if (!turn || lane.closed) return;
           turn.original = text;
           this.toListeners(lane, "stream:out:text", { turnId, kind: "original", text });
-          if (lane.primary) this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text });
+          // 되돌린 자막이면 말한 사람에게는 받아쓰기 완성본 대신 되돌린 글을 보낸다 (onTurnEnd)
+          if (lane.primary && this.options.mineCaption === "transcript") this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text });
         },
         turnEnd: (turnId, result) => void this.onTurnEnd(lane, turnId, result),
         closed: (reason) => void this.onEngineClosed(lane, reason),
@@ -483,6 +526,7 @@ export class StreamHub {
   /** 필터를 거친 조각을 레인마다 넣는다. silence = 메아리 차단으로 바꾼 무음 (직접 전달은 보내지 않는다) */
   private ingest(stream: Stream, pcm: Buffer, silence: boolean): void {
     if (stream.closed) return;
+    stream.position += pcm.length;
     for (const lane of stream.lanes.values()) {
       if (lane.closed) continue;
       if (lane.relay) {
@@ -564,7 +608,14 @@ export class StreamHub {
     const input = Buffer.concat(lane.pendingInput);
     lane.pendingInput = [];
     lane.pendingBytes = 0;
-    lane.turns.set(turnId, { id: turnId, seq: 0, output: [], input, translation: "", original: null, startedAt: Date.now(), firstAudioAt: null });
+    const span = { start: lane.cutPos, end: lane.stream.position };
+    lane.cutPos = span.end;
+    lane.turns.set(turnId, { id: turnId, seq: 0, output: [], input, translation: "", original: null, startedAt: Date.now(), firstAudioAt: null, span });
+    if (lane.primary && this.options.mineCaption === "back") {
+      // 통역이 끝나면 곧 되돌린다 — 연결 맺는 시간(약 1.1초)을 통역과 겹치게 미리 연다
+      this.ctx.translator?.warm?.();
+      this.openSlot(lane.stream, turnId, span);
+    }
     for (const userId of lane.listenerIds) {
       this.playbackStarted(userId, turnId);
       this.emit.toUser(userId, "stream:out:start", {
@@ -598,6 +649,8 @@ export class StreamHub {
       this.endTurn(lane, turnId, "failed", null);
       return;
     }
+    // 되돌린 자막 (mineCaption=back): 대표 레인은 자기 자리의 글을, 다른 레인은 비어 있는 같은 말 자리를 먼저 채운다
+    const back = this.options.mineCaption === "back" ? this.backCaption(lane, turn, result.translation) : null;
     let saved: Awaited<ReturnType<typeof persistTurn>> | null = null;
     try {
       saved = await persistTurn(this.ctx, {
@@ -628,11 +681,84 @@ export class StreamHub {
     }
     // 순서 중요: end(messageId) 를 먼저 보내고 기록 알림(message:new)을 보낸다 → 앱은 이미 들은 문장을 다시 재생하지 않는다
     this.endTurn(lane, turnId, "done", saved?.messageId ?? null);
-    await saved?.notify().catch((error: unknown) => this.ctx.logger.warn({ err: error, turnId }, "스트리밍 턴 기록 알림 실패"));
     const original = (result.original ?? turn.original)?.trim();
     if (original) {
       lane.history = [...lane.history, { original, translation: result.translation }].slice(-2);
       lane.connection?.setContext(lane.history);
+    }
+    // 되돌린 글을 기다렸다가(최대 backTimeoutMs) 기록 원문을 바꿔 알린다. 실패하면 말한 사람 자막은 받아쓰기로
+    const backText = back ? await back : null;
+    if (back && !backText && original && lane.primary && !stream.closed) {
+      this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text: original });
+    }
+    await saved?.notify(backText ?? undefined).catch((error: unknown) => this.ctx.logger.warn({ err: error, turnId }, "스트리밍 턴 기록 알림 실패"));
+  }
+
+  // ─── 되돌린 자막 (mineCaption=back, 2026-10-28) ─────────
+  // 자리 = 대표 레인의 턴. 1:1 은 레인이 하나라 자기 통역을 되돌린다.
+  // 현장 전체 연결은 언어마다 엔진이 따로 말을 끊으므로, 입력 구간이 서로 절반 이상 겹치는 턴을 같은 말로 보고
+  // 먼저 끝난 통역을 되돌린다. 끊긴 위치가 크게 달라 짝이 없으면 대표 레인이 자기 통역으로 채운다.
+
+  private openSlot(stream: Stream, turnId: string, span: Span): void {
+    let resolve!: (text: string | null) => void;
+    const text = new Promise<string | null>((r) => (resolve = r));
+    const slot: CaptionSlot = { turnId, span, claimed: false, text, resolve, value: undefined };
+    stream.slots = [...stream.slots, slot].slice(-8);
+    // 다른 언어 통역이 이미 끝나 있으면 그것으로
+    const now = Date.now();
+    stream.doneTurns = stream.doneTurns.filter((done) => now - done.at < 30_000);
+    const done = stream.doneTurns.find((candidate) => sameUtterance(candidate.span, span));
+    if (!done) return;
+    stream.doneTurns = stream.doneTurns.filter((candidate) => candidate !== done);
+    this.claim(stream, slot, done);
+  }
+
+  /** 이 턴의 기록 원문으로 쓸 되돌린 글. 대표 레인은 되돌리기를 기다리고, 다른 레인은 이미 채워진 것만 (기다리지 않는다) */
+  private backCaption(lane: Lane, turn: TurnState, translation: string): Promise<string | null> {
+    const stream = lane.stream;
+    const done: DoneTurn = { span: turn.span, translation, lang: lane.targetLang, at: Date.now() };
+    if (lane.primary) {
+      const slot = stream.slots.find((s) => s.turnId === turn.id);
+      if (!slot) return Promise.resolve(null);
+      if (!slot.claimed) this.claim(stream, slot, done);
+      return slot.text;
+    }
+    const slot = stream.slots.find((s) => sameUtterance(s.span, turn.span));
+    if (!slot) {
+      stream.doneTurns = [...stream.doneTurns, done].slice(-8);
+      return Promise.resolve(null);
+    }
+    if (!slot.claimed) this.claim(stream, slot, done);
+    return Promise.resolve(slot.value ?? null);
+  }
+
+  private claim(stream: Stream, slot: CaptionSlot, done: DoneTurn): void {
+    slot.claimed = true;
+    void this.backTranslate(done.translation, done.lang, stream.sourceLang).then((text) => {
+      slot.value = text;
+      if (text && !stream.closed) this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId: slot.turnId, kind: "original", text });
+      slot.resolve(text);
+    });
+  }
+
+  /** 통역문을 말한 사람 언어로 되돌린다 (글자만). 실패·시간 초과·비용 한도면 null */
+  private async backTranslate(text: string, from: Lang, to: Lang): Promise<string | null> {
+    const translator = this.ctx.translator;
+    if (!translator || !text.trim() || from === to) return null;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      const output = await Promise.race([
+        translator.translate({ text: text.trim(), sourceLang: from, targetLang: to, context: { terms: [] }, withAudio: false }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`되돌리기 시간 초과 (${this.options.backTimeoutMs}ms)`)), this.options.backTimeoutMs);
+        }),
+      ]);
+      return output.text.trim() || null;
+    } catch (error) {
+      this.ctx.logger.warn({ err: error, from, to }, "되돌린 자막 실패, 받아쓰기로");
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -643,6 +769,15 @@ export class StreamHub {
       this.playbackEnded(userId, turnId);
     }
     if (lane.primary) this.emit.toUser(lane.stream.speakerId, "stream:mine:end", { sessionId: lane.stream.sessionId, turnId, status });
+    if (status === "failed" && lane.primary) {
+      // 실패한 턴의 자리는 채우지 않는다 (늦게 끝난 다른 언어 통역이 실패한 말에 자막을 달지 않게)
+      const slot = lane.stream.slots.find((s) => s.turnId === turnId);
+      if (slot && !slot.claimed) {
+        slot.claimed = true;
+        slot.value = null;
+        slot.resolve(null);
+      }
+    }
   }
 
   /** 엔진 연결이 예기치 않게 끝남: 진행 중 턴은 엔진이 실패로 닫았다. 다시 연결하거나 폴백 */
@@ -732,6 +867,12 @@ export class StreamHub {
   dispose(): void {
     for (const stream of [...this.streams.values()]) this.closeStream(stream);
   }
+}
+
+/** 두 턴이 같은 말인가: 겹친 구간이 두 턴 각각의 절반 이상 */
+function sameUtterance(a: Span, b: Span): boolean {
+  const overlap = Math.min(a.end, b.end) - Math.max(a.start, b.start);
+  return overlap > 0 && overlap * 2 >= a.end - a.start && overlap * 2 >= b.end - b.start;
 }
 
 /** 듣는 사람들을 언어별로 묶는다 (레인 계획). 언어 순서는 정렬해서 대표 레인이 매번 같게 */

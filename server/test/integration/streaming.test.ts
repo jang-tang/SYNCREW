@@ -970,3 +970,63 @@ describe.runIf(process.env.DENOISE_TEST_URL)("스트리밍 통역 — 실제 사
     }
   });
 });
+
+describe("되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
+  async function backApp(translator: FakeTranslator) {
+    return createRealtimeTestApp({
+      stt: new FakeStt(),
+      translator,
+      streamEngine: new FakeStreamEngine({ firstChunkDelayMs: 20 }),
+      stream: { maxStreams: 100, mineCaption: "back", backTimeoutMs: 1_000 },
+      sessions: { ringTimeoutMs: 5000, disconnectGraceMs: 500 },
+    });
+  }
+
+  it("말한 사람의 내 말 자막·기록 원문 = 통역문을 말한 사람 언어로 되돌린 글. 말하는 도중 조각은 받아쓰기 그대로, 듣는 사람 원문 자막도 그대로", async () => {
+    const t = await backApp(new FakeTranslator());
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const texts: Payload<"stream:mine:text">[] = [];
+      const onText = (p: Payload<"stream:mine:text">) => texts.push(p);
+      env.managerSocket.on("stream:mine:text", onText);
+      const back = waitFor(env.managerSocket, "stream:mine:text", (x) => x.kind === "original");
+      const listener = collectTurn(env.workerSockets[0]!);
+      const record = waitFor(env.workerSockets[0]!, "message:new");
+      speak(env.managerSocket, streamId, 1.0);
+
+      expect((await back).text).toBe("[ko] [vi] [음성 ko] 1.0s");
+      const turn = await listener;
+      env.managerSocket.off("stream:mine:text", onText);
+      // 받아쓰기 완성본은 말한 사람에게 보내지 않는다 (흐린 조각만)
+      expect(texts.filter((x) => x.kind === "original").map((x) => x.text)).toEqual(["[ko] [vi] [음성 ko] 1.0s"]);
+      expect(texts.some((x) => x.kind === "original_partial")).toBe(true);
+      // 대조군: 듣는 사람의 원문 자막은 받아쓰기 그대로
+      expect(turn.text.find((x) => x.kind === "original")?.text).toBe("[음성 ko] 1.0s");
+      // 기록 원문도 되돌린 글 (알림·다시 불러오기 모두)
+      expect((await record).message.originalText).toBe("[ko] [vi] [음성 ko] 1.0s");
+      const list = (await env.manager.as("get", `/conversations/${session.conversationId}/messages`)).body as { messages?: MessageView[] } | MessageView[];
+      const mine = (Array.isArray(list) ? list : list.messages ?? []).filter((m) => m.sessionId === session.id);
+      expect(mine.map((m) => m.originalText)).toEqual(["[ko] [vi] [음성 ko] 1.0s"]);
+    } finally {
+      await t.close();
+    }
+  });
+
+  it("되돌리기가 실패하면 내 말 자막·기록은 받아쓰기로 (대조군: 성공하면 되돌린 글 — 위 시험)", async () => {
+    const t = await backApp(new FakeTranslator({ fail: () => true }));
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const original = waitFor(env.managerSocket, "stream:mine:text", (x) => x.kind === "original");
+      const record = waitFor(env.workerSockets[0]!, "message:new");
+      speak(env.managerSocket, streamId, 1.0);
+      expect((await original).text).toBe("[음성 ko] 1.0s");
+      expect((await record).message.originalText).toBe("[음성 ko] 1.0s");
+    } finally {
+      await t.close();
+    }
+  });
+});

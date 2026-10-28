@@ -40,7 +40,7 @@ export type StreamedTurn = {
  * 저장만 하고, 알림(message:new·message:status)은 돌려준 notify() 로 보낸다.
  * 허브가 stream:out:end(messageId) 를 먼저 보낸 뒤 notify() 해야 앱이 "이미 들은 문장"을 다시 재생하지 않는다 (S2 e2e 로 확인).
  */
-export async function persistTurn(context: AppContext, turn: StreamedTurn): Promise<{ messageId: string; notify: () => Promise<void> }> {
+export async function persistTurn(context: AppContext, turn: StreamedTurn): Promise<{ messageId: string; notify: (original?: string) => Promise<void> }> {
   const { prisma, storage, domain } = context;
   const clientMessageId = `${turn.hiddenFromSender ? HIDDEN_FROM_SENDER_PREFIX : "stream-"}${turn.turnId}`.slice(0, 64);
   const existing = await prisma.message.findUnique({ where: { senderId_clientMessageId: { senderId: turn.senderId, clientMessageId } } });
@@ -101,8 +101,16 @@ export async function persistTurn(context: AppContext, turn: StreamedTurn): Prom
     return created;
   });
 
-  // 발화 단위 방식과 같은 알림: 받는 사람 message:new, 말한 사람 message:status
-  const notify = async () => {
+  // 발화 단위 방식과 같은 알림: 받는 사람 message:new, 말한 사람 message:status.
+  // original 을 주면 알리기 전에 기록 원문을 그것으로 바꾼다 (되돌린 자막, STREAM_MINE_CAPTION=back — 2026-10-28)
+  const notify = async (original?: string) => {
+    const text = original?.trim();
+    if (text && text !== rawText) {
+      await prisma.message.update({ where: { id: messageId }, data: { rawText: text, correctedText: text, glossaryHits: [] } });
+      message.rawText = text;
+      message.correctedText = text;
+      message.glossaryHits = [];
+    }
     const sender = await prisma.profile.findUnique({ where: { id: turn.senderId }, select: { displayName: true } });
     for (const userId of turn.recipientIds) {
       context.events.messageNew({ userId, message: toMessageView(message, userId, sender?.displayName ?? "", context.audioUrls) });

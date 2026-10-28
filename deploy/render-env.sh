@@ -19,6 +19,7 @@
 #   STREAM_TRANSLATE_FROM(audio|text, 기본 audio — text 는 화면 원문 글자로 통역, docs/streaming-plan.md 4-4절),
 #   STREAM_SPECULATIVE(on|off, 기본 on), STREAM_SEGMENT_AFTER_MS(기본 4000), STREAM_SEGMENT_PAUSE_MS(기본 200),
 #   STREAM_FINAL_STT(on|off, 기본 off — 확정 자막을 STT_MODEL 로, docs/streaming-plan.md 4-5절), STREAM_FINAL_STT_MODE(fallback|replace, 기본 fallback)
+#   STREAM_MINE_CAPTION(transcript|back, 기본 transcript — back 은 말한 사람 자막·기록 원문을 통역문을 되돌린 글로, docs/streaming-plan.md 4-6절)
 set -euo pipefail
 umask 077
 
@@ -158,6 +159,7 @@ STREAM_SEGMENT_AFTER_MS=${STREAM_SEGMENT_AFTER_MS:-4000}
 STREAM_SEGMENT_PAUSE_MS=${STREAM_SEGMENT_PAUSE_MS:-200}
 STREAM_FINAL_STT=${STREAM_FINAL_STT:-off}
 STREAM_FINAL_STT_MODE=${STREAM_FINAL_STT_MODE:-fallback}
+STREAM_MINE_CAPTION=${STREAM_MINE_CAPTION:-transcript}
 STREAM_AUDIO_FILTER=$FILTER
 DENOISE_URL='$DENOISE_URL'
 

@@ -64,6 +64,11 @@ const envSchema = z.object({
   STREAM_FINAL_STT: z.enum(["on", "off"]).default("off"),
   /** 확정 자막 방식: fallback = 전사 세션 완성본이 비었을 때만 채움(10-28 실측 권장), replace = 언제나 확정 자막으로 */
   STREAM_FINAL_STT_MODE: z.enum(["fallback", "replace"]).default("fallback"),
+  /**
+   * 말한 사람의 "내 말" 자막·기록 원문 (2026-10-28, docs/streaming-plan.md 4-6절): transcript = 받아쓰기(예전 그대로),
+   * back = 통역문을 말한 사람 언어로 되돌린 글 (말하는 도중 흐린 자막은 받아쓰기 그대로). 현장 전체 연결은 먼저 통역이 끝난 언어 기준
+   */
+  STREAM_MINE_CAPTION: z.enum(["transcript", "back"]).default("transcript"),
   /** 1 이면 스트리밍 엔진의 OpenAI 이벤트(조각 제외)를 세션 종류와 함께 info 로 남긴다 (원문 누락 진단용) */
   STREAM_DEBUG: z.enum(["0", "1"]).default("0"),
   /** 업로드 음성·번역 음성 저장 위치 */

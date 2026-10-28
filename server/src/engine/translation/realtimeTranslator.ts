@@ -13,10 +13,14 @@ import type { TranslateInput, TranslateOutput, Translator } from "./translator";
 //   - 음성: response.output_audio.delta (base64 PCM16 24kHz), 전사: response.output_audio_transcript.done
 //   - 사용량: response.done → response.usage
 // 번역 1건(메시지 1개 × 대상 언어 1개)마다 세션을 열고 응답이 끝나면 닫는다.
+// 연결 맺기에 약 1.1초가 걸려(2026-10-28 실측) warm() 으로 다음 번역에 쓸 연결을 미리 열어 둘 수 있다 (되돌린 자막). 열어 두는 것만으로는 과금되지 않는다.
 
 const URL_BASE = "wss://api.openai.com/v1/realtime";
 const TIMEOUT_MS = 15_000;
 const OUTPUT_SAMPLE_RATE = 24_000;
+/** 미리 열어 두는 연결 수·유지 시간 */
+const WARM_MAX = 2;
+const WARM_TTL_MS = 120_000;
 
 export type RealtimeTranslatorOptions = {
   apiKey: string;
@@ -81,7 +85,49 @@ type ServerEvent = {
 export class RealtimeTranslator implements Translator {
   readonly name = "openai-realtime";
 
+  private warmSockets: { ws: WebSocket; at: number }[] = [];
+
   constructor(private readonly options: RealtimeTranslatorOptions) {}
+
+  /** 다음 번역에 쓸 연결을 미리 연다 (이미 WARM_MAX 개면 그대로) */
+  warm(): void {
+    this.pruneWarm();
+    if (this.warmSockets.length >= WARM_MAX) return;
+    const entry = { ws: this.connect(), at: Date.now() };
+    const drop = () => (this.warmSockets = this.warmSockets.filter((w) => w !== entry));
+    entry.ws.on("error", drop);
+    entry.ws.on("close", drop);
+    entry.ws.on("unexpected-response", () => {
+      drop();
+      entry.ws.terminate();
+    });
+    this.warmSockets.push(entry);
+  }
+
+  private connect(): WebSocket {
+    return new WebSocket(`${this.options.url ?? URL_BASE}?model=${encodeURIComponent(this.options.model)}`, {
+      headers: { Authorization: `Bearer ${this.options.apiKey}` },
+    });
+  }
+
+  private pruneWarm(): void {
+    const now = Date.now();
+    this.warmSockets = this.warmSockets.filter((w) => {
+      const alive = now - w.at < WARM_TTL_MS && (w.ws.readyState === WebSocket.OPEN || w.ws.readyState === WebSocket.CONNECTING);
+      if (!alive) w.ws.terminate();
+      return alive;
+    });
+  }
+
+  /** 미리 연 연결(열린 것 먼저)이 있으면 그것, 없으면 새로 연다. 꺼낸 연결의 리스너는 호출한 쪽이 바로(같은 틱에) 단다 */
+  private takeSocket(): WebSocket {
+    this.pruneWarm();
+    const entry = this.warmSockets.find((w) => w.ws.readyState === WebSocket.OPEN) ?? this.warmSockets[0];
+    if (!entry) return this.connect();
+    this.warmSockets = this.warmSockets.filter((w) => w !== entry);
+    entry.ws.removeAllListeners();
+    return entry.ws;
+  }
 
   async translate(input: TranslateInput): Promise<TranslateOutput> {
     const { model, budget } = this.options;
@@ -98,14 +144,12 @@ export class RealtimeTranslator implements Translator {
   }
 
   private run(input: TranslateInput, instructions: string): Promise<TranslateOutput> {
-    const { apiKey, model, voice, reasoning } = this.options;
+    const { model, voice, reasoning } = this.options;
     const timeoutMs = this.options.timeoutMs ?? TIMEOUT_MS;
     const withAudio = input.withAudio;
 
     return new Promise<TranslateOutput>((resolve, reject) => {
-      const ws = new WebSocket(`${this.options.url ?? URL_BASE}?model=${encodeURIComponent(model)}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+      const ws = this.takeSocket();
       const audio: Buffer[] = [];
       let transcript = "";
       let settled = false;
@@ -122,7 +166,7 @@ export class RealtimeTranslator implements Translator {
       const timer = setTimeout(() => finish(new Error(`Realtime 번역 시간 초과 (${timeoutMs}ms)`)), timeoutMs);
       const send = (event: object) => ws.send(JSON.stringify(event));
 
-      ws.on("open", () => {
+      const start = () => {
         send({
           type: "session.update",
           session: {
@@ -141,7 +185,9 @@ export class RealtimeTranslator implements Translator {
           item: { type: "message", role: "user", content: [{ type: "input_text", text: input.text }] },
         });
         send({ type: "response.create" });
-      });
+      };
+      if (ws.readyState === WebSocket.OPEN) start();
+      else ws.on("open", start);
 
       ws.on("message", (raw) => {
         let event: ServerEvent;

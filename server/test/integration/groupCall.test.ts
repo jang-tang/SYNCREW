@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FakeStt, FakeTranslator } from "../../src/engine/fake";
 import type { LiveSession, MessageView } from "../../src/shared/api";
 import type { ServerToClientEvents, StreamOpenResult } from "../../src/shared/realtime";
+import type { StreamEngine } from "../../src/streaming/engine";
 import { FakeStreamEngine } from "../../src/streaming/fakeStream";
 import { createRealtimeTestApp, noEvent, type RtClient } from "../helpers/testApp";
 
@@ -319,4 +320,63 @@ describe("현장 전체 연결 — 스트리밍", () => {
     expect(await open(env.managerSocket, group.id)).toMatchObject({ ok: true });
     await env.manager.as("post", `/sessions/${group.id}/end`);
   });
+});
+
+describe("현장 전체 연결 — 되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
+  /** 한 언어의 턴 끝만 늦추는 엔진 (먼저 통역이 끝난 언어를 고르는지 보려고) */
+  function slowLang(inner: FakeStreamEngine, lang: string, delayMs: number): StreamEngine {
+    return {
+      name: inner.name,
+      sampleRate: inner.sampleRate,
+      open: (options) =>
+        inner.open({
+          ...options,
+          events: {
+            ...options.events,
+            turnEnd: (turnId, result) =>
+              options.targetLang === lang ? void setTimeout(() => options.events.turnEnd(turnId, result), delayMs) : options.events.turnEnd(turnId, result),
+          },
+        }),
+    };
+  }
+
+  async function backApp(slow: string) {
+    return createRealtimeTestApp({
+      stt: new FakeStt(),
+      translator: new FakeTranslator(),
+      streamEngine: slowLang(new FakeStreamEngine({ firstChunkDelayMs: 20 }), slow, 600),
+      stream: { maxStreams: 100, mineCaption: "back", backTimeoutMs: 1_000 },
+      sessions: { ringTimeoutMs: 5000, disconnectGraceMs: 300 },
+    });
+  }
+
+  for (const [slow, first] of [["vi", "zh"], ["zh", "vi"]] as const) {
+    it(`말한 사람 자막·기록은 먼저 통역이 끝난 언어(${first})를 되돌린 글 1개 — 대표 레인이 늦어도(${slow} 늦춤)`, async () => {
+      const t = await backApp(slow);
+      try {
+        const env = await setupSite(t, ["vi", "zh"]);
+        const group = (await env.manager.as("post", `/sites/${env.siteId}/group-call`)).body as LiveSession;
+        for (const worker of env.workers) await worker.as("post", `/sites/${env.siteId}/group-call`);
+        const result = await open(env.managerSocket, group.id);
+        const originals: Payload<"stream:mine:text">[] = [];
+        env.managerSocket.on("stream:mine:text", (p) => p.kind === "original" && originals.push(p));
+        const mineEnd = waitFor(env.managerSocket, "stream:mine:end", (p) => p.sessionId === group.id);
+        const ends = env.workerSockets.map((socket) => waitFor(socket, "stream:out:end", (p) => p.status === "done"));
+
+        speak(env.managerSocket, streamIdOf(result), 1.2);
+        const end = await mineEnd;
+        await Promise.all(ends);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        expect(originals.map((p) => p.text)).toEqual([`[ko] [${first}] [음성 ko] 1.2s`]);
+        expect(originals[0]!.turnId).toBe(end.turnId); // 대표 레인 턴(흐린 조각과 같은 줄)에 붙는다
+        const body = (await env.manager.as("get", `/conversations/${group.conversationId}/messages`)).body as { messages?: MessageView[] } | MessageView[];
+        const mine = (Array.isArray(body) ? body : body.messages ?? []).filter((m) => m.sessionId === group.id);
+        expect(mine.map((m) => m.originalText)).toEqual([`[ko] [${first}] [음성 ko] 1.2s`]);
+        await env.manager.as("post", `/sessions/${group.id}/end`);
+      } finally {
+        await t.close();
+      }
+    });
+  }
 });

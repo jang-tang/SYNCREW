@@ -24,4 +24,6 @@ export type TranslateOutput = {
 export interface Translator {
   readonly name: string;
   translate(input: TranslateInput): Promise<TranslateOutput>;
+  /** 곧 번역할 것이므로 연결을 미리 열어 둔다 (선택, 되돌린 자막 — 2026-10-28) */
+  warm?(): void;
 }
