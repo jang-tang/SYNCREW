@@ -285,7 +285,8 @@ export function useStreamingCall(options: {
         else order.waiting.find((w) => w.turnId === p.turnId)?.chunks.push(p.pcm);
       }),
       realtime.on("stream:out:text", (p) => {
-        if (!mineTurn(p.turnId)) return;
+        // 원문은 턴이 끝난 뒤에도 바뀔 수 있다 (되돌린 자막 STREAM_MINE_CAPTION=back, 2026-10-29) — 화면에 있는 자막만 고친다
+        if (!mineTurn(p.turnId) && p.kind !== "original") return;
         batch.queue(change(p.turnId, (c) => (p.kind === "original" ? { ...c, original: p.text } : { ...c, translation: c.translation + p.text })));
       }),
       realtime.on("stream:out:end", (p) => {

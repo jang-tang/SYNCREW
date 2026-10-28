@@ -982,7 +982,7 @@ describe("되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
     });
   }
 
-  it("말한 사람의 내 말 자막·기록 원문 = 통역문을 말한 사람 언어로 되돌린 글. 말하는 도중 조각은 받아쓰기 그대로, 듣는 사람 원문 자막도 그대로", async () => {
+  it("말한 사람의 내 말 자막·기록 원문 = 통역문을 말한 사람 언어로 되돌린 글. 말하는 도중 조각은 받아쓰기 그대로, 듣는 사람 원문 자막은 받아쓰기 뒤 되돌린 글로", async () => {
     const t = await backApp(new FakeTranslator());
     try {
       const env = await setupSite(t, ["vi"]);
@@ -993,6 +993,7 @@ describe("되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
       env.managerSocket.on("stream:mine:text", onText);
       const back = waitFor(env.managerSocket, "stream:mine:text", (x) => x.kind === "original");
       const listener = collectTurn(env.workerSockets[0]!);
+      const heardBack = waitFor(env.workerSockets[0]!, "stream:out:text", (x) => x.kind === "original" && x.text.startsWith("[ko]"));
       const record = waitFor(env.workerSockets[0]!, "message:new");
       speak(env.managerSocket, streamId, 1.0);
 
@@ -1002,7 +1003,8 @@ describe("되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
       // 받아쓰기 완성본은 말한 사람에게 보내지 않는다 (흐린 조각만)
       expect(texts.filter((x) => x.kind === "original").map((x) => x.text)).toEqual(["[ko] [vi] [음성 ko] 1.0s"]);
       expect(texts.some((x) => x.kind === "original_partial")).toBe(true);
-      // 대조군: 듣는 사람의 원문 자막은 받아쓰기 그대로
+      // 듣는 사람: 먼저 받아쓰기 원문, 되돌린 글이 오면 같은 턴의 원문을 덮어쓴다 (2026-10-29). 턴 끝 전후 어느 쪽이든 온다
+      expect(await heardBack).toEqual({ turnId: turn.start!.turnId, kind: "original", text: "[ko] [vi] [음성 ko] 1.0s" });
       expect(turn.text.find((x) => x.kind === "original")?.text).toBe("[음성 ko] 1.0s");
       // 기록 원문도 되돌린 글 (알림·다시 불러오기 모두)
       expect((await record).message.originalText).toBe("[ko] [vi] [음성 ko] 1.0s");
@@ -1022,9 +1024,13 @@ describe("되돌린 자막 (STREAM_MINE_CAPTION=back, 2026-10-28)", () => {
       const streamId = streamIdOf(await open(env.managerSocket, session.id));
       const original = waitFor(env.managerSocket, "stream:mine:text", (x) => x.kind === "original");
       const record = waitFor(env.workerSockets[0]!, "message:new");
+      // 듣는 사람은 받아쓰기 원문 하나만 (되돌린 글로 덮어쓰지 않는다)
+      const heard: string[] = [];
+      env.workerSockets[0]!.on("stream:out:text", (x) => x.kind === "original" && heard.push(x.text));
       speak(env.managerSocket, streamId, 1.0);
       expect((await original).text).toBe("[음성 ko] 1.0s");
       expect((await record).message.originalText).toBe("[음성 ko] 1.0s");
+      expect(heard).toEqual(["[음성 ko] 1.0s"]);
     } finally {
       await t.close();
     }
