@@ -641,6 +641,32 @@ describe("스트리밍 통역 — 반이중 메아리 차단 (2026-10-19 실기�
 });
 
 describe("스트리밍 통역 — 엔진 장애·비용 한도·상한 (P6)", () => {
+  it("말이 없어 버린 턴(EMPTY)은 듣는 사람에게 시작도 실패도 보내지 않고, 말한 사람 자막은 빈 원문으로 조용히 닫는다 (10-29: 반이중으로 끊긴 조각마다 \"통역 실패\"). 대조군: 다음 턴은 그대로", async () => {
+    const { app: t } = await createApp({ emptyTurn: (turn) => turn === 1 });
+    try {
+      const env = await setupSite(t, ["vi"]);
+      const session = await connectCall(env);
+      const streamId = streamIdOf(await open(env.managerSocket, session.id));
+      const listenerQuiet = noEvent(env.workerSockets[0]!, "stream:out:start", 700);
+      const listenerNoEnd = noEvent(env.workerSockets[0]!, "stream:out:end", 700);
+      const mineEnd = waitFor(env.managerSocket, "stream:mine:end");
+      const mineOriginal = waitFor(env.managerSocket, "stream:mine:text", (p) => p.kind === "original");
+      let seq = speak(env.managerSocket, streamId, 0.4);
+      expect(await mineEnd).toMatchObject({ status: "done" });
+      expect((await mineOriginal).text).toBe("");
+      await listenerQuiet;
+      await listenerNoEnd;
+
+      const ok = collectTurn(env.workerSockets[0]!);
+      seq = speak(env.managerSocket, streamId, 0.4, seq);
+      const turn = await ok;
+      expect(turn.start).not.toBeNull();
+      expect(turn.end.status).toBe("done");
+    } finally {
+      await t.close();
+    }
+  });
+
   it("엔진이 응답 도중 끊기면 그 턴은 실패, 다시 연결해 다음 턴은 성공한다", async () => {
     const { app: t, engine } = await createApp({ dropOnTurn: (turn, connection) => turn === 1 && connection === 1 });
     try {

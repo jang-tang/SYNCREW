@@ -306,6 +306,36 @@ describe("현장 전체 연결 — 스트리밍", () => {
     await env.manager.as("post", `/sessions/${group.id}/end`);
   });
 
+  it("긴 지시: 말한 사람 본인 말의 통역이 재생되는 동안에는 그 사람의 이어지는 말을 버리지 않는다 (10-29 실기기: 긴 지시가 조각나고 중간이 사라짐). 대조군: 다른 사람 말의 통역이 재생되는 동안에는 버린다", async () => {
+    const env = await setupSite(t, ["vi", "zh"]);
+    const [vi, zh] = env.workers;
+    const group = (await env.manager.as("post", `/sites/${env.siteId}/group-call`)).body as LiveSession;
+    for (const worker of [vi!, zh!]) await worker.as("post", `/sites/${env.siteId}/group-call`);
+    const managerStream = streamIdOf(await open(env.managerSocket, group.id));
+    const zhStream = streamIdOf(await open(env.workerSockets[1]!, group.id));
+
+    // 관리자 첫 마디 → vi·zh 에게 재생 시작. 관리자는 쉬었다가 이어서 말한다 → 그 말은 버리지 않는다
+    const firstStart = waitFor(env.workerSockets[0]!, "stream:out:start", (p) => p.fromUserId === env.manager.id);
+    const managerEnds = env.workerSockets.map((socket) => waitFor(socket, "stream:out:end", () => true, 8000));
+    let seq = speak(env.managerSocket, managerStream, 1.5);
+    await firstStart;
+    seq = speak(env.managerSocket, managerStream, 0.5, seq);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(t.context.streams!.stats(managerStream)!.echoDropped).toBe(0);
+
+    // 방이 조용해진 뒤 zh 가 말하면 차례가 zh 로 넘어간다 → zh 말의 통역이 재생되는 동안 관리자의 조각은 버린다
+    await Promise.all(managerEnds);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const zhToManager = waitFor(env.managerSocket, "stream:out:start", (p) => p.fromUserId === zh!.id, 5000);
+    speak(env.workerSockets[1]!, zhStream, 1.0);
+    await zhToManager;
+    const before = t.context.streams!.stats(managerStream)!.echoDropped;
+    speak(env.managerSocket, managerStream, 0.5, seq);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(t.context.streams!.stats(managerStream)!.echoDropped).toBeGreaterThan(before);
+    await env.manager.as("post", `/sessions/${group.id}/end`);
+  });
+
   it("나간 사람의 스트림은 닫히고(이후 음성 무시), 남은 사람끼리 계속된다", async () => {
     const env = await setupSite(t, ["vi"]);
     const [vi] = env.workers;
