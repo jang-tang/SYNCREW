@@ -92,6 +92,10 @@ type TurnState = {
   firstAudioAt: number | null;
   /** 이 턴이 차지한 입력 구간 (스트림 입력 바이트 위치) — 현장 전체 연결에서 언어마다 따로 끊긴 턴을 서로 맞춘다 */
   span: Span;
+  /** 듣는 사람에게 stream:out:start 를 보냈는가 (첫 통역 출력 때, announce) */
+  announced: boolean;
+  /** 시작을 알리기 전에 온 받아쓰기 원문 — 알릴 때 보낸다 */
+  pendingOriginal: string | null;
 };
 
 /** 스트림 입력 위치 구간 [start, end) (말한 사람 표본률의 바이트) */
@@ -144,6 +148,8 @@ type Stream = {
   slots: CaptionSlot[];
   /** 자리를 못 찾은 끝난 통역 턴 (최근 것만) */
   doneTurns: DoneTurn[];
+  /** 말한 사람에게 받아쓰는 중 조각을 보낸 턴 (앱이 내 말 자막에 붙인 턴, 최근 것만) — 버린 턴의 자막을 정리할 때 */
+  partialTurns: string[];
 };
 
 /** 대상 언어 1개: 엔진 연결 1개(통역) 또는 같은 언어 직접 전달 */
@@ -175,6 +181,8 @@ export class StreamHub {
   private readonly streams = new Map<string, Stream>();
   /** 듣는 사람(userId)별 재생 상태 — 메아리 차단 판단용 */
   private readonly playback = new Map<string, Playback>();
+  /** 현장 전체 연결: 방이 조용해진 뒤 통역이 시작된 말한 사람들 (세션별) — 방 전체 반이중에서 본인 말 통역 중에는 이어 말할 수 있게 */
+  private readonly floor = new Map<string, Set<string>>();
   /** 진행 중인 열기들 — closeSession 은 등록된 스트림만 닫으므로, 권한 확인과 등록 사이에 끝난 세션은 이 표시로 막는다 */
   private readonly pendingOpens = new Set<PendingOpen>();
   readonly options: StreamHubOptions;
@@ -261,6 +269,7 @@ export class StreamHub {
       position: 0,
       slots: [],
       doneTurns: [],
+      partialTurns: [],
     };
     this.streams.set(stream.id, stream);
     for (const [lang, listenerIds] of plan) this.addLane(stream, lang, listenerIds);
@@ -354,6 +363,7 @@ export class StreamHub {
         translationDelta: (turnId, text) => {
           const turn = lane.turns.get(turnId);
           if (!turn || lane.closed) return;
+          this.announce(lane, turn);
           turn.translation += text;
           this.toListeners(lane, "stream:out:text", { turnId, kind: "translation", text });
           if (lane.primary) this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "translation", text });
@@ -361,13 +371,15 @@ export class StreamHub {
         originalDelta: (turnId, text) => {
           // 받아쓰는 중 글자는 말한 사람에게만 (듣는 사람은 완성본만). 전사 세션 조각은 번역 응답(turnStart)보다 먼저 올 수 있다
           if (lane.closed || !lane.primary) return;
+          if (!stream.partialTurns.includes(turnId)) stream.partialTurns = [...stream.partialTurns, turnId].slice(-16);
           this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original_partial", text });
         },
         original: (turnId, text) => {
           const turn = lane.turns.get(turnId);
           if (!turn || lane.closed) return;
           turn.original = text;
-          this.toListeners(lane, "stream:out:text", { turnId, kind: "original", text });
+          if (turn.announced) this.toListeners(lane, "stream:out:text", { turnId, kind: "original", text });
+          else turn.pendingOriginal = text;
           // 되돌린 자막이면 말한 사람에게는 받아쓰기 완성본 대신 되돌린 글을 보낸다 (onTurnEnd)
           if (lane.primary && this.options.mineCaption === "transcript") this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text });
         },
@@ -471,8 +483,21 @@ export class StreamHub {
 
   /** 이 스트림의 조각을 메아리로 봐야 하는가 */
   private isEchoing(stream: Stream): boolean {
-    if (stream.group) return this.roomPlaying(stream.sessionId);
+    if (stream.group) {
+      if (!this.roomPlaying(stream.sessionId)) return false;
+      // 재생 중인 통역이 모두 이 사람 말이면 이어 말하는 것은 버리지 않는다 (2026-10-29 실기기: 긴 지시의 앞부분 통역이 재생되는 동안
+      // 말한 사람 본인의 이어지는 말까지 버려 지시가 조각나고 중간이 사라졌다). 다른 사람 말의 통역이 재생 중이면 그대로 버린다
+      const speakers = this.floor.get(stream.sessionId);
+      return !(speakers?.size === 1 && speakers.has(stream.speakerId));
+    }
     return this.devicePlaying(stream);
+  }
+
+  /** 현장 전체 연결의 통역 턴 시작: 방이 조용했으면 차례를 새로 시작하고, 아니면 이 말한 사람을 더한다 */
+  private takeFloor(stream: Stream): void {
+    const speakers = this.roomPlaying(stream.sessionId) ? this.floor.get(stream.sessionId) ?? new Set<string>() : new Set<string>();
+    speakers.add(stream.speakerId);
+    this.floor.set(stream.sessionId, speakers);
   }
 
   /** 이 사람의 단말이 재생 중인가: 앱 신호가 있으면 그것(재생 중 또는 꼬리), 없으면 서버 추정 */
@@ -565,6 +590,7 @@ export class StreamHub {
     const stream = lane.stream;
     if (!lane.relayTurn) {
       lane.relayTurn = { id: randomUUID(), seq: 0 };
+      if (stream.group) this.takeFloor(stream);
       for (const userId of lane.listenerIds) {
         this.playbackStarted(userId, lane.relayTurn.id);
         this.emit.toUser(userId, "stream:out:start", {
@@ -610,27 +636,53 @@ export class StreamHub {
     lane.pendingBytes = 0;
     const span = { start: lane.cutPos, end: lane.stream.position };
     lane.cutPos = span.end;
-    lane.turns.set(turnId, { id: turnId, seq: 0, output: [], input, translation: "", original: null, startedAt: Date.now(), firstAudioAt: null, span });
+    lane.turns.set(turnId, {
+      id: turnId,
+      seq: 0,
+      output: [],
+      input,
+      translation: "",
+      original: null,
+      startedAt: Date.now(),
+      firstAudioAt: null,
+      span,
+      announced: false,
+      pendingOriginal: null,
+    });
     if (lane.primary && this.options.mineCaption === "back") {
       // 통역이 끝나면 곧 되돌린다 — 연결 맺는 시간(약 1.1초)을 통역과 겹치게 미리 연다
       this.ctx.translator?.warm?.();
       this.openSlot(lane.stream, turnId, span);
     }
+  }
+
+  /**
+   * 듣는 사람에게 턴 시작을 알린다 — 첫 통역 출력(음성·글자)이 올 때 (2026-10-29).
+   * 엔진은 원문에 말이 있다고 판단할 때까지 출력을 붙잡아 두므로, 말이 없어 버린 턴(EMPTY)은 듣는 사람에게 아예 보이지 않는다
+   * (전에는 턴 시작을 바로 알려, 잡음·메아리 차단으로 끊긴 조각마다 듣는 사람 화면에 "통역 실패"가 떴다 — 10-29 시드니 30시간 실패 76건 모두 EMPTY)
+   */
+  private announce(lane: Lane, turn: TurnState): void {
+    if (turn.announced) return;
+    turn.announced = true;
+    if (lane.stream.group) this.takeFloor(lane.stream);
     for (const userId of lane.listenerIds) {
-      this.playbackStarted(userId, turnId);
+      this.playbackStarted(userId, turn.id);
       this.emit.toUser(userId, "stream:out:start", {
         sessionId: lane.stream.sessionId,
-        turnId,
+        turnId: turn.id,
         fromUserId: lane.stream.speakerId,
         lang: lane.targetLang,
         sampleRate: this.engine!.sampleRate,
       });
     }
+    if (turn.pendingOriginal !== null) this.toListeners(lane, "stream:out:text", { turnId: turn.id, kind: "original", text: turn.pendingOriginal });
+    turn.pendingOriginal = null;
   }
 
   private onAudio(lane: Lane, turnId: string, pcm: Buffer): void {
     const turn = lane.turns.get(turnId);
     if (!turn || lane.closed) return;
+    this.announce(lane, turn);
     turn.firstAudioAt ??= Date.now();
     turn.output.push(pcm);
     this.toListeners(lane, "stream:out:audio", { turnId, seq: turn.seq++, pcm });
@@ -641,12 +693,15 @@ export class StreamHub {
     const turn = lane.turns.get(turnId);
     lane.turns.delete(turnId);
     if (!turn || lane.closed) {
-      if (turn) this.endTurn(lane, turnId, "failed", null);
+      if (turn) this.endTurn(lane, turnId, "failed", null, turn.announced);
       return;
     }
     if (result.status === "failed") {
       this.ctx.logger.warn({ sessionId: stream.sessionId, turnId, code: result.code }, "스트리밍 턴 실패");
-      this.endTurn(lane, turnId, "failed", null);
+      // 말이 없어 버린 턴은 실패로 보이지 않게 조용히 닫는다 (듣는 사람은 시작도 못 받았다). 다른 실패는 그대로 "통역 실패"
+      if (result.code === "EMPTY" && !turn.announced) return this.dropTurn(lane, turnId);
+      this.announce(lane, turn);
+      this.endTurn(lane, turnId, "failed", null, true);
       return;
     }
     // 되돌린 자막 (mineCaption=back): 대표 레인은 자기 자리의 글을, 다른 레인은 비어 있는 같은 말 자리를 먼저 채운다
@@ -681,7 +736,8 @@ export class StreamHub {
       this.ctx.logger.error({ err: error, sessionId: stream.sessionId, turnId }, "스트리밍 턴 기록 실패");
     }
     // 순서 중요: end(messageId) 를 먼저 보내고 기록 알림(message:new)을 보낸다 → 앱은 이미 들은 문장을 다시 재생하지 않는다
-    this.endTurn(lane, turnId, "done", saved?.messageId ?? null);
+    this.announce(lane, turn);
+    this.endTurn(lane, turnId, "done", saved?.messageId ?? null, true);
     // 듣는 사람 원문 자막도 되돌린 글로 바꾼다 (2026-10-29 사용자). 받아쓰기 원문은 이미 받았고, 되돌린 글이 오면 덮어쓴다
     void heard?.then((text) => {
       if (text && !stream.closed) this.toListeners(lane, "stream:out:text", { turnId, kind: "original", text });
@@ -774,11 +830,32 @@ export class StreamHub {
     }
   }
 
-  /** 통역 턴 끝: 듣는 사람(stream:out:end)과 말한 사람(stream:mine:end, 대표 레인만) 모두에게 */
-  private endTurn(lane: Lane, turnId: string, status: "done" | "failed", messageId: string | null): void {
-    for (const userId of lane.listenerIds) {
-      this.emit.toUser(userId, "stream:out:end", { turnId, status, messageId });
-      this.playbackEnded(userId, turnId);
+  /**
+   * 말이 없어 버린 턴(EMPTY, 시작을 알리기 전): 듣는 사람에게는 아무것도 보내지 않는다. 말한 사람은 받아쓰는 중 조각을 받은 턴만
+   * 빈 원문으로 닫는다 (조각을 못 받은 턴에 알림을 보내면 앱이 지금 말하는 중인 자막에 그 턴을 붙여 버린다 — myCaptions attach)
+   */
+  private dropTurn(lane: Lane, turnId: string): void {
+    const stream = lane.stream;
+    if (lane.primary && stream.partialTurns.includes(turnId)) {
+      this.emit.toUser(stream.speakerId, "stream:mine:text", { sessionId: stream.sessionId, turnId, kind: "original", text: "" });
+      this.emit.toUser(stream.speakerId, "stream:mine:end", { sessionId: stream.sessionId, turnId, status: "done" });
+    }
+    // 되돌린 자막 자리는 실패한 턴처럼 비운다
+    const slot = stream.slots.find((s) => s.turnId === turnId);
+    if (slot && !slot.claimed) {
+      slot.claimed = true;
+      slot.value = null;
+      slot.resolve(null);
+    }
+  }
+
+  /** 통역 턴 끝: 듣는 사람(stream:out:end, 시작을 알린 턴만)과 말한 사람(stream:mine:end, 대표 레인만) 모두에게 */
+  private endTurn(lane: Lane, turnId: string, status: "done" | "failed", messageId: string | null, announced: boolean): void {
+    if (announced) {
+      for (const userId of lane.listenerIds) {
+        this.emit.toUser(userId, "stream:out:end", { turnId, status, messageId });
+        this.playbackEnded(userId, turnId);
+      }
     }
     if (lane.primary) this.emit.toUser(lane.stream.speakerId, "stream:mine:end", { sessionId: lane.stream.sessionId, turnId, status });
     if (status === "failed" && lane.primary) {
@@ -797,7 +874,7 @@ export class StreamHub {
     const stream = lane.stream;
     if (lane.closed) return;
     lane.connection = null;
-    for (const turnId of lane.turns.keys()) this.endTurn(lane, turnId, "failed", null);
+    for (const [turnId, turn] of lane.turns) this.endTurn(lane, turnId, "failed", null, turn.announced);
     lane.turns.clear();
     if (reason === "budget") return this.fallback(stream, "BUDGET_EXCEEDED");
     const now = Date.now();
@@ -834,7 +911,7 @@ export class StreamHub {
     lane.connection?.close();
     lane.connection = null;
     // 듣는 사람·말한 사람 화면에 진행 중 턴이 남지 않게 닫는다
-    for (const turnId of lane.turns.keys()) this.endTurn(lane, turnId, "failed", null);
+    for (const [turnId, turn] of lane.turns) this.endTurn(lane, turnId, "failed", null, turn.announced);
     lane.turns.clear();
   }
 
@@ -858,6 +935,7 @@ export class StreamHub {
     );
     this.streams.delete(stream.id);
     for (const lane of stream.lanes.values()) this.closeLane(lane);
+    if (![...this.streams.values()].some((other) => other.sessionId === stream.sessionId)) this.floor.delete(stream.sessionId);
   }
 
   /** 통화가 끝나면 그 세션의 스트림을 모두 닫는다 (LiveSessionService.finish). 아직 등록 전인 열기도 막는다 */

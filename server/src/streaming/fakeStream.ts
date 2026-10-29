@@ -30,6 +30,8 @@ export type FakeStreamOptions = {
   failOpen?: (attempt: number) => boolean;
   /** n번째 턴에서 비용 한도 초과 */
   budgetOnTurn?: (turn: number) => boolean;
+  /** n번째 턴은 말이 없는 턴 (받아쓰기 조각 "음" 뒤 출력 없이 EMPTY 실패 — 실제 엔진이 원문에 말이 없어 버리는 턴) */
+  emptyTurn?: (turn: number) => boolean;
   /** 원문 전사 문장 */
   originalText?: (turn: number, lang: Lang, seconds: number) => string;
 };
@@ -143,6 +145,11 @@ class FakeConnection implements StreamConnection {
     }
     await sleep(options.firstChunkDelayMs ?? 50);
     if (this.dead) return;
+    if (options.emptyTurn?.(turn)) {
+      events.originalDelta(turnId, "음");
+      events.turnEnd(turnId, { status: "failed", code: "EMPTY" });
+      return;
+    }
 
     const original = options.originalText?.(turn, sourceLang, seconds) ?? `[음성 ${sourceLang}] ${seconds.toFixed(1)}s`;
     const translation = `[${targetLang}] ${original}`;
